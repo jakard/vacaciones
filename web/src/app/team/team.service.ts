@@ -1,17 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  collection,
-  collectionData,
-  Firestore,
-  query,
   Timestamp,
+  collection,
+  query,
   where,
-} from '@angular/fire/firestore';
-import { Functions, httpsCallable } from '@angular/fire/functions';
+} from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Observable, of, switchMap } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
+import { FirebaseService } from '../firebase/firebase.service';
+import { collectionData$ } from '../firebase/firebase.helpers';
 
 export interface TeamRow {
   id: string;
@@ -23,8 +23,7 @@ export interface TeamRow {
 
 @Injectable({ providedIn: 'root' })
 export class TeamService {
-  private readonly firestore = inject(Firestore);
-  private readonly functions = inject(Functions);
+  private readonly fb = inject(FirebaseService);
   private readonly authService = inject(AuthService);
 
   private readonly myTeams$: Observable<TeamRow[]> = toObservable(
@@ -33,10 +32,10 @@ export class TeamService {
     switchMap((u) => {
       if (!u) return of([] as TeamRow[]);
       const q = query(
-        collection(this.firestore, 'teams'),
+        collection(this.fb.firestore, 'teams'),
         where('memberUids', 'array-contains', u.uid),
       );
-      return collectionData(q, { idField: 'id' }) as Observable<TeamRow[]>;
+      return collectionData$<TeamRow>(q, 'id');
     }),
   );
 
@@ -44,7 +43,7 @@ export class TeamService {
 
   async createTeam(name: string): Promise<string> {
     const fn = httpsCallable<{ name: string }, { teamId: string }>(
-      this.functions,
+      this.fb.functions,
       'createTeam',
     );
     const result = await fn({ name });
@@ -55,7 +54,7 @@ export class TeamService {
     const fn = httpsCallable<
       { teamId: string },
       { teamId: string; alreadyMember: boolean }
-    >(this.functions, 'joinTeam');
+    >(this.fb.functions, 'joinTeam');
     const result = await fn({ teamId });
     return { alreadyMember: result.data.alreadyMember };
   }

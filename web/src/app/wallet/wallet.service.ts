@@ -1,17 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import {
+  Timestamp,
   collection,
-  collectionData,
   doc,
-  docData,
-  Firestore,
   limit,
   orderBy,
   query,
-  Timestamp,
   where,
-} from '@angular/fire/firestore';
+} from 'firebase/firestore';
 import { Observable } from 'rxjs';
+
+import { FirebaseService } from '../firebase/firebase.service';
+import { collectionData$, docData$ } from '../firebase/firebase.helpers';
 
 export type LedgerEntryType =
   | 'grant'
@@ -45,11 +45,11 @@ export interface LedgerEntryRow {
 
 @Injectable({ providedIn: 'root' })
 export class WalletService {
-  private readonly firestore = inject(Firestore);
+  private readonly fb = inject(FirebaseService);
 
   wallet(teamId: string, uid: string): Observable<WalletDoc | undefined> {
-    const ref = doc(this.firestore, `teams/${teamId}/wallets/${uid}`);
-    return docData(ref) as Observable<WalletDoc | undefined>;
+    const ref = doc(this.fb.firestore, `teams/${teamId}/wallets/${uid}`);
+    return docData$<WalletDoc>(ref);
   }
 
   recentEntries(
@@ -58,13 +58,11 @@ export class WalletService {
     max = 20,
   ): Observable<LedgerEntryRow[]> {
     const q = query(
-      collection(this.firestore, `teams/${teamId}/ledgerEntries`),
+      collection(this.fb.firestore, `teams/${teamId}/ledgerEntries`),
       where('uid', '==', uid),
       orderBy('createdAt', 'desc'),
       limit(max),
     );
-    return collectionData(q, { idField: 'id' }) as Observable<
-      LedgerEntryRow[]
-    >;
+    return collectionData$<LedgerEntryRow>(q, 'id');
   }
 }

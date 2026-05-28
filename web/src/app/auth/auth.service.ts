@@ -1,23 +1,22 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  Auth,
   GoogleAuthProvider,
+  User,
   signInWithPopup,
   signOut,
-  user,
-  User,
-} from '@angular/fire/auth';
-import { Functions, httpsCallable } from '@angular/fire/functions';
+} from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 import { environment } from '../../environments/environment';
+import { FirebaseService } from '../firebase/firebase.service';
+import { authUser$ } from '../firebase/firebase.helpers';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly auth = inject(Auth);
-  private readonly functions = inject(Functions);
+  private readonly fb = inject(FirebaseService);
 
-  readonly user = toSignal(user(this.auth), { initialValue: null });
+  readonly user = toSignal(authUser$(this.fb.auth), { initialValue: null });
 
   isSignedIn(): boolean {
     return this.user() !== null;
@@ -28,20 +27,20 @@ export class AuthService {
     if (environment.authDomainRestriction) {
       provider.setCustomParameters({ hd: environment.authDomainRestriction });
     }
-    const result = await signInWithPopup(this.auth, provider);
+    const result = await signInWithPopup(this.fb.auth, provider);
     await this.initUser();
     return result.user;
   }
 
   async signOut(): Promise<void> {
-    await signOut(this.auth);
+    await signOut(this.fb.auth);
   }
 
   private async initUser(): Promise<void> {
-    const initUser = httpsCallable<unknown, { initialized: boolean; uid: string }>(
-      this.functions,
+    const fn = httpsCallable<unknown, { initialized: boolean; uid: string }>(
+      this.fb.functions,
       'initUser',
     );
-    await initUser();
+    await fn();
   }
 }
