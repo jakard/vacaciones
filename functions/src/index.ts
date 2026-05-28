@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase-admin/app';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 
+import { CALLABLE_OPTS } from './options';
+
 initializeApp();
 
 setGlobalOptions({
@@ -9,7 +11,7 @@ setGlobalOptions({
   maxInstances: 10,
 });
 
-export const healthcheck = onCall((request) => {
+export const healthcheck = onCall(CALLABLE_OPTS, (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Sign in required.');
   }

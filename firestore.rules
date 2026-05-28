@@ -36,8 +36,10 @@ service cloud.firestore {
 
     // ===== Teams =====
     match /teams/{teamId} {
-      allow read: if isTeamMember(teamId);
-      // Create/update only via Functions
+      // Use resource.data directly — required for `array-contains` queries
+      // to pass static analysis on the rule.
+      allow read: if isSignedIn()
+        && request.auth.uid in resource.data.memberUids;
       allow write: if false;
 
       match /members/{uid} {

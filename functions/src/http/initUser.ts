@@ -1,12 +1,15 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
+import { CALLABLE_OPTS } from '../options';
+
 interface InitUserResult {
   initialized: boolean;
   uid: string;
 }
 
 export const initUser = onCall<unknown, Promise<InitUserResult>>(
+  CALLABLE_OPTS,
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');

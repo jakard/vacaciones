@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
+import { CALLABLE_OPTS } from '../options';
 import { recordLedgerEntry } from '../services/wallet';
 
 const AcceptSchema = z.object({
@@ -15,6 +16,7 @@ interface AcceptResult {
 }
 
 export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
+  CALLABLE_OPTS,
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');

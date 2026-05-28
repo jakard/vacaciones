@@ -3,6 +3,8 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { computeCoverageCost } from '../_shared';
 
+import { CALLABLE_OPTS } from '../options';
+
 const REACHABILITY = [
   'unreachable',
   'email-only-emergencies',
@@ -28,7 +30,7 @@ interface CreateCoverageRequestResult {
 export const createCoverageRequest = onCall<
   unknown,
   Promise<CreateCoverageRequestResult>
->(async (request) => {
+>(CALLABLE_OPTS, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Sign in required.');
   }

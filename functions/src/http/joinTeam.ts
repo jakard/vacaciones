@@ -3,6 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { ECONOMY } from '../_shared';
 
+import { CALLABLE_OPTS } from '../options';
 import { recordLedgerEntry } from '../services/wallet';
 
 const JoinTeamSchema = z.object({
@@ -15,6 +16,7 @@ interface JoinTeamResult {
 }
 
 export const joinTeam = onCall<unknown, Promise<JoinTeamResult>>(
+  CALLABLE_OPTS,
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
