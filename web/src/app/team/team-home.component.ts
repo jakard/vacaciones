@@ -7,6 +7,7 @@ import { computeCoverageCost, ECONOMY } from '@vacaciones/shared';
 
 import { AuthService } from '../auth/auth.service';
 import {
+  CoverageRequestRow,
   CoverageService,
   Reachability,
 } from '../coverage/coverage.service';
@@ -311,14 +312,18 @@ export class TeamHomeComponent {
   readonly reachabilityOptions = REACHABILITY_OPTIONS;
   readonly weekendMultiplier = ECONOMY.WEEKEND_MULTIPLIER;
 
-  readonly openRequests = toSignal(
-    toObservable(this.teamId).pipe(
-      switchMap((id) =>
-        id ? this.coverageService.openRequestsForTeam(id) : of([]),
+  readonly openRequests: ReturnType<typeof toSignal<CoverageRequestRow[], CoverageRequestRow[]>>;
+
+  constructor() {
+    this.openRequests = toSignal(
+      toObservable(this.teamId).pipe(
+        switchMap((id) =>
+          id ? this.coverageService.openRequestsForTeam(id) : of([]),
+        ),
       ),
-    ),
-    { initialValue: [] },
-  );
+      { initialValue: [] },
+    );
+  }
 
   readonly formStartDate = signal('');
   readonly formEndDate = signal('');

@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Signal, inject } from '@angular/core';
 import {
   GoogleAuthProvider,
   User,
@@ -15,8 +15,11 @@ import { authUser$ } from '../firebase/firebase.helpers';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly fb = inject(FirebaseService);
+  readonly user: Signal<User | null>;
 
-  readonly user = toSignal(authUser$(this.fb.auth), { initialValue: null });
+  constructor() {
+    this.user = toSignal(authUser$(this.fb.auth), { initialValue: null });
+  }
 
   isSignedIn(): boolean {
     return this.user() !== null;

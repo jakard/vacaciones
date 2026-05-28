@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Signal, inject } from '@angular/core';
 import {
   Timestamp,
   collection,
@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { Observable, of, switchMap } from 'rxjs';
+import { of, switchMap } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -26,20 +26,21 @@ export class TeamService {
   private readonly fb = inject(FirebaseService);
   private readonly authService = inject(AuthService);
 
-  private readonly myTeams$: Observable<TeamRow[]> = toObservable(
-    this.authService.user,
-  ).pipe(
-    switchMap((u) => {
-      if (!u) return of([] as TeamRow[]);
-      const q = query(
-        collection(this.fb.firestore, 'teams'),
-        where('memberUids', 'array-contains', u.uid),
-      );
-      return collectionData$<TeamRow>(q, 'id');
-    }),
-  );
+  readonly myTeams: Signal<TeamRow[]>;
 
-  readonly myTeams = toSignal(this.myTeams$, { initialValue: [] });
+  constructor() {
+    const myTeams$ = toObservable(this.authService.user).pipe(
+      switchMap((u) => {
+        if (!u) return of([] as TeamRow[]);
+        const q = query(
+          collection(this.fb.firestore, 'teams'),
+          where('memberUids', 'array-contains', u.uid),
+        );
+        return collectionData$<TeamRow>(q, 'id');
+      }),
+    );
+    this.myTeams = toSignal(myTeams$, { initialValue: [] });
+  }
 
   async createTeam(name: string): Promise<string> {
     const fn = httpsCallable<{ name: string }, { teamId: string }>(

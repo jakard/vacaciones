@@ -5,7 +5,9 @@ import { of, switchMap } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
 import {
+  LedgerEntryRow,
   LedgerEntryType,
+  WalletDoc,
   WalletService,
 } from './wallet.service';
 
@@ -107,22 +109,27 @@ export class WalletComponent {
     uid: this.uid(),
   }));
 
-  readonly wallet = toSignal(
-    toObservable(this.teamUid).pipe(
-      switchMap(({ teamId, uid }) =>
-        uid ? this.walletService.wallet(teamId, uid) : of(undefined),
-      ),
-    ),
-  );
+  readonly wallet: ReturnType<typeof toSignal<WalletDoc | undefined>>;
+  readonly entries: ReturnType<typeof toSignal<LedgerEntryRow[], LedgerEntryRow[]>>;
 
-  readonly entries = toSignal(
-    toObservable(this.teamUid).pipe(
-      switchMap(({ teamId, uid }) =>
-        uid ? this.walletService.recentEntries(teamId, uid) : of([]),
+  constructor() {
+    this.wallet = toSignal(
+      toObservable(this.teamUid).pipe(
+        switchMap(({ teamId, uid }) =>
+          uid ? this.walletService.wallet(teamId, uid) : of(undefined),
+        ),
       ),
-    ),
-    { initialValue: [] },
-  );
+    );
+
+    this.entries = toSignal(
+      toObservable(this.teamUid).pipe(
+        switchMap(({ teamId, uid }) =>
+          uid ? this.walletService.recentEntries(teamId, uid) : of([]),
+        ),
+      ),
+      { initialValue: [] },
+    );
+  }
 
   labelFor(t: LedgerEntryType): string {
     return TYPE_LABELS[t] ?? t;
