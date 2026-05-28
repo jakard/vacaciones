@@ -19,3 +19,5 @@ export const healthcheck = onCall((request) => {
     uid: request.auth.uid,
   };
 });
+
+export { initUser } from './http/initUser';

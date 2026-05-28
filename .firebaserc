@@ -1,7 +1,5 @@
 {
   "projects": {
-    "default": "vacaciones-dev",
-    "staging": "vacaciones-staging",
-    "production": "vacaciones-prod"
+    "default": "vacaciones-dev-b3158"
   }
 }
