@@ -6,7 +6,7 @@ import {
   Timestamp,
   getFirestore,
 } from 'firebase-admin/firestore';
-import { ECONOMY } from '@vacaciones/shared';
+import { ECONOMY } from '../_shared';
 
 import { recordLedgerEntry } from '../services/wallet';
 

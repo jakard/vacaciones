@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
-import { computeCoverageCost } from '@vacaciones/shared';
+import { computeCoverageCost } from '../_shared';
 
 const REACHABILITY = [
   'unreachable',

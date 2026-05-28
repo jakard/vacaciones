@@ -3,7 +3,7 @@ import {
   Firestore,
   Transaction,
 } from 'firebase-admin/firestore';
-import type { LedgerBucket, LedgerEntryType } from '@vacaciones/shared';
+import type { LedgerBucket, LedgerEntryType } from '../_shared';
 
 export interface RecordLedgerEntryArgs {
   tx: Transaction;

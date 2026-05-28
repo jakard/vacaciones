@@ -1,7 +1,7 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { Firestore, getFirestore } from 'firebase-admin/firestore';
-import { ECONOMY } from '@vacaciones/shared';
+import { ECONOMY } from '../_shared';
 
 import { recordLedgerEntry } from '../services/wallet';
 

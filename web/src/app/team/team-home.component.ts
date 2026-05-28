@@ -28,39 +28,58 @@ const REACHABILITY_OPTIONS: { value: Reachability; label: string }[] = [
     @let team = teams.find(t => t.id === teamId());
     @if (!team) {
       <main class="empty">
-        <p>Team not found, or you are not a member.</p>
-        <a routerLink="/">Back home</a>
+        <div class="card">
+          <h2>Team not found</h2>
+          <p>You may not be a member, or the team ID is invalid.</p>
+          <a routerLink="/" class="link">← Back to your teams</a>
+        </div>
       </main>
     } @else {
       <main class="team-home">
-        <header>
-          <a routerLink="/" class="back">← Back</a>
-          <h1>{{ team.name }}</h1>
-          <code class="team-id" title="Share to invite">{{ team.id }}</code>
+        <nav class="breadcrumb">
+          <a routerLink="/">Teams</a>
+          <span class="sep">/</span>
+          <span class="current">{{ team.name }}</span>
+        </nav>
+
+        <header class="team-header">
+          <div>
+            <h1>{{ team.name }}</h1>
+            <small>
+              {{ team.memberUids.length }} member{{ team.memberUids.length === 1 ? '' : 's' }} ·
+              ID: <code>{{ team.id }}</code>
+            </small>
+          </div>
         </header>
 
         <app-wallet [teamId]="teamId()" />
 
         <section>
-          <h2>Open coverage requests</h2>
+          <div class="section-head">
+            <h2>Open coverage requests</h2>
+          </div>
           @let reqs = openRequests();
           @if (reqs.length === 0) {
-            <p class="muted">No open requests in this team yet.</p>
+            <div class="empty-inline">
+              <p>No open requests in this team yet.</p>
+              <small>Post one below — your teammates earn coins by covering you.</small>
+            </div>
           } @else {
-            <ul>
+            <ul class="requests">
               @for (r of reqs; track r.id) {
                 <li>
                   <div class="dates">
                     <strong>{{ formatDate(r.windowStart.toDate()) }} → {{ formatDate(r.windowEnd.toDate()) }}</strong>
-                    <small>{{ r.timezone }} · {{ r.reachability }}</small>
+                    <small>{{ r.timezone }} · {{ reachabilityLabel(r.reachability) }}</small>
                   </div>
+                  <div class="sla" title="{{ r.sla }}">{{ r.sla }}</div>
                   <div class="price">
                     <strong>{{ r.totalCoinsOffered }}</strong>
                     <small>coins</small>
                   </div>
                   @if (r.requesterUid !== currentUid()) {
                     <button type="button"
-                      class="accept"
+                      class="accept primary"
                       [disabled]="acceptBusy() === r.id"
                       (click)="accept(r.id)">
                       @if (acceptBusy() === r.id) {
@@ -79,8 +98,11 @@ const REACHABILITY_OPTIONS: { value: Reachability; label: string }[] = [
         </section>
 
         <section class="create">
-          <h2>Post a new coverage request</h2>
-          <div class="form">
+          <div class="section-head">
+            <h2>Post a coverage request</h2>
+            <small>{{ weekendMultiplier }}x multiplier on Saturdays and Sundays</small>
+          </div>
+          <div class="form-grid">
             <label>
               <span>Window start (date)</span>
               <input type="date" [(ngModel)]="formStartDate" />
@@ -103,7 +125,7 @@ const REACHABILITY_OPTIONS: { value: Reachability; label: string }[] = [
             </label>
             <label class="wide">
               <span>SLA the coverer should hold</span>
-              <input type="text" [(ngModel)]="formSla" placeholder="P1 within 2h, P2 next business day" />
+              <input type="text" [(ngModel)]="formSla" placeholder="e.g. P1 within 2h, P2 next business day" />
             </label>
             <label class="wide">
               <span>Emergency definition (optional)</span>
@@ -112,78 +134,170 @@ const REACHABILITY_OPTIONS: { value: Reachability; label: string }[] = [
             </label>
           </div>
 
-          <div class="preview">
-            @let cost = costPreview();
-            @if (cost.days > 0) {
-              <p>
-                <strong>{{ cost.totalCoins }}</strong> coins
-                · {{ cost.days }} day{{ cost.days === 1 ? '' : 's' }}
-                ({{ cost.weekdays }} weekday, {{ cost.weekendDays }} weekend
-                at {{ weekendMultiplier }}x)
-              </p>
-            } @else {
-              <p class="muted">Pick a window to see the cost.</p>
-            }
+          <div class="preview-row">
+            <div class="preview">
+              @let cost = costPreview();
+              @if (cost.days > 0) {
+                <div class="cost">
+                  <strong>{{ cost.totalCoins }}</strong>
+                  <span>coins</span>
+                </div>
+                <small>
+                  {{ cost.days }} day{{ cost.days === 1 ? '' : 's' }}
+                  · {{ cost.weekdays }} weekday, {{ cost.weekendDays }} weekend
+                </small>
+              } @else {
+                <small class="muted">Pick a window to preview the cost.</small>
+              }
+            </div>
+            <button type="button"
+              class="primary large"
+              [disabled]="busy() || !canSubmit()"
+              (click)="submit()">
+              @if (busy()) { Posting… } @else { Post request }
+            </button>
           </div>
 
-          <button type="button"
-            [disabled]="busy() || !canSubmit()"
-            (click)="submit()">
-            @if (busy()) { Posting… } @else { Post request }
-          </button>
-
-          @if (message()) { <p class="message" role="status">{{ message() }}</p> }
-          @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+          @if (message()) { <p class="toast success" role="status">{{ message() }}</p> }
+          @if (error()) { <p class="toast error" role="alert">{{ error() }}</p> }
         </section>
       </main>
     }
   `,
   styles: `
-    main { padding: 2rem; max-width: 960px; margin: 0 auto; }
-    .empty { text-align: center; }
-    header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
-    .back { color: #1a73e8; text-decoration: none; }
-    h1 { margin: 0; font-size: 1.5rem; flex: 1; }
-    .team-id { background: #f4f4f4; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.85rem; }
-    section { margin: 1.5rem 0; }
-    h2 { font-size: 1.1rem; margin: 0 0 0.6rem; }
-    .muted { color: #888; }
-    ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    li {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.7rem 1rem; border: 1px solid #eee; border-radius: 4px;
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+    .empty { padding: 4rem 1rem; display: flex; justify-content: center; }
+    .empty .card {
+      max-width: 400px; text-align: center;
+      padding: 2rem; background: var(--color-surface);
+      border: 1px solid var(--color-border); border-radius: var(--radius);
     }
-    .dates strong { display: block; }
-    .dates small { color: #666; }
+    .breadcrumb {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.85rem; color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    .sep { opacity: 0.5; }
+    .current { color: var(--color-text); }
+
+    .team-header {
+      margin-bottom: 1.5rem;
+    }
+    .team-header h1 { margin: 0; font-size: 1.6rem; }
+    .team-header small { color: var(--color-muted); }
+    .team-header code {
+      background: var(--color-bg);
+      padding: 0.15rem 0.4rem; border-radius: 3px;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.78rem;
+    }
+
+    section { margin-bottom: 2rem; }
+    .section-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 1rem;
+      margin-bottom: 0.7rem;
+    }
+    .section-head h2 { font-size: 1.05rem; margin: 0; }
+    .section-head small { color: var(--color-muted); font-size: 0.8rem; }
+
+    .empty-inline {
+      padding: 1.2rem;
+      background: var(--color-surface);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+    .empty-inline p { margin: 0 0 0.2rem; }
+    .empty-inline small { color: var(--color-muted); }
+
+    .requests { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+    .requests li {
+      display: grid;
+      grid-template-columns: 2fr 2fr auto auto;
+      align-items: center; gap: 1rem;
+      padding: 0.9rem 1.1rem;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+    .dates strong { display: block; font-weight: 500; }
+    .dates small { color: var(--color-muted); }
+    .sla {
+      color: var(--color-text-soft);
+      font-size: 0.875rem;
+      overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .price { text-align: right; }
-    .price strong { font-size: 1.2rem; color: #1a73e8; }
-    .price small { display: block; color: #666; }
+    .price strong { font-size: 1.2rem; color: var(--color-primary); }
+    .price small { display: block; color: var(--color-muted); font-size: 0.75rem; }
+
     .accept {
-      padding: 0.4rem 0.9rem;
-      border-radius: 4px;
-      border: 1px solid #1a73e8;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+    }
+    .own { color: var(--color-muted); font-size: 0.85rem; }
+
+    .create { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.25rem; }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem; margin-bottom: 1rem;
+    }
+    .form-grid label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--color-text-soft); }
+    .form-grid label.wide { grid-column: 1 / -1; }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
       background: white;
-      color: #1a73e8;
-      cursor: pointer;
     }
-    .accept[disabled] { opacity: 0.5; cursor: wait; }
-    .own { color: #999; font-size: 0.85rem; }
-    .form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; margin-bottom: 1rem; }
-    .form label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
-    .form label.wide { grid-column: 1 / -1; }
-    .form input, .form select, .form textarea {
-      padding: 0.45rem; border: 1px solid #ccc; border-radius: 3px;
-      font-family: inherit; font-size: 1rem;
+    .form-grid input:focus, .form-grid select:focus, .form-grid textarea:focus {
+      outline: none; border-color: var(--color-primary);
     }
-    .preview { padding: 0.7rem 1rem; background: #f6f9ff; border-radius: 4px; margin-bottom: 1rem; }
-    .preview p { margin: 0; }
-    button {
-      padding: 0.6rem 1.3rem; cursor: pointer; border-radius: 4px;
-      border: 1px solid #1a73e8; background: #1a73e8; color: white;
+
+    .preview-row {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 0.8rem;
     }
-    button[disabled] { opacity: 0.5; cursor: not-allowed; }
-    .message { color: #1a73e8; }
-    .error { color: #b00020; }
+    .preview {
+      flex: 1; padding: 0.8rem 1rem;
+      background: var(--color-primary-soft);
+      border-radius: var(--radius-sm);
+    }
+    .preview .cost { display: flex; align-items: baseline; gap: 0.4rem; }
+    .preview .cost strong { font-size: 1.4rem; color: var(--color-primary); }
+    .preview .cost span { color: var(--color-text-soft); font-size: 0.875rem; }
+    .preview small { color: var(--color-muted); display: block; }
+    .preview small.muted { color: var(--color-muted); }
+
+    button.primary {
+      padding: 0.55rem 1.1rem;
+      background: var(--color-primary);
+      color: white;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-sm);
+    }
+    button.primary:hover:not([disabled]) { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+    button.primary[disabled] { opacity: 0.5; cursor: not-allowed; }
+    button.primary.large { padding: 0.75rem 1.5rem; font-size: 0.95rem; }
+
+    .toast {
+      padding: 0.7rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      margin: 0.8rem 0 0;
+    }
+    .toast.success { color: var(--color-success); background: var(--color-success-soft); }
+    .toast.error { color: var(--color-error); background: var(--color-error-soft); }
+
+    @media (max-width: 700px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .requests li { grid-template-columns: 1fr; }
+      .price { text-align: left; }
+    }
   `,
 })
 export class TeamHomeComponent {
@@ -234,6 +348,10 @@ export class TeamHomeComponent {
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
 
+  reachabilityLabel(value: string): string {
+    return REACHABILITY_OPTIONS.find((o) => o.value === value)?.label ?? value;
+  }
+
   async accept(requestId: string): Promise<void> {
     this.acceptBusy.set(requestId);
     this.message.set(null);
@@ -281,7 +399,7 @@ export class TeamHomeComponent {
         emergencyDef: this.formEmergencyDef().trim() || null,
       });
       this.message.set(
-        `Request posted for ${result.coinsOffered} coins (id: ${result.requestId}).`,
+        `Posted for ${result.coinsOffered} coins (id: ${result.requestId}).`,
       );
       this.formStartDate.set('');
       this.formEndDate.set('');

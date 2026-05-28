@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
-import { ECONOMY } from '@vacaciones/shared';
+import { ECONOMY } from '../_shared';
 
 import { recordLedgerEntry } from '../services/wallet';
 
