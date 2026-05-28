@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== Helpers =====
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isTeamMember(teamId) {
+      return isSignedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.memberUids;
+    }
+
+    function isManager(teamId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role == 'manager';
+    }
+
+    // ===== Users =====
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      // Writes only via Admin SDK (Cloud Functions on user create)
+      allow write: if false;
+
+      // Workspace tokens: NEVER accessible from clients (encrypted refresh tokens)
+      match /workspaceTokens/{provider} {
+        allow read, write: if false;
+      }
+    }
+
+    // ===== Teams =====
+    match /teams/{teamId} {
+      allow read: if isTeamMember(teamId);
+      // Create/update only via Functions
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if isTeamMember(teamId);
+        allow write: if false;
+      }
+
+      // Wallets: owner can read; never written from client
+      match /wallets/{uid} {
+        allow read: if isSelf(uid) || isManager(teamId);
+        allow write: if false;
+      }
+
+      // Ledger entries: owner reads own; manager reads all team entries
+      match /ledgerEntries/{entryId} {
+        allow read: if isSignedIn()
+          && (request.auth.uid == resource.data.uid || isManager(teamId));
+        allow write: if false;
+      }
+
+      // Coverage requests: team-wide read
+      match /coverageRequests/{requestId} {
+        allow read: if isTeamMember(teamId);
+        allow write: if false;
+
+        // Briefings + client cards live as subcollections
+        match /briefing/{briefingId} {
+          allow read: if isTeamMember(teamId);
+          allow write: if false;
+
+          match /clientCards/{cardId} {
+            allow read: if isTeamMember(teamId);
+            allow write: if false;
+          }
+        }
+      }
+
+      // Leaderboards: team-wide read
+      match /leaderboards/{leaderboardId} {
+        allow read: if isTeamMember(teamId);
+        allow write: if false;
+      }
+    }
+
+    // Default deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
