@@ -21,3 +21,9 @@ export const healthcheck = onCall((request) => {
 });
 
 export { initUser } from './http/initUser';
+export { createTeam } from './http/createTeam';
+export { joinTeam } from './http/joinTeam';
+export { createCoverageRequest } from './http/createCoverageRequest';
+export { acceptCoverageRequest } from './http/acceptCoverageRequest';
+export { dailyCoverageRelease } from './scheduled/dailyCoverageRelease';
+export { monthlyStipendMint } from './scheduled/monthlyStipendMint';
