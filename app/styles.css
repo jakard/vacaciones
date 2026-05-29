@@ -1677,6 +1677,71 @@ label {
 .sound-toggle.on { color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
 
 /* ============================================================
+   Avatar slot + picker
+   ============================================================ */
+
+.avatar-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.avatar-img {
+  display: inline-block;
+  box-shadow: 0 0 0 2px var(--brass);
+  image-rendering: pixelated;
+}
+.avatar-slot:hover .avatar-img { box-shadow: 0 0 0 2px var(--brass-bright), 0 0 0 4px var(--shadow-deep); }
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.avatar-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--sp-2);
+  background: var(--parchment-bright);
+  border: 0;
+  cursor: pointer;
+  box-shadow: inset 1px 1px 0 var(--parchment-dim), 0 0 0 1px var(--wood-dark);
+}
+.avatar-tile:hover { background: var(--brass); }
+.avatar-tile.selected {
+  background: var(--brass);
+  box-shadow:
+    inset 1px 1px 0 var(--brass-bright),
+    inset -1px -1px 0 var(--brass-deep),
+    0 0 0 2px var(--shadow-deep),
+    0 0 0 3px var(--brass);
+}
+.avatar-tile-art {
+  width: 56px;
+  height: 56px;
+  display: inline-block;
+  image-rendering: pixelated;
+}
+.avatar-tile-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: var(--ink-pure);
+  letter-spacing: 1px;
+}
+
+@media (max-width: 540px) {
+  .avatar-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ============================================================
    Stan onboarding
    ============================================================ */
 

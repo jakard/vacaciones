@@ -14,6 +14,9 @@
       { "source": "/api/acceptCoverageRequest", "function": { "functionId": "acceptCoverageRequest", "region": "us-central1" } },
       { "source": "/api/getLeaderboard", "function": { "functionId": "getLeaderboard", "region": "us-central1" } },
       { "source": "/api/sendScroll", "function": { "functionId": "sendScroll", "region": "us-central1" } },
+      { "source": "/api/setProfile", "function": { "functionId": "setProfile", "region": "us-central1" } },
+      { "source": "/api/cancelBounty", "function": { "functionId": "cancelBounty", "region": "us-central1" } },
+      { "source": "/api/updateTeam", "function": { "functionId": "updateTeam", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [

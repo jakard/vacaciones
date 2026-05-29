@@ -29,5 +29,8 @@ export { createCoverageRequest } from './http/createCoverageRequest';
 export { acceptCoverageRequest } from './http/acceptCoverageRequest';
 export { getLeaderboard } from './http/getLeaderboard';
 export { sendScroll } from './http/sendScroll';
+export { setProfile } from './http/setProfile';
+export { cancelBounty } from './http/cancelBounty';
+export { updateTeam } from './http/updateTeam';
 export { dailyCoverageRelease } from './scheduled/dailyCoverageRelease';
 export { monthlyStipendMint } from './scheduled/monthlyStipendMint';
