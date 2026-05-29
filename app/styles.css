@@ -2256,6 +2256,155 @@ label {
 .modal-scrim { padding: var(--sp-3); }
 
 /* ============================================================
+   Large displays — scale up on 1440 / 1920 / 2560+ (4K)
+   ============================================================ */
+
+@media (min-width: 1440px) {
+  :root {
+    --fs-hero: 40px;
+    --fs-h1: 18px;
+    --fs-h2: 14px;
+    --fs-button: 12px;
+    --fs-body-lg: 19px;
+    --fs-body: 17px;
+    --fs-meta: 14px;
+    --fs-coin: 22px;
+    --sp-3: 14px;
+    --sp-4: 20px;
+    --sp-5: 28px;
+    --sp-6: 40px;
+    --sp-7: 56px;
+  }
+  main { max-width: 1200px; padding: 36px 28px 64px; }
+  #header { padding: 12px 28px; height: 56px; }
+  .brand-logo { width: 36px; height: 36px; }
+  .user img { width: 36px; height: 36px; }
+  .login-title { font-size: 40px; letter-spacing: 5px; }
+  .login-tagline { font-size: 22px; }
+  .login-card { max-width: 480px; }
+  .login-card button.btn-google { padding: 16px 18px; }
+  .bucket strong { font-size: 28px; }
+  .bounty-doubloons strong { font-size: 30px; }
+  .rank-emblem { width: 72px; height: 72px; font-size: 42px; }
+  .rank-name { font-size: 16px; }
+  .empty-mascot { width: 112px; height: 112px; }
+  .mascot-sprite { width: 80px; height: 80px; }
+  .podium-emoji { font-size: 32px; }
+  .podium-avatar, .podium-avatar-fallback { width: 56px; height: 56px; }
+  .podium-score { font-size: 24px; }
+  .balances { gap: var(--sp-4); }
+  .form-grid { gap: var(--sp-3) var(--sp-5); }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --fs-hero: 48px;
+    --fs-h1: 20px;
+    --fs-h2: 16px;
+    --fs-button: 13px;
+    --fs-body-lg: 21px;
+    --fs-body: 18px;
+    --fs-meta: 15px;
+    --fs-coin: 24px;
+    --sp-3: 16px;
+    --sp-4: 22px;
+    --sp-5: 32px;
+    --sp-6: 48px;
+    --sp-7: 64px;
+  }
+  main { max-width: 1440px; padding: 44px 36px 80px; }
+  #header { padding: 14px 36px; height: 60px; }
+  .brand-logo { width: 40px; height: 40px; }
+  .brand-name { font-size: 18px; letter-spacing: 3px; }
+  .user img { width: 40px; height: 40px; }
+  .login-title { font-size: 48px; letter-spacing: 6px; }
+  .login-tagline { font-size: 26px; }
+  .login-card { max-width: 520px; }
+  .bucket strong { font-size: 32px; }
+  .bounty-doubloons strong { font-size: 32px; }
+  .rank-emblem { width: 84px; height: 84px; font-size: 48px; }
+  .rank-name { font-size: 18px; }
+  .empty-mascot { width: 128px; height: 128px; }
+  .mascot-sprite { width: 96px; height: 96px; }
+  .stan-portrait { width: 128px; height: 128px; }
+  .podium-emoji { font-size: 36px; }
+  .podium-avatar, .podium-avatar-fallback { width: 64px; height: 64px; }
+  .podium-score { font-size: 26px; }
+  .avatar-tile-art { width: 72px; height: 72px; }
+  .check-pixel { padding: 12px var(--sp-3); }
+  .team-card { padding: var(--sp-4) var(--sp-5); }
+  .team-main strong { font-size: 14px; }
+  .coin-pill { padding: 6px 14px; font-size: 22px; }
+}
+
+@media (min-width: 2560px) {
+  :root {
+    --fs-hero: 60px;
+    --fs-h1: 24px;
+    --fs-h2: 18px;
+    --fs-button: 14px;
+    --fs-body-lg: 24px;
+    --fs-body: 20px;
+    --fs-meta: 17px;
+    --fs-coin: 28px;
+    --sp-2: 12px;
+    --sp-3: 18px;
+    --sp-4: 26px;
+    --sp-5: 36px;
+    --sp-6: 56px;
+    --sp-7: 80px;
+  }
+  main { max-width: 1800px; padding: 56px 40px 100px; }
+  #header { padding: 18px 44px; height: 72px; }
+  .brand-logo { width: 48px; height: 48px; }
+  .brand-name { font-size: 22px; letter-spacing: 4px; }
+  .user img { width: 48px; height: 48px; }
+  .login-title { font-size: 64px; letter-spacing: 8px; }
+  .login-tagline { font-size: 30px; }
+  .login-card { max-width: 600px; }
+  .login-card button.btn-google { padding: 20px 24px; font-size: 16px; }
+  .bucket strong { font-size: 40px; }
+  .bounty-doubloons strong { font-size: 38px; }
+  .rank-emblem { width: 104px; height: 104px; font-size: 58px; }
+  .rank-name { font-size: 20px; }
+  .empty-mascot { width: 160px; height: 160px; }
+  .mascot-sprite { width: 128px; height: 128px; }
+  .stan-portrait { width: 160px; height: 160px; }
+  .podium-emoji { font-size: 44px; }
+  .podium-avatar, .podium-avatar-fallback { width: 80px; height: 80px; }
+  .podium-score { font-size: 30px; }
+  .avatar-tile-art { width: 96px; height: 96px; }
+  .check-pixel { padding: 14px var(--sp-3); }
+  .panel { padding: var(--sp-5); }
+  .team-card { padding: var(--sp-5) var(--sp-6); gap: var(--sp-4); }
+  .team-flag { width: 48px; height: 48px; }
+  .team-main strong { font-size: 18px; }
+  .coin-pill { padding: 8px 16px; font-size: 26px; }
+  .bounty { padding: var(--sp-4) var(--sp-5); gap: var(--sp-3) var(--sp-4); }
+}
+
+@media (min-width: 3200px) {
+  :root {
+    --fs-hero: 80px;
+    --fs-h1: 30px;
+    --fs-h2: 22px;
+    --fs-button: 17px;
+    --fs-body-lg: 28px;
+    --fs-body: 24px;
+    --fs-meta: 20px;
+    --fs-coin: 34px;
+  }
+  main { max-width: 2200px; padding: 72px 56px 120px; }
+  #header { height: 84px; }
+  .brand-logo { width: 56px; height: 56px; }
+  .user img { width: 56px; height: 56px; }
+  .login-title { font-size: 80px; letter-spacing: 10px; }
+  .rank-emblem { width: 128px; height: 128px; font-size: 72px; }
+  .bucket strong { font-size: 52px; }
+  .empty-mascot { width: 200px; height: 200px; }
+}
+
+/* ============================================================
    Reduced motion
    ============================================================ */
 
