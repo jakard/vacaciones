@@ -95,6 +95,13 @@ service cloud.firestore {
       match /private/{settingsId} {
         allow read, write: if false;
       }
+
+      // Audit log of manager admin actions. Managers can read their own
+      // crew's audit history; writes only via Admin SDK from callables.
+      match /auditLog/{entryId} {
+        allow read: if isManager(teamId);
+        allow write: if false;
+      }
     }
 
     // Default deny everything else

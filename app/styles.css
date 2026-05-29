@@ -1934,6 +1934,133 @@ label {
 }
 
 /* ============================================================
+   Search row (bounty board)
+   ============================================================ */
+.search-row {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  align-items: center;
+}
+.search-row input {
+  flex: 1;
+  padding: 8px var(--sp-3);
+}
+
+/* ============================================================
+   Members tab
+   ============================================================ */
+.member-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+.member-card {
+  display: grid;
+  grid-template-columns: 48px 1fr auto auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+  background: var(--parchment);
+  color: var(--ink-pure);
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    inset 2px 2px 0 var(--parchment-bright),
+    inset -2px -2px 0 var(--parchment-dim),
+    4px 4px 0 0 var(--shadow-deep);
+}
+.member-card.me { background: var(--moonbeam); }
+.member-main { display: flex; flex-direction: column; }
+.member-main strong {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+  color: var(--ink-pure);
+}
+.member-main small {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  color: var(--ink-faded);
+  font-size: var(--fs-meta);
+}
+.role-badge {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 3px 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -1px -1px 0 rgba(0,0,0,0.3);
+}
+.role-badge.manager { background: var(--brass); color: var(--ink-pure); }
+.role-badge.member { background: var(--parchment-dim); color: var(--ink-pure); }
+.member-stats { text-align: right; display: flex; flex-direction: column; }
+.member-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 18px;
+  color: var(--ink-pure);
+}
+.member-stats small { font-size: 11px; color: var(--ink-faded); }
+
+@media (max-width: 540px) {
+  .member-card { grid-template-columns: 40px 1fr; grid-template-rows: auto auto; gap: 8px; }
+  .role-badge { grid-column: 2; justify-self: start; }
+  .member-stats { grid-column: 1 / -1; text-align: left; flex-direction: row; gap: 8px; align-items: baseline; }
+}
+
+/* ============================================================
+   Scroll reactions
+   ============================================================ */
+.react-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.react-btn {
+  background: var(--parchment-bright);
+  color: var(--ink-pure);
+  font-size: 14px;
+  padding: 3px 8px;
+  border: 0;
+  box-shadow: inset 1px 1px 0 var(--parchment-bright), inset -1px -1px 0 var(--parchment-dim), 0 0 0 1px var(--wood-dark);
+  cursor: pointer;
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.react-btn:hover { background: var(--brass-bright); }
+.react-btn.mine {
+  background: var(--brass);
+  box-shadow: inset 1px 1px 0 var(--brass-bright), inset -1px -1px 0 var(--brass-deep), 0 0 0 1px var(--shadow-deep);
+}
+.react-count {
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   AI briefing section
+   ============================================================ */
+.ai-briefing {
+  background: linear-gradient(180deg, var(--voodoo-violet) 0%, #3a1e60 100%);
+  color: var(--cream);
+  border-left: 3px solid var(--brass);
+}
+.ai-briefing h4 { color: var(--brass-bright); }
+.ai-content {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-size: var(--fs-body);
+  color: var(--cream);
+  line-height: 1.5;
+}
+.ai-content strong { color: var(--brass-bright); }
+.ai-content br + br { margin-top: 8px; display: block; content: ''; }
+
+/* ============================================================
    Crew Settings tab
    ============================================================ */
 

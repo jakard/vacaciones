@@ -143,6 +143,11 @@ const callCancelBounty = httpsCallableFromURL(functions, callableURL('cancelBoun
 const callUpdateTeam = httpsCallableFromURL(functions, callableURL('updateTeam'));
 const callUpdateCrewSettings = httpsCallableFromURL(functions, callableURL('updateCrewSettings'));
 const callGetCrewSettings = httpsCallableFromURL(functions, callableURL('getCrewSettings'));
+const callTopUpGrant = httpsCallableFromURL(functions, callableURL('topUpOnboardingGrant'));
+const callGetCrewMembers = httpsCallableFromURL(functions, callableURL('getCrewMembers'));
+const callReactToScroll = httpsCallableFromURL(functions, callableURL('reactToScroll'));
+const callUpdateBountyDetails = httpsCallableFromURL(functions, callableURL('updateBountyDetails'));
+const callGenerateBriefing = httpsCallableFromURL(functions, callableURL('generateBriefing'));
 
 /* ============================================================
    Sound module (Web Audio chiptune SFX)
@@ -225,6 +230,10 @@ const state = {
     coverageMode: 'single',
   },
   claim: { bountyId: null, selectedDayKeys: [] },
+  crewMembers: [],
+  crewMembersLoading: false,
+  bountyFilterText: '',
+  briefingLoading: false,
   calendarEvents: [],
   calendarLoading: false,
   calendarError: null,
@@ -704,6 +713,7 @@ const AVATAR_LIST = ['m1', 'm2', 'm3', 'm4', 'm5', 'f1', 'f2', 'f3', 'f4', 'f5']
 
 function parseHash() {
   const h = location.hash || '#/';
+  if (h === '#/help') return { view: 'help' };
   if (h.startsWith('#/team/')) {
     const rest = h.slice('#/team/'.length);
     const [tid, sub] = rest.split('/');
@@ -712,6 +722,7 @@ function parseHash() {
     else if (sub === 'post') tab = 'post';
     else if (sub === 'wof') tab = 'wof';
     else if (sub === 'settings') tab = 'settings';
+    else if (sub === 'members') tab = 'members';
     return { view: 'team', teamId: decodeURIComponent(tid), tab };
   }
   if (h.startsWith('#/join/')) return { view: 'home', joinId: decodeURIComponent(h.slice('#/join/'.length)) };
@@ -760,6 +771,8 @@ function applyRoute() {
   if (state.view === 'team' && state.teamTab === 'wof') refreshLeaderboard();
   // Lazy load crew settings when settings tab opens (manager only)
   if (state.view === 'team' && state.teamTab === 'settings') refreshCrewSettings();
+  // Lazy load crew members when members tab opens
+  if (state.view === 'team' && state.teamTab === 'members') refreshCrewMembers();
 
   render();
 }
@@ -1380,6 +1393,112 @@ function confirmCancelBounty(bountyId) {
   });
 }
 
+function exportLedgerCsv() {
+  const entries = state.ledger || [];
+  if (entries.length === 0) {
+    showToast('Nothing to export.', 'info');
+    return;
+  }
+  const rows = [['Date','Type','Amount','Bucket','Related bounty']];
+  for (const e of entries) {
+    rows.push([
+      e.createdAt?.toDate?.()?.toISOString() || '',
+      e.type || '',
+      String(e.amountSigned ?? 0),
+      e.balanceBucket || '',
+      e.relatedRequestId || '',
+    ]);
+  }
+  const csv = rows.map((r) => r.map((cell) => {
+    const s = String(cell ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vacaciones-ledger-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  showToast(`Exported ${entries.length} ledger entries.`, 'success');
+}
+
+function showEditBountyModal(bountyId) {
+  const b = state.bounties.find((x) => x.id === bountyId);
+  if (!b) return;
+  const slaId = 'edit-sla-' + Math.random().toString(36).slice(2, 8);
+  const scopeId = 'edit-scope-' + Math.random().toString(36).slice(2, 8);
+  const emergId = 'edit-emerg-' + Math.random().toString(36).slice(2, 8);
+  const reachChecks = REACHABILITY_OPTIONS.map((r) => {
+    const checked = arr(b.reachability).includes(r.value);
+    return `<label class="check-pixel">
+      <input type="checkbox" name="r-${r.value}" value="${r.value}" ${checked ? 'checked' : ''}/>
+      <span class="check-box"></span>
+      <span class="check-label">${r.icon} ${esc(r.short)}</span>
+    </label>`;
+  }).join('');
+  const kindChecks = COVERAGE_KIND_OPTIONS.map((k) => {
+    const checked = arr(b.coverageKinds).includes(k.value);
+    return `<label class="check-pixel">
+      <input type="checkbox" name="k-${k.value}" value="${k.value}" ${checked ? 'checked' : ''}/>
+      <span class="check-box"></span>
+      <span class="check-label">${k.icon} ${esc(k.label)}</span>
+    </label>`;
+  }).join('');
+  const body = `
+    <div class="form-grid">
+      <label class="wide"><span>SLA</span><input id="${slaId}" type="text" value="${esc(b.sla || '')}" /></label>
+      <label class="wide"><span>Coverage scope</span><input id="${scopeId}" type="text" value="${esc(b.coverageScope || '')}" /></label>
+      <label class="wide"><span>Emergency definition</span><textarea id="${emergId}" rows="2">${esc(b.emergencyDef || '')}</textarea></label>
+      <div class="wide">
+        <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Reachability</span>
+        <div class="check-group">${reachChecks}</div>
+      </div>
+      <div class="wide">
+        <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Coverage kinds</span>
+        <div class="check-group">${kindChecks}</div>
+      </div>
+    </div>
+    <p class="muted" style="font-size: var(--fs-meta); margin: 8px 0 0;">Dates + selected days are locked to keep the escrow contract intact.</p>
+  `;
+  showModal({
+    title: 'EDIT BOUNTY',
+    body,
+    wide: true,
+    primaryLabel: 'Save',
+    secondaryLabel: 'Cancel',
+    onPrimary: () => {
+      const sla = document.getElementById(slaId)?.value?.trim() ?? '';
+      const scope = document.getElementById(scopeId)?.value?.trim() ?? '';
+      const emerg = document.getElementById(emergId)?.value?.trim() ?? '';
+      const reachability = REACHABILITY_OPTIONS
+        .filter((r) => document.querySelector(`input[name="r-${r.value}"]`)?.checked)
+        .map((r) => r.value);
+      const coverageKinds = COVERAGE_KIND_OPTIONS
+        .filter((k) => document.querySelector(`input[name="k-${k.value}"]`)?.checked)
+        .map((k) => k.value);
+      if (reachability.length === 0) {
+        showToast('Pick at least one reachability option.', 'error');
+        return false;
+      }
+      (async () => {
+        try {
+          await callUpdateBountyDetails({
+            teamId: state.teamId,
+            requestId: bountyId,
+            sla, coverageScope: scope || null,
+            emergencyDef: emerg || null,
+            reachability,
+            coverageKinds,
+          });
+          showToast('Bounty updated.', 'success');
+        } catch (err) { showToast(err.message, 'error', 6000); }
+      })();
+    },
+  });
+}
+
 function showSendScrollModal(toUid, toName, bountyId) {
   if (!toUid || toUid === state.user?.uid) {
     showToast('You cannot send a scroll to yourself.', 'error');
@@ -1443,6 +1562,63 @@ async function refreshCrewSettings() {
     console.error('crew settings fetch failed', err);
     showToast(`Could not load settings: ${err.message}`, 'error', 5000);
   } finally { state.crewSettingsLoading = false; render(); }
+}
+
+async function refreshCrewMembers() {
+  if (!state.teamId || state.crewMembersLoading) return;
+  state.crewMembersLoading = true; render();
+  try {
+    const result = await callGetCrewMembers({ teamId: state.teamId });
+    state.crewMembers = result.data.members;
+  } catch (err) {
+    console.error('crew members fetch failed', err);
+    showToast(`Could not load the crew: ${err.message}`, 'error', 5000);
+  } finally { state.crewMembersLoading = false; render(); }
+}
+
+async function topUpGrantAction() {
+  showModal({
+    title: 'TOP UP STARTER CHEST?',
+    body: `<p>This will credit each crewmate who received the old 20-doubloon grant with the missing <strong>105 doubloons</strong> so everyone hits the new 125 starting balance. It runs once per crewmate (idempotent).</p>`,
+    primaryLabel: 'Aye, top up',
+    secondaryLabel: 'Cancel',
+    onPrimary: async () => {
+      try {
+        const result = await callTopUpGrant({ teamId: state.teamId });
+        if (result.data.toppedUpCount === 0) {
+          showToast('Everyone is already at the new grant.', 'info');
+        } else {
+          showToast(`Topped up ${result.data.toppedUpCount} crewmate${result.data.toppedUpCount === 1 ? '' : 's'} (+${result.data.perUser} each).`, 'success');
+          audio.coin();
+        }
+      } catch (err) {
+        showToast(err.message, 'error', 6000);
+      }
+    },
+  });
+}
+
+async function generateBriefingAction(bountyId) {
+  if (state.briefingLoading) return;
+  state.briefingLoading = true; render();
+  try {
+    const result = await callGenerateBriefing({ teamId: state.teamId, requestId: bountyId });
+    showToast('✨ Briefing generated.', 'success', 4000);
+    audio.rank();
+    // Reload bounty detail modal
+    showBountyDetail(bountyId);
+  } catch (err) {
+    showToast(`Briefing failed: ${err.message}`, 'error', 7000);
+  } finally { state.briefingLoading = false; render(); }
+}
+
+async function reactToScrollAction(scrollId, emoji) {
+  try {
+    await callReactToScroll({ teamId: state.teamId, scrollId, emoji });
+    audio.click();
+  } catch (err) {
+    showToast(err.message, 'error', 5000);
+  }
 }
 
 async function saveCrewSettings(updates) {
@@ -1660,6 +1836,21 @@ function showBountyDetail(bountyId) {
         <p class="bd-value" style="margin: 0;">${esc(b.emergencyDef)}</p>
       </div>` : ''}
 
+    ${b.aiBriefing ? `
+      <div class="bd-section ai-briefing">
+        <h4>✨ AI briefing</h4>
+        <div class="ai-content">${esc(b.aiBriefing.content || '').replace(/\n/g, '<br>')}</div>
+        <small class="muted" style="display: block; margin-top: 8px;">Generated by Gemini · ${esc(timeAgo(new Date(b.aiBriefing.generatedAtMs || 0)))}</small>
+      </div>` : ''}
+    ${mine && (b.status === 'open' || b.status === 'accepted' || b.status === 'active') ? `
+      <div style="margin-top: var(--sp-3); display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" data-action="gen-briefing" data-bounty-id="${esc(b.id)}" ${state.briefingLoading ? 'disabled' : ''}>
+          ${state.briefingLoading ? 'Generating…' : (b.aiBriefing ? '✨ Regenerate briefing' : '✨ Generate AI briefing')}
+        </button>
+        ${b.status === 'open' ? `<button class="btn btn-secondary" data-action="edit-bounty" data-bounty-id="${esc(b.id)}">✏ Edit details</button>` : ''}
+      </div>
+    ` : ''}
+
     ${arr(b.meetings).length > 0 ? `
       <div class="bd-section">
         <h4>Meetings to cover (${arr(b.meetings).length})</h4>
@@ -1822,7 +2013,38 @@ function render() {
   if (state.view === 'login') app.innerHTML = renderLogin();
   else if (state.view === 'home') app.innerHTML = renderHome();
   else if (state.view === 'team') app.innerHTML = renderTeam();
+  else if (state.view === 'help') app.innerHTML = renderHelp();
   else app.innerHTML = '';
+}
+
+function renderHelp() {
+  return `
+    <nav class="breadcrumb">
+      <a href="#/">Crews</a><span class="sep">/</span><span class="current">Help</span>
+    </nav>
+    <header class="team-header">
+      <div><h1>HOW VACACIONES WORKS</h1></div>
+    </header>
+    <div class="panel">
+      <div class="panel-title">The doubloon economy</div>
+      <h3 style="margin-top: 12px;">🪙 Your purse, your starter chest, the Crown's stipend</h3>
+      <p>Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend coins expire at the end of each month, so spend 'em or lose 'em. Earned coins (the ones you got by covering crewmates) never expire.</p>
+      <h3>📅 What a day of coverage costs</h3>
+      <p>One day costs <strong>5 doubloons</strong> (Mon–Fri). Weekend days cost <strong>10</strong>. Holidays don't have special rates yet — they cost what their weekday says.</p>
+      <h3>🏴‍☠️ Posting a bounty</h3>
+      <p>Pick a date range, pick which days you actually want covered (toggle weekends off if you're not asking for them), set how reachable you'll be, what kinds of work need covering, and an SLA. Costs come straight from your wallet (stipend first, then earned). Single coverer mode is the default — one crewmate takes everything. Crew mode lets multiple crewmates split days; the bounty stays open until every day is claimed.</p>
+      <h3>⚓ Taking a voyage</h3>
+      <p>Browse the Bounty Board. Click any open bounty to see the full briefing. In crew mode you pick which days you can cover; in single mode you take the whole window. Doubloons release to you one day at a time as the days pass, paid out by a daily cron.</p>
+      <h3>🏆 Voyage Rank + Wall of Fame</h3>
+      <p>Your rank (Cabin Boy → Commodore) is based on lifetime coins earned by covering. The Wall of Fame ranks crewmates by what they earned in the last 90 days, so old salts can't sit on their laurels.</p>
+      <h3>🪶 Thank-You Scrolls</h3>
+      <p>Recognition that isn't tied to coins. Send a scroll to a crewmate who covered you well, or tip your hat to anyone on the Wall of Fame.</p>
+      <h3>📅 Google Calendar</h3>
+      <p>Optional. Connect Calendar in the post form to pick which meetings the coverer should attend. When you accept a bounty you can add a coverage marker + the meetings to your own Calendar with one click.</p>
+      <h3>🤖 Gemini briefing (manager-configured)</h3>
+      <p>If your crew has a Gemini API key in Settings, the requester can hit "✨ Generate briefing" on their bounty and Gemini will draft a structured briefing (orientation, accounts, what to do, emergency protocol, open questions). The coverer reads it inside the bounty detail.</p>
+    </div>
+  `;
 }
 
 /* ============================================================
@@ -2010,6 +2232,7 @@ function renderTeam() {
   else if (tab === 'post') body = renderPostTab();
   else if (tab === 'wof') body = renderWofTab();
   else if (tab === 'settings') body = renderSettingsTab();
+  else if (tab === 'members') body = renderMembersTab();
   else body = renderBountyBoardTab();
 
   return `
@@ -2035,6 +2258,7 @@ function renderTeam() {
       <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}">Bounty Board ${openCount > 0 ? `<span class="tab-count">${openCount}</span>` : ''}</a>
       <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}">Treasure Chest</a>
       <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}">Wall of Fame</a>
+      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}">Crew</a>
       <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}">Post Bounty</a>
       ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}">⚙ Settings</a>` : ''}
     </nav>
@@ -2045,11 +2269,23 @@ function renderTeam() {
 /* Bounty Board */
 function renderBountyBoardTab() {
   const filter = state.bountyFilter;
+  const searchText = (state.bountyFilterText || '').trim().toLowerCase();
   let list = state.bounties.slice();
   if (filter === 'open') list = list.filter((b) => b.status === 'open');
   else if (filter === 'taken') list = list.filter((b) => b.status === 'accepted' || b.status === 'active');
   else if (filter === 'done') list = list.filter((b) => b.status === 'completed');
   else if (filter === 'mine') list = list.filter((b) => b.requesterUid === state.user.uid);
+  if (searchText) {
+    list = list.filter((b) => {
+      const hay = [
+        b.requesterDisplayName,
+        b.coverageScope,
+        b.sla,
+        b.emergencyDef,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(searchText);
+    });
+  }
   list.sort((a, b) => {
     const sa = STATUS_PRIORITY[a.status] ?? 99;
     const sb = STATUS_PRIORITY[b.status] ?? 99;
@@ -2071,6 +2307,10 @@ function renderBountyBoardTab() {
         ${renderFilter('taken', `Taken · ${counts.taken}`)}
         ${renderFilter('done', `Done · ${counts.done}`)}
         ${renderFilter('mine', `Mine · ${counts.mine}`)}
+      </div>
+      <div class="search-row">
+        <input id="bounty-search" type="text" placeholder="🔍 Search requester, scope, SLA…" value="${esc(state.bountyFilterText)}" />
+        ${state.bountyFilterText ? `<button class="btn-ghost" data-action="clear-search">Clear</button>` : ''}
       </div>
       ${list.length === 0 ? `
         <div class="empty-card">
@@ -2217,7 +2457,10 @@ function renderChestTab() {
         `).join('')}
       </div>
 
-      <h3 style="margin-bottom: 8px;">Captain’s log</h3>
+      <div style="margin: 12px 0 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <h3 style="margin: 0;">Captain’s log</h3>
+        ${state.ledger.length > 0 ? `<button class="btn-ghost" data-action="export-csv">📥 Download CSV</button>` : ''}
+      </div>
       ${state.ledger.length === 0 ? `<p class="muted">Your ledger is empty for now.</p>` : `
         <ul class="ledger">
           ${state.ledger.slice(0, 20).map((e) => `
@@ -2517,6 +2760,49 @@ function renderWofTab() {
   `;
 }
 
+function renderMembersTab() {
+  if (state.crewMembersLoading && state.crewMembers.length === 0) {
+    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Mustering the crew&hellip;</div>`;
+  }
+  const members = state.crewMembers;
+  if (members.length === 0) {
+    return `<div class="empty-card"><p><strong>Empty roster.</strong></p><p class="muted">Should never see this — refresh.</p></div>`;
+  }
+  return `
+    <section>
+      <div class="wof-meta">
+        <span>${members.length} crewmate${members.length === 1 ? '' : 's'} aboard</span>
+        <button class="btn-ghost" data-action="refresh-members">↻ Refresh</button>
+      </div>
+      <ul class="member-list">
+        ${members.map((m) => {
+          const isMe = m.uid === state.user?.uid;
+          const rank = computeRank({ lifetimeEarned: m.lifetimeEarned, voyages: m.voyages, weekendCovers: 0, bountiesPosted: 0, stipendExpired: 0, crewCount: 1 });
+          const avatarHtml = m.avatarId && SVG.avatars[m.avatarId]
+            ? `<span class="avatar-img" style="width:48px;height:48px;display:inline-block;">${SVG.avatars[m.avatarId]}</span>`
+            : m.photoURL
+              ? `<img class="avatar-img" src="${esc(m.photoURL)}" alt="" referrerpolicy="no-referrer" style="width:48px;height:48px;" />`
+              : `<span class="avatar-img avatar-fallback" style="width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Press Start 2P',monospace;font-size:14px;">${esc(initials(m.displayName))}</span>`;
+          return `
+            <li class="member-card ${isMe ? 'me' : ''}">
+              ${avatarHtml}
+              <div class="member-main">
+                <strong>${esc(m.displayName)}${isMe ? ' (you)' : ''}</strong>
+                <small>${rank.icon} ${esc(rank.name)} · ${m.voyages} voyage${m.voyages === 1 ? '' : 's'}</small>
+              </div>
+              ${m.role === 'manager' ? `<span class="role-badge manager">CAPTAIN</span>` : `<span class="role-badge member">CREW</span>`}
+              <div class="member-stats">
+                <span class="member-stat">${SVG.doubloon}<strong>${m.earnedLast90d}</strong></span>
+                <small>90d earned</small>
+              </div>
+            </li>
+          `;
+        }).join('')}
+      </ul>
+    </section>
+  `;
+}
+
 function renderSettingsTab() {
   if (state.myRole !== 'manager') {
     return `
@@ -2578,6 +2864,14 @@ function renderSettingsTab() {
       <p class="muted" style="margin: 0 0 var(--sp-2); font-size: var(--fs-meta);">Name and crew photo also live under MANAGE on the header.</p>
       <button class="btn btn-secondary" data-action="manage-crew">✏ Open Manage Crew</button>
     </div>
+
+    <div class="panel" style="margin-top: var(--sp-4);">
+      <div class="panel-title">Backfill onboarding grant</div>
+      <p class="muted" style="font-size: var(--fs-meta); margin-bottom: var(--sp-2);">
+        The starter chest used to be 20 doubloons; it's now 125 (covers 25 business days). Top up any existing crewmate who got the old grant so everyone starts on the new floor.
+      </p>
+      <button class="btn btn-secondary" data-action="topup-grant">💰 Top up to 125</button>
+    </div>
   `;
 }
 
@@ -2594,19 +2888,34 @@ function renderTavern() {
         </div>
       ` : `
         <ul class="scrolls">
-          ${scrolls.map((s) => `
-            <li class="scroll">
-              <div class="scroll-head">
-                ${s.fromPhotoURL ? `<img class="avatar-mini" src="${esc(s.fromPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
-                <strong>${esc(shortName(s.fromDisplayName))}</strong>
-                <span class="arrow">→</span>
-                ${s.toPhotoURL ? `<img class="avatar-mini" src="${esc(s.toPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
-                <strong>${esc(shortName(s.toDisplayName))}</strong>
-                <small>${esc(timeAgo(s.createdAt?.toDate?.() ?? new Date()))}</small>
-              </div>
-              <p class="scroll-msg">"${esc(s.message)}"</p>
-            </li>
-          `).join('')}
+          ${scrolls.map((s) => {
+            const reactions = s.reactions || {};
+            const counts = {};
+            let myReact = null;
+            for (const [reactUid, emo] of Object.entries(reactions)) {
+              counts[emo] = (counts[emo] || 0) + 1;
+              if (reactUid === state.user?.uid) myReact = emo;
+            }
+            const reactionBar = ['🪙','🍻','🏴‍☠️','⚓','🦜'].map((emo) => {
+              const cnt = counts[emo] || 0;
+              const mine = myReact === emo;
+              return `<button class="react-btn ${mine ? 'mine' : ''}" data-action="react-scroll" data-scroll-id="${esc(s.id)}" data-emoji="${esc(emo)}" data-mine="${mine ? '1' : '0'}">${emo}${cnt > 0 ? ` <span class="react-count">${cnt}</span>` : ''}</button>`;
+            }).join('');
+            return `
+              <li class="scroll">
+                <div class="scroll-head">
+                  ${s.fromPhotoURL ? `<img class="avatar-mini" src="${esc(s.fromPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
+                  <strong>${esc(shortName(s.fromDisplayName))}</strong>
+                  <span class="arrow">→</span>
+                  ${s.toPhotoURL ? `<img class="avatar-mini" src="${esc(s.toPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
+                  <strong>${esc(shortName(s.toDisplayName))}</strong>
+                  <small>${esc(timeAgo(s.createdAt?.toDate?.() ?? new Date()))}</small>
+                </div>
+                <p class="scroll-msg">"${esc(s.message)}"</p>
+                <div class="react-bar">${reactionBar}</div>
+              </li>
+            `;
+          }).join('')}
         </ul>
       `}
     </section>
@@ -2734,6 +3043,30 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'add-meetings') {
     e.preventDefault();
     addAllBountyMeetings(t.dataset.bountyId);
+  } else if (action === 'clear-search') {
+    e.preventDefault();
+    state.bountyFilterText = '';
+    render();
+  } else if (action === 'refresh-members') {
+    e.preventDefault();
+    refreshCrewMembers();
+  } else if (action === 'topup-grant') {
+    e.preventDefault();
+    topUpGrantAction();
+  } else if (action === 'export-csv') {
+    e.preventDefault();
+    exportLedgerCsv();
+  } else if (action === 'gen-briefing') {
+    e.preventDefault();
+    generateBriefingAction(t.dataset.bountyId);
+  } else if (action === 'edit-bounty') {
+    e.preventDefault();
+    showEditBountyModal(t.dataset.bountyId);
+  } else if (action === 'react-scroll') {
+    e.preventDefault();
+    e.stopPropagation();
+    const mine = t.dataset.mine === '1';
+    reactToScrollAction(t.dataset.scrollId, mine ? null : t.dataset.emoji);
   } else if (action === 'clear-gemini') {
     e.preventDefault();
     showModal({
@@ -2757,6 +3090,11 @@ document.addEventListener('submit', async (e) => {
 document.addEventListener('input', (e) => {
   const form = e.target.closest('#create-form');
   if (form) syncFormStateFromDom(form);
+  if (e.target.id === 'bounty-search') {
+    state.bountyFilterText = e.target.value;
+    clearTimeout(window._bountySearchTimer);
+    window._bountySearchTimer = setTimeout(render, 200);
+  }
 });
 document.addEventListener('change', (e) => {
   const form = e.target.closest('#create-form');
