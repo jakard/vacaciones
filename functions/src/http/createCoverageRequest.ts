@@ -21,6 +21,22 @@ const COVERAGE_KIND = [
   'on-call',
 ] as const;
 
+const MeetingSchema = z.object({
+  googleEventId: z.string().min(1).max(200),
+  summary: z.string().max(300),
+  description: z.string().max(2000).optional(),
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  location: z.string().max(500).optional(),
+  hangoutLink: z.string().max(500).optional(),
+  htmlLink: z.string().max(500).optional(),
+  conferenceLinks: z.array(z.string().max(500)).max(10).optional(),
+  attendees: z
+    .array(z.object({ email: z.string().max(200), displayName: z.string().max(200).optional() }))
+    .max(50)
+    .optional(),
+});
+
 const CreateCoverageRequestSchema = z.object({
   teamId: z.string().trim().min(1),
   windowStartIso: z.string().datetime(),
@@ -31,6 +47,7 @@ const CreateCoverageRequestSchema = z.object({
   coverageScope: z.string().trim().max(500).nullable().optional(),
   sla: z.string().trim().min(1).max(200),
   emergencyDef: z.string().max(500).nullable().optional(),
+  meetings: z.array(MeetingSchema).max(50).optional(),
 });
 
 interface CreateCoverageRequestResult {
@@ -61,6 +78,7 @@ export const createCoverageRequest = onCall<
     coverageScope,
     sla,
     emergencyDef,
+    meetings,
   } = parsed.data;
   const token = request.auth.token;
 
@@ -118,6 +136,7 @@ export const createCoverageRequest = onCall<
       reachability,
       coverageKinds: coverageKinds ?? [],
       coverageScope: coverageScope?.trim() ? coverageScope.trim() : null,
+      meetings: meetings ?? [],
       sla,
       emergencyDef: emergencyDef ?? null,
       status: 'open',

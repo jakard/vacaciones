@@ -218,7 +218,12 @@ const state = {
     coverageScope: '',
     sla: 'P1 within 2h, P2 next business day',
     emergencyDef: '',
+    meetings: [],
   },
+  calendarEvents: [],
+  calendarLoading: false,
+  calendarError: null,
+  calendarLastWindow: null,
   busy: { signIn: false, createTeam: false, joinTeam: false, postRequest: false, acceptId: null },
 };
 
@@ -304,6 +309,144 @@ function arr(val) {
   if (Array.isArray(val)) return val;
   if (typeof val === 'string') return [val];
   return [];
+}
+
+/* ============================================================
+   Google Calendar integration
+   ============================================================ */
+
+const CAL_TOKEN_KEY = 'vacaciones.calToken';
+
+const calendar = {
+  getToken() {
+    try {
+      const raw = sessionStorage.getItem(CAL_TOKEN_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || obj.expiresAt < Date.now()) return null;
+      return obj.token;
+    } catch { return null; }
+  },
+  setToken(token, ttlSec = 3600) {
+    sessionStorage.setItem(CAL_TOKEN_KEY, JSON.stringify({
+      token, expiresAt: Date.now() + Math.max(60, ttlSec - 60) * 1000,
+    }));
+  },
+  isConnected() { return !!this.getToken(); },
+  clearToken() { sessionStorage.removeItem(CAL_TOKEN_KEY); },
+  async connect() {
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) throw new Error('Calendar access not granted.');
+    this.setToken(credential.accessToken);
+    return credential.accessToken;
+  },
+  async listEvents(startMs, endMs) {
+    let token = this.getToken();
+    if (!token) token = await this.connect();
+    const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+    url.searchParams.set('timeMin', new Date(startMs).toISOString());
+    url.searchParams.set('timeMax', new Date(endMs).toISOString());
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('orderBy', 'startTime');
+    url.searchParams.set('maxResults', '50');
+    let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 401) {
+      this.clearToken();
+      token = await this.connect();
+      res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    }
+    if (!res.ok) throw new Error(`Calendar list failed (${res.status})`);
+    const data = await res.json();
+    return (data.items || []).filter((e) => e.status !== 'cancelled' && e.start && e.end);
+  },
+  async addEvent(meeting) {
+    let token = this.getToken();
+    if (!token) token = await this.connect();
+    const isAllDay = !meeting.startMs || !meeting.endMs || meeting.startMs % 86400000 === 0;
+    const body = {
+      summary: `[COVER] ${meeting.summary || '(no title)'}`,
+      description: [
+        'Covering for a crewmate.',
+        meeting.htmlLink ? `Original event: ${meeting.htmlLink}` : null,
+        meeting.description ? `\n---\n${meeting.description}` : null,
+      ].filter(Boolean).join('\n\n'),
+      start: isAllDay ? { date: new Date(meeting.startMs).toISOString().slice(0, 10) }
+                     : { dateTime: new Date(meeting.startMs).toISOString() },
+      end:   isAllDay ? { date: new Date(meeting.endMs).toISOString().slice(0, 10) }
+                     : { dateTime: new Date(meeting.endMs).toISOString() },
+      location: meeting.location || undefined,
+    };
+    let res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401) {
+      this.clearToken();
+      token = await this.connect();
+      res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+    if (!res.ok) throw new Error(`Calendar add failed (${res.status})`);
+    return res.json();
+  },
+};
+
+function extractConferenceLinks(text) {
+  if (!text) return [];
+  const re = /https?:\/\/(?:teams\.microsoft\.com|teams\.live\.com|zoom\.us|meet\.google\.com|whereby\.com)\/[^\s<>"')\]]+/gi;
+  const matches = text.match(re) || [];
+  return Array.from(new Set(matches.map((m) => m.replace(/[.,;)]+$/, '')))).slice(0, 10);
+}
+
+function normalizeMeeting(ev) {
+  const startMs = new Date(ev.start?.dateTime || ev.start?.date).getTime();
+  const endMs = new Date(ev.end?.dateTime || ev.end?.date).getTime();
+  const description = (ev.description || '').slice(0, 2000);
+  return {
+    googleEventId: ev.id,
+    summary: (ev.summary || '(no title)').slice(0, 300),
+    description,
+    startMs,
+    endMs,
+    location: (ev.location || '').slice(0, 500),
+    hangoutLink: ev.hangoutLink || '',
+    htmlLink: ev.htmlLink || '',
+    conferenceLinks: extractConferenceLinks(description),
+    attendees: (ev.attendees || []).slice(0, 50).map((a) => ({
+      email: (a.email || '').slice(0, 200),
+      displayName: (a.displayName || '').slice(0, 200),
+    })),
+  };
+}
+
+function getAddedMeetingIds(bountyId) {
+  try {
+    const raw = localStorage.getItem(`vacaciones.addedMeetings.${bountyId}`);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+function markMeetingAdded(bountyId, googleEventId) {
+  const set = getAddedMeetingIds(bountyId);
+  set.add(googleEventId);
+  localStorage.setItem(`vacaciones.addedMeetings.${bountyId}`, JSON.stringify(Array.from(set)));
+}
+
+function formatMeetingDate(startMs, endMs) {
+  const s = new Date(startMs);
+  const e = new Date(endMs);
+  const sameDay = s.toDateString() === e.toDateString();
+  if (sameDay) {
+    return `${s.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${s.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}–${e.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  return `${s.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })} → ${e.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}`;
 }
 
 // Renders an avatar for any uid. For the current user, prefer their chosen
@@ -803,13 +946,16 @@ async function postBounty() {
       coverageScope: f.coverageScope || null,
       sla: f.sla,
       emergencyDef: f.emergencyDef || null,
+      meetings: f.meetings,
     });
     showToast(`Bounty posted for ${result.data.coinsOffered} doubloons. Anchors aweigh!`, 'success');
     state.formState = {
       startDate: '', endDate: '', timezone: state.formState.timezone,
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: '',
-      sla: state.formState.sla, emergencyDef: '',
+      sla: state.formState.sla, emergencyDef: '', meetings: [],
     };
+    state.calendarEvents = [];
+    state.calendarLastWindow = null;
     navigate('team', state.teamId, 'bounties');
   } catch (err) { showToast(err.message, 'error', 6000); }
   finally { state.busy.postRequest = false; render(); }
@@ -858,6 +1004,80 @@ async function updateTeamAction(teamId, name, photoURL) {
     showToast('Crew updated.', 'success');
   } catch (err) {
     showToast(err.message, 'error', 6000);
+  }
+}
+
+async function refreshCalendarEvents() {
+  const f = state.formState;
+  const start = parseLocalDate(f.startDate);
+  const end = parseLocalDate(f.endDate);
+  if (!start || !end || end < start) return;
+  // Bump end by one day so we cover the full last day (Calendar timeMax is exclusive)
+  const endExclusive = new Date(end.getTime() + 86400000);
+  const winKey = `${start.getTime()}_${end.getTime()}`;
+  state.calendarLastWindow = winKey;
+  state.calendarLoading = true;
+  state.calendarError = null;
+  render();
+  try {
+    const events = await calendar.listEvents(start.getTime(), endExclusive.getTime());
+    if (state.calendarLastWindow !== winKey) return; // stale
+    state.calendarEvents = events.map(normalizeMeeting);
+    // Keep previously-selected meetings if still in window
+    const validIds = new Set(state.calendarEvents.map((m) => m.googleEventId));
+    state.formState.meetings = state.formState.meetings.filter((m) => validIds.has(m.googleEventId));
+  } catch (err) {
+    state.calendarError = err.message;
+    state.calendarEvents = [];
+    showToast(`Calendar: ${err.message}`, 'error', 6000);
+  } finally {
+    state.calendarLoading = false;
+    render();
+  }
+}
+
+async function connectCalendarAction() {
+  try {
+    await calendar.connect();
+    showToast('Calendar connected.', 'success');
+    audio.coin();
+    refreshCalendarEvents();
+  } catch (err) {
+    showToast(`Could not connect calendar: ${err.message}`, 'error', 6000);
+  }
+}
+
+async function addAllBountyMeetings(bountyId) {
+  const b = state.bounties.find((x) => x.id === bountyId);
+  if (!b || !arr(b.meetings).length) {
+    showToast('No meetings to add.', 'info');
+    return;
+  }
+  if (!calendar.isConnected()) {
+    try { await calendar.connect(); }
+    catch (err) { showToast(`Calendar connect failed: ${err.message}`, 'error'); return; }
+  }
+  const already = getAddedMeetingIds(bountyId);
+  const toAdd = arr(b.meetings).filter((m) => !already.has(m.googleEventId));
+  if (toAdd.length === 0) {
+    showToast('All meetings already on your calendar.', 'info');
+    return;
+  }
+  let added = 0;
+  for (const m of toAdd) {
+    try {
+      await calendar.addEvent(m);
+      markMeetingAdded(bountyId, m.googleEventId);
+      added++;
+    } catch (err) {
+      console.error('add event failed', m, err);
+    }
+  }
+  if (added > 0) {
+    showToast(`Added ${added} meeting${added === 1 ? '' : 's'} to your calendar.`, 'success');
+    audio.coin();
+  } else {
+    showToast('Could not add meetings.', 'error');
   }
 }
 
@@ -1202,6 +1422,36 @@ function showBountyDetail(bountyId) {
       <div class="bd-section">
         <h4>What counts as a real emergency</h4>
         <p class="bd-value" style="margin: 0;">${esc(b.emergencyDef)}</p>
+      </div>` : ''}
+
+    ${arr(b.meetings).length > 0 ? `
+      <div class="bd-section">
+        <h4>Meetings to cover (${arr(b.meetings).length})</h4>
+        <ul class="meeting-list bounty-meeting-list">
+          ${arr(b.meetings).map((m) => `
+            <li>
+              <div class="meeting-info">
+                <strong>${esc(m.summary)}</strong>
+                <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${m.attendees.length} attendees` : ''}</small>
+                <span class="meeting-links">
+                  ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">📹 Meet</a>` : ''}
+                  ${arr(m.conferenceLinks).map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">🔗 ${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('')}
+                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 In Calendar</a>` : ''}
+                </span>
+                ${m.location ? `<small class="meeting-loc">📍 ${esc(m.location)}</small>` : ''}
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+        ${b.covererUid === state.user?.uid ? (() => {
+          const added = getAddedMeetingIds(b.id);
+          const remaining = arr(b.meetings).filter((m) => !added.has(m.googleEventId)).length;
+          return `<div style="margin-top: 12px;">
+            <button class="btn btn-secondary" data-action="add-meetings" data-bounty-id="${esc(b.id)}" ${remaining === 0 ? 'disabled' : ''}>
+              📅 ${remaining === 0 ? 'All added to your calendar' : `Add ${remaining} meeting${remaining === 1 ? '' : 's'} to my calendar`}
+            </button>
+          </div>`;
+        })() : ''}
       </div>` : ''}
   `;
   if (status === 'open' && !mine) {
@@ -1710,6 +1960,71 @@ function renderChestTab() {
 }
 
 /* Post tab */
+function renderMeetingsPicker() {
+  const f = state.formState;
+  const hasDates = !!parseLocalDate(f.startDate) && !!parseLocalDate(f.endDate);
+  if (!hasDates) {
+    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">Pick dates above to see your meetings in that window.</span></div>`;
+  }
+  if (!calendar.isConnected()) {
+    return `
+      <div class="meetings-picker">
+        <button type="button" class="btn btn-secondary" data-action="connect-calendar">📅 Connect Google Calendar</button>
+        <p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">Optional. Lets you pick which meetings the coverer should attend, with Meet/Teams/Zoom links included.</p>
+      </div>
+    `;
+  }
+  if (state.calendarLoading) {
+    return `<div class="meetings-picker"><span class="loading-doubloon">${SVG.doubloon}</span> Loading meetings…</div>`;
+  }
+  if (state.calendarError) {
+    return `
+      <div class="meetings-picker">
+        <p class="error-text">Calendar: ${esc(state.calendarError)}</p>
+        <button type="button" class="btn-ghost" data-action="refresh-cal">↻ Retry</button>
+      </div>
+    `;
+  }
+  const events = state.calendarEvents;
+  if (events.length === 0) {
+    return `
+      <div class="meetings-picker">
+        <p class="muted" style="margin: 0;">No meetings in this window. (Cleared shore leave!)</p>
+        <button type="button" class="btn-ghost" data-action="refresh-cal" style="margin-top: 8px;">↻ Refresh</button>
+      </div>
+    `;
+  }
+  const selectedIds = new Set(f.meetings.map((m) => m.googleEventId));
+  return `
+    <div class="meetings-picker">
+      <div class="meetings-head">
+        <span class="muted" style="font-size: var(--fs-meta);">${events.length} meeting${events.length === 1 ? '' : 's'} in window. Tick the ones the coverer should handle.</span>
+        <button type="button" class="btn-ghost" data-action="refresh-cal">↻ Refresh</button>
+      </div>
+      <ul class="meeting-list">
+        ${events.map((m) => `
+          <li>
+            <label class="meeting-row ${selectedIds.has(m.googleEventId) ? 'selected' : ''}">
+              <input type="checkbox" name="meeting" value="${esc(m.googleEventId)}" ${selectedIds.has(m.googleEventId) ? 'checked' : ''} data-meeting-id="${esc(m.googleEventId)}" />
+              <span class="check-box"></span>
+              <span class="meeting-info">
+                <strong>${esc(m.summary)}</strong>
+                <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${m.attendees.length} attendees` : ''}</small>
+                <span class="meeting-links">
+                  ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">📹 Meet</a>` : ''}
+                  ${m.conferenceLinks?.map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">🔗 ${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('') || ''}
+                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 In Calendar</a>` : ''}
+                </span>
+                ${m.location ? `<small class="meeting-loc">📍 ${esc(m.location)}</small>` : ''}
+              </span>
+            </label>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+  `;
+}
+
 function renderPostTab() {
   const tz = state.formState.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   state.formState.timezone = tz;
@@ -1751,6 +2066,11 @@ function renderPostTab() {
             </div>
           </label>
           <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
+
+          <div class="wide">
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
+            ${renderMeetingsPicker()}
+          </div>
           <label class="wide"><span>SLA the coverer should hold</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
           <label class="wide"><span>What counts as a real emergency? (optional)</span><textarea name="emergencyDef" rows="2" placeholder="“Wake me only if Acme’s production is down.”">${esc(f.emergencyDef)}</textarea></label>
         </div>
@@ -2028,6 +2348,15 @@ document.addEventListener('click', async (e) => {
     if (key.length < 8) { showToast('Key looks too short. Double-check.', 'error'); return; }
     saveCrewSettings({ geminiApiKey: key });
     if (input) input.value = '';
+  } else if (action === 'connect-calendar') {
+    e.preventDefault();
+    connectCalendarAction();
+  } else if (action === 'refresh-cal') {
+    e.preventDefault();
+    refreshCalendarEvents();
+  } else if (action === 'add-meetings') {
+    e.preventDefault();
+    addAllBountyMeetings(t.dataset.bountyId);
   } else if (action === 'clear-gemini') {
     e.preventDefault();
     showModal({
@@ -2060,6 +2389,8 @@ document.addEventListener('change', (e) => {
 function syncFormStateFromDom(form) {
   const data = new FormData(form);
   const f = state.formState;
+  const prevStart = f.startDate;
+  const prevEnd = f.endDate;
   f.startDate = data.get('startDate') || '';
   f.endDate = data.get('endDate') || '';
   f.timezone = (data.get('timezone') || '').trim();
@@ -2068,6 +2399,14 @@ function syncFormStateFromDom(form) {
   f.coverageScope = (data.get('coverageScope') || '').trim();
   f.reachability = data.getAll('reachability');
   f.coverageKinds = data.getAll('coverageKinds');
+  // Sync meeting selections from DOM
+  const selectedIds = new Set(data.getAll('meeting'));
+  f.meetings = state.calendarEvents.filter((m) => selectedIds.has(m.googleEventId));
+  // Auto-fetch when dates change and calendar is connected
+  if ((f.startDate !== prevStart || f.endDate !== prevEnd) && calendar.isConnected() && f.startDate && f.endDate) {
+    clearTimeout(syncFormStateFromDom._calTimer);
+    syncFormStateFromDom._calTimer = setTimeout(() => refreshCalendarEvents(), 400);
+  }
   const previewEl = document.querySelector('.preview');
   if (previewEl) {
     const cost = computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));

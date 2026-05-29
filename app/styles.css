@@ -1676,6 +1676,85 @@ label {
 .sound-toggle.on { color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
 
 /* ============================================================
+   Meetings picker + meeting cards
+   ============================================================ */
+
+.meetings-picker {
+  background: var(--parchment-bright);
+  padding: var(--sp-3);
+  border: 1px solid var(--wood-dark);
+  box-shadow: inset 1px 1px 0 var(--parchment-bright), inset -1px -1px 0 var(--parchment-dim);
+}
+.meetings-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2);
+}
+.meeting-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 280px; overflow-y: auto;
+}
+.bounty-meeting-list { max-height: none; margin-top: 4px; }
+.meeting-row {
+  display: grid;
+  grid-template-columns: 18px 18px 1fr;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  padding: 8px var(--sp-2);
+  background: var(--parchment);
+  box-shadow: 0 0 0 1px var(--wood-dark);
+  cursor: pointer;
+}
+.meeting-row:hover { background: var(--parchment-bright); }
+.meeting-row.selected { background: var(--brass); }
+.meeting-row.selected .check-box::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background: var(--ink-pure);
+  box-shadow: inset 1px 1px 0 var(--brass-bright);
+}
+.meeting-row input { display: none; }
+.meeting-info {
+  display: flex; flex-direction: column; gap: 2px;
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  color: var(--ink-pure);
+}
+.meeting-info strong { font-size: var(--fs-body); font-weight: 600; line-height: 1.2; }
+.meeting-info small { font-size: var(--fs-meta); color: var(--ink-faded); }
+.meeting-loc { color: var(--ink-faded); }
+.meeting-links {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;
+}
+.meeting-links a {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--ink-pure);
+  background: var(--moonbeam);
+  padding: 2px 6px;
+  border: 1px solid var(--wood-dark);
+  text-decoration: none;
+}
+.meeting-links a:hover { background: var(--brass); text-decoration: none; }
+.meeting-links a.cal-link { background: var(--parchment-dim); }
+.error-text { color: var(--lechuck-red); font-size: var(--fs-body); margin: 0; }
+
+/* In bounty-meeting-list (detail modal), prettier layout */
+.bounty-meeting-list li {
+  background: var(--parchment);
+  padding: 8px var(--sp-3);
+  border-left: 3px solid var(--brass);
+  box-shadow: 0 0 0 1px var(--wood-dark);
+}
+
+@media (max-width: 540px) {
+  .meeting-row { grid-template-columns: 18px 1fr; }
+  .meeting-row .check-box { grid-column: 1; }
+  .meeting-row input { display: none; }
+  .meeting-info { grid-column: 2; }
+}
+
+/* ============================================================
    Crew Settings tab
    ============================================================ */
 
