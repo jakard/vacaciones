@@ -13,6 +13,7 @@
       { "source": "/api/createCoverageRequest", "function": { "functionId": "createCoverageRequest", "region": "us-central1" } },
       { "source": "/api/acceptCoverageRequest", "function": { "functionId": "acceptCoverageRequest", "region": "us-central1" } },
       { "source": "/api/getLeaderboard", "function": { "functionId": "getLeaderboard", "region": "us-central1" } },
+      { "source": "/api/sendScroll", "function": { "functionId": "sendScroll", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [

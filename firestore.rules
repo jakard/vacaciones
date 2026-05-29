@@ -82,6 +82,12 @@ service cloud.firestore {
         allow read: if isTeamMember(teamId);
         allow write: if false;
       }
+
+      // Thank-You Scrolls: crew-wide read; writes go through sendScroll callable
+      match /scrolls/{scrollId} {
+        allow read: if isTeamMember(teamId);
+        allow write: if false;
+      }
     }
 
     // Default deny everything else

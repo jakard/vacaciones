@@ -1677,6 +1677,191 @@ label {
 .sound-toggle.on { color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
 
 /* ============================================================
+   Stan onboarding
+   ============================================================ */
+
+.stan-scene {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--sp-4);
+  align-items: center;
+  margin-bottom: var(--sp-3);
+}
+.stan-portrait {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  background: var(--moonbeam);
+  box-shadow:
+    inset 2px 2px 0 var(--cream),
+    inset -2px -2px 0 var(--ink-sea),
+    0 0 0 2px var(--wood-dark);
+}
+.stan-speech {
+  position: relative;
+  background: var(--parchment-bright);
+  padding: var(--sp-3) var(--sp-4);
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body-lg);
+  color: var(--ink-pure);
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    inset 1px 1px 0 var(--parchment-bright),
+    inset -1px -1px 0 var(--parchment-dim);
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.stan-speech::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 24px;
+  width: 0; height: 0;
+  border-right: 10px solid var(--wood-dark);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+.stan-speech p { margin: 0; }
+.stan-progress {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+.stan-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--parchment-dim);
+  box-shadow: inset 1px 1px 0 var(--ink-faded);
+}
+.stan-dot.active {
+  background: var(--brass);
+  box-shadow:
+    inset 1px 1px 0 var(--brass-bright),
+    inset -1px -1px 0 var(--brass-deep);
+}
+
+@media (max-width: 540px) {
+  .stan-scene { grid-template-columns: 1fr; text-align: center; }
+  .stan-speech::before { display: none; }
+}
+
+/* ============================================================
+   Thank-You Scrolls (the Tavern)
+   ============================================================ */
+
+.tavern {
+  margin-top: var(--sp-5);
+}
+.tavern h2 { color: var(--brass); margin-bottom: var(--sp-2); }
+.tavern-meta {
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-meta);
+  color: var(--parchment-dim);
+  margin-bottom: var(--sp-3);
+}
+.scrolls {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--sp-3);
+}
+.scroll {
+  background: var(--parchment);
+  color: var(--ink-pure);
+  padding: var(--sp-3) var(--sp-4);
+  position: relative;
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    inset 2px 2px 0 var(--parchment-bright),
+    inset -2px -2px 0 var(--parchment-dim),
+    4px 4px 0 0 var(--shadow-deep);
+}
+.scroll::before {
+  content: '🪶';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  background: var(--brass);
+  font-size: 12px;
+  padding: 4px 6px;
+  box-shadow:
+    inset 1px 1px 0 var(--brass-bright),
+    inset -1px -1px 0 var(--brass-deep),
+    0 0 0 2px var(--wood-dark);
+}
+.scroll-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.scroll-head .arrow { color: var(--brass); font-size: 14px; }
+.scroll-head strong {
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: var(--ink-pure);
+}
+.scroll-head small {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: var(--ink-faded);
+  margin-left: auto;
+}
+.scroll-msg {
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body-lg);
+  color: var(--ink-pure);
+  margin: 0;
+  padding: 6px 0 0;
+  border-top: 1px dashed var(--parchment-dim);
+}
+
+.tip-hat {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  background: var(--parchment-bright);
+  color: var(--ink-pure);
+  padding: 3px 6px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: inset 1px 1px 0 var(--parchment-bright), inset -1px -1px 0 var(--parchment-dim), 0 0 0 1px var(--wood-dark);
+  margin-left: auto;
+}
+.tip-hat:hover { background: var(--brass); }
+
+.scroll-compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.scroll-compose textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+}
+.scroll-target {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body);
+}
+.scroll-target strong { font-weight: 400; }
+.scroll-char-count {
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  color: var(--ink-faded);
+  text-align: right;
+}
+
+/* ============================================================
    Bounty detail modal (wider than welcome)
    ============================================================ */
 

@@ -28,5 +28,6 @@ export { joinTeam } from './http/joinTeam';
 export { createCoverageRequest } from './http/createCoverageRequest';
 export { acceptCoverageRequest } from './http/acceptCoverageRequest';
 export { getLeaderboard } from './http/getLeaderboard';
+export { sendScroll } from './http/sendScroll';
 export { dailyCoverageRelease } from './scheduled/dailyCoverageRelease';
 export { monthlyStipendMint } from './scheduled/monthlyStipendMint';

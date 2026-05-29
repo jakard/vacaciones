@@ -79,6 +79,14 @@ const STATUS_LABEL = {
 };
 const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 4, cancelled: 5 };
 
+const STAN_SCENES = [
+  { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand, are ye? Let me show ye the ropes." },
+  { speech: "Doubloons are how we trade coverage. 5 buy ye one day of shore leave. Weekend? Twice as dear — the Crown insists." },
+  { speech: "Every month the Crown drops 10 stipend coins in yer purse. Spend 'em or watch 'em vanish at month's end. Don't be a hoarder." },
+  { speech: "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time." },
+  { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now hoist a crew and post yer first bounty!" },
+];
+
 const MASCOT_LINES = [
   '"Ahoy, weary TAM!"',
   '"Coins, or coverage?"',
@@ -127,6 +135,7 @@ const callJoinTeam = httpsCallableFromURL(functions, callableURL('joinTeam'));
 const callCreateCoverageRequest = httpsCallableFromURL(functions, callableURL('createCoverageRequest'));
 const callAcceptCoverageRequest = httpsCallableFromURL(functions, callableURL('acceptCoverageRequest'));
 const callGetLeaderboard = httpsCallableFromURL(functions, callableURL('getLeaderboard'));
+const callSendScroll = httpsCallableFromURL(functions, callableURL('sendScroll'));
 
 /* ============================================================
    Sound module (Web Audio chiptune SFX)
@@ -184,8 +193,10 @@ const state = {
   ledger: [],
   prevLedgerIds: new Set(),
   bounties: [],
+  scrolls: [],
   leaderboard: null,
   leaderboardLoading: false,
+  onboardingScene: 0,
   bellOpen: false,
   notifLastSeen: Number(localStorage.getItem('vacaciones.notifLastSeen') || '0'),
   achievedIds: new Set(JSON.parse(localStorage.getItem('vacaciones.achievedIds') || '[]')),
@@ -206,6 +217,7 @@ let unsubTeams = null;
 let unsubWallet = null;
 let unsubLedger = null;
 let unsubRequests = null;
+let unsubScrolls = null;
 
 /* ============================================================
    Utilities
@@ -425,6 +437,30 @@ const SVG = {
     <rect x="21" y="20" width="2" height="3" fill="#2A6A1E"/>
     <rect x="24" y="14" width="2" height="2" fill="#2A6A1E"/>
   </svg>`,
+  stan: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect width="24" height="24" fill="#0F1A2E"/>
+    <rect x="4" y="3" width="16" height="2" fill="#1A0E08"/>
+    <rect x="3" y="4" width="18" height="3" fill="#1A0E08"/>
+    <rect x="9" y="2" width="6" height="1" fill="#1A0E08"/>
+    <rect x="11" y="6" width="2" height="1" fill="#FFCB47"/>
+    <rect x="6" y="7" width="12" height="9" fill="#E8C49D"/>
+    <rect x="5" y="8" width="1" height="6" fill="#D3A87B"/>
+    <rect x="18" y="8" width="1" height="6" fill="#D3A87B"/>
+    <rect x="8" y="10" width="2" height="2" fill="#1A0E08"/>
+    <rect x="14" y="10" width="2" height="2" fill="#1A0E08"/>
+    <rect x="9" y="10" width="1" height="1" fill="#F7E7C2"/>
+    <rect x="15" y="10" width="1" height="1" fill="#F7E7C2"/>
+    <rect x="11" y="11" width="2" height="2" fill="#D3A87B"/>
+    <rect x="10" y="13" width="4" height="1" fill="#D9D9D9"/>
+    <rect x="11" y="14" width="2" height="1" fill="#1A0E08"/>
+    <rect x="6" y="14" width="12" height="2" fill="#F7E7C2"/>
+    <rect x="7" y="16" width="10" height="2" fill="#F7E7C2"/>
+    <rect x="8" y="18" width="8" height="2" fill="#F7E7C2"/>
+    <rect x="9" y="20" width="6" height="2" fill="#F7E7C2"/>
+    <rect x="4" y="20" width="16" height="4" fill="#2A1810"/>
+    <rect x="5" y="21" width="14" height="2" fill="#3D2418"/>
+    <rect x="11" y="20" width="2" height="4" fill="#E0A93B"/>
+  </svg>`,
 };
 
 /* ============================================================
@@ -501,7 +537,11 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
       const result = await callInitUser();
-      if (result.data.initialized) showWelcomeModal();
+      const seenStan = localStorage.getItem('vacaciones.seenStan') === 'true';
+      if (result.data.initialized || !seenStan) {
+        showWelcomeModal();
+        localStorage.setItem('vacaciones.seenStan', 'true');
+      }
     } catch (err) {
       console.error('initUser failed', err);
       showToast(`Could not register your sailor card: ${err.message}`, 'error', 5000);
@@ -606,12 +646,26 @@ function subscribeTeam(teamId) {
     },
     (err) => console.error('bounties query failed', err),
   );
+
+  unsubScrolls = onSnapshot(
+    query(
+      collection(db, `teams/${teamId}/scrolls`),
+      orderBy('createdAt', 'desc'),
+      limit(20),
+    ),
+    (snap) => {
+      state.scrolls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    },
+    (err) => console.error('scrolls query failed', err),
+  );
 }
 
 function teardownTeamSubs() {
   unsubWallet?.(); unsubWallet = null;
   unsubLedger?.(); unsubLedger = null;
   unsubRequests?.(); unsubRequests = null;
+  unsubScrolls?.(); unsubScrolls = null;
 }
 function teardownAllSubs() {
   unsubTeams?.(); unsubTeams = null;
@@ -700,6 +754,56 @@ async function copyInviteLink(teamId) {
   } catch { showToast(`Invite link: ${link}`, 'info', 8000); }
 }
 
+async function sendScrollAction(teamId, toUid, message, bountyId) {
+  try {
+    await callSendScroll({ teamId, toUid, message, bountyId: bountyId ?? null });
+    showToast('🪶 Thank-you scroll sent. The tavern echoes.', 'success');
+    audio.rank();
+  } catch (err) {
+    showToast(`Could not send the scroll: ${err.message}`, 'error', 5000);
+  }
+}
+
+function showSendScrollModal(toUid, toName, bountyId) {
+  if (!toUid || toUid === state.user?.uid) {
+    showToast('You cannot send a scroll to yourself.', 'error');
+    return;
+  }
+  const inputId = 'scroll-msg-' + Math.random().toString(36).slice(2, 8);
+  const body = `
+    <div class="scroll-compose">
+      <div class="scroll-target">
+        <span>To:</span><strong>${esc(toName || 'Crewmate')}</strong>
+      </div>
+      <textarea id="${inputId}" maxlength="240" placeholder="A short note of thanks…"></textarea>
+      <div class="scroll-char-count" id="${inputId}-count">240 left</div>
+    </div>
+  `;
+  showModal({
+    title: 'SEND A THANK-YOU SCROLL',
+    body,
+    primaryLabel: 'Send scroll',
+    secondaryLabel: 'Cancel',
+    onPrimary: () => {
+      const el = document.getElementById(inputId);
+      const message = el?.value?.trim() ?? '';
+      if (!message) {
+        showToast('Write something — even a few words.', 'error');
+        return false;
+      }
+      sendScrollAction(state.teamId, toUid, message, bountyId);
+    },
+  });
+  // Wire up live char counter + autofocus after the modal is in the DOM
+  setTimeout(() => {
+    const el = document.getElementById(inputId);
+    const count = document.getElementById(inputId + '-count');
+    if (!el || !count) return;
+    el.addEventListener('input', () => { count.textContent = `${240 - el.value.length} left`; });
+    el.focus();
+  }, 10);
+}
+
 async function refreshLeaderboard() {
   if (!state.teamId || state.leaderboardLoading) return;
   state.leaderboardLoading = true; render();
@@ -763,26 +867,56 @@ function showModal({ title, body, primaryLabel = 'AYE', secondaryLabel, onPrimar
   wrap.addEventListener('click', (e) => {
     if (e.target === wrap) close();
     const action = e.target.closest('[data-modal]')?.dataset.modal;
-    if (action === 'primary') { onPrimary?.(); close(); }
-    if (action === 'secondary') { onSecondary?.(); close(); }
+    if (action === 'primary') {
+      const result = onPrimary?.();
+      if (result !== false) close();
+    }
+    if (action === 'secondary') {
+      const result = onSecondary?.();
+      if (result !== false) close();
+    }
   });
   root.appendChild(wrap);
+  return { close };
 }
 
 function showWelcomeModal() {
+  state.onboardingScene = 0;
+  renderStanScene();
+}
+
+function renderStanScene() {
+  const idx = state.onboardingScene;
+  const scene = STAN_SCENES[idx];
+  const isLast = idx === STAN_SCENES.length - 1;
+  const body = `
+    <div class="stan-scene">
+      <div class="stan-portrait">${SVG.stan}</div>
+      <div class="stan-speech"><p>${esc(scene.speech)}</p></div>
+    </div>
+    <div class="stan-progress">
+      ${STAN_SCENES.map((_, i) => `<span class="stan-dot ${i === idx ? 'active' : ''}"></span>`).join('')}
+    </div>
+  `;
   showModal({
-    title: 'AHOY, NEW DECKHAND',
-    body: `
-      <p>Welcome aboard <strong>Vacaciones</strong> — the coverage marketplace where TAMs trade doubloons to take leave without dropping the ball.</p>
-      <ul>
-        <li><strong>20 doubloons</strong> in your starter chest the moment you join a crew.</li>
-        <li>The Crown drops <strong>10 stipend coins</strong> in your purse every month — spend them or they vanish at month’s end.</li>
-        <li>A coverage day costs <strong>5 doubloons</strong> (weekends double).</li>
-        <li>Cover a crewmate, earn their doubloons as the days pass. Top earners get the captain’s hat.</li>
-      </ul>
-      <p>Find your crew, post a bounty, take your damn vacation.</p>
-    `,
-    primaryLabel: 'Set sail',
+    title: 'STAN, HARBORMASTER',
+    body,
+    primaryLabel: isLast ? 'Set sail' : 'Aye, next',
+    secondaryLabel: idx === 0 ? 'Skip' : 'Back',
+    onPrimary: () => {
+      audio.click();
+      if (!isLast) {
+        state.onboardingScene = idx + 1;
+        setTimeout(renderStanScene, 0);
+      }
+    },
+    onSecondary: () => {
+      audio.click();
+      if (idx > 0) {
+        state.onboardingScene = idx - 1;
+        setTimeout(renderStanScene, 0);
+      }
+    },
   });
 }
 
@@ -865,6 +999,16 @@ function showBountyDetail(bountyId) {
       primaryLabel: 'Take voyage',
       secondaryLabel: 'Back',
       onPrimary: () => acceptRequest(bountyId),
+    });
+  } else if (status === 'completed' && mine && b.covererUid) {
+    // Requester whose bounty was completed — invite them to send a scroll
+    showModal({
+      title: 'BOUNTY DETAIL',
+      body,
+      wide: true,
+      primaryLabel: '🪶 Send Thank-You Scroll',
+      secondaryLabel: 'Close',
+      onPrimary: () => showSendScrollModal(b.covererUid, b.covererDisplayName, b.id),
     });
   } else {
     showModal({
@@ -1460,10 +1604,47 @@ function renderWofTab() {
               : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;"></span>`}
             <div class="wof-name">${esc(shortName(entry.displayName))}${entry.displayName === meName ? ' (you)' : ''}<br><small>${entry.voyages} voyage${entry.voyages === 1 ? '' : 's'}</small></div>
             <span class="wof-score">${SVG.doubloon}${entry.earnedInWindow}</span>
+            ${entry.uid !== state.user?.uid
+              ? `<button class="tip-hat" data-action="tip-hat" data-to-uid="${esc(entry.uid)}" data-to-name="${esc(entry.displayName)}">🪶 TIP HAT</button>`
+              : ''}
           </li>
         `).join('')}
       </ul>
     ` : ''}
+
+    ${renderTavern()}
+  `;
+}
+
+function renderTavern() {
+  const scrolls = state.scrolls || [];
+  return `
+    <section class="tavern">
+      <h2>The Tavern · recent scrolls</h2>
+      <div class="tavern-meta">Peer recognition. Decoupled from doubloons. Hand someone a tip of the hat for a good cover.</div>
+      ${scrolls.length === 0 ? `
+        <div class="empty-card" style="padding: 24px;">
+          <p><strong>The tavern is quiet.</strong></p>
+          <p class="muted">Send the first scroll to a crewmate who covered you well.</p>
+        </div>
+      ` : `
+        <ul class="scrolls">
+          ${scrolls.map((s) => `
+            <li class="scroll">
+              <div class="scroll-head">
+                ${s.fromPhotoURL ? `<img class="avatar-mini" src="${esc(s.fromPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
+                <strong>${esc(shortName(s.fromDisplayName))}</strong>
+                <span class="arrow">→</span>
+                ${s.toPhotoURL ? `<img class="avatar-mini" src="${esc(s.toPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
+                <strong>${esc(shortName(s.toDisplayName))}</strong>
+                <small>${esc(timeAgo(s.createdAt?.toDate?.() ?? new Date()))}</small>
+              </div>
+              <p class="scroll-msg">"${esc(s.message)}"</p>
+            </li>
+          `).join('')}
+        </ul>
+      `}
+    </section>
   `;
 }
 
@@ -1525,6 +1706,10 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'refresh-wof') {
     e.preventDefault();
     refreshLeaderboard();
+  } else if (action === 'tip-hat') {
+    e.preventDefault();
+    e.stopPropagation();
+    showSendScrollModal(t.dataset.toUid, t.dataset.toName, null);
   }
 });
 
