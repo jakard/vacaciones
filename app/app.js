@@ -154,7 +154,7 @@ const callGenerateBriefing = httpsCallableFromURL(functions, callableURL('genera
    ============================================================ */
 
 const SKIN_OPTIONS = [
-  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Pixelify Sans. The original vibe, more readable.' },
+  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Inter. Pirate vibe, regular legible font.' },
   { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
   { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
 ];
@@ -525,7 +525,7 @@ function renderAvatar({ uid, photoURL, name, size = 32, klass = 'avatar-img' }) 
   if (photoURL) {
     return `<img class="${klass}" src="${esc(photoURL)}" alt="${esc(name ?? '')}" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;" />`;
   }
-  return `<span class="${klass} avatar-fallback" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Press Start 2P',monospace;font-size:10px;">${esc(initials(name))}</span>`;
+  return `<span class="${klass} avatar-fallback" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:10px;">${esc(initials(name))}</span>`;
 }
 
 /* ============================================================
@@ -1492,11 +1492,11 @@ function showEditBountyModal(bountyId) {
       <label class="wide"><span>Coverage scope</span><input id="${scopeId}" type="text" value="${esc(b.coverageScope || '')}" /></label>
       <label class="wide"><span>Emergency definition</span><textarea id="${emergId}" rows="2">${esc(b.emergencyDef || '')}</textarea></label>
       <div class="wide">
-        <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Reachability</span>
+        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Reachability</span>
         <div class="check-group">${reachChecks}</div>
       </div>
       <div class="wide">
-        <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Coverage kinds</span>
+        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Coverage kinds</span>
         <div class="check-group">${kindChecks}</div>
       </div>
     </div>
@@ -2675,12 +2675,12 @@ function renderPostTab() {
             </div>
           </label>
           <div class="wide">
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
             ${renderDayPicker()}
           </div>
 
           <div class="wide">
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
             <div class="mode-toggle">
               <label class="mode-option ${(f.coverageMode || 'single') === 'single' ? 'selected' : ''}">
                 <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
@@ -2702,7 +2702,7 @@ function renderPostTab() {
           <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
 
           <div class="wide">
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
             ${renderMeetingsPicker()}
           </div>
           <label class="wide"><span>SLA the coverer should hold</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
@@ -2823,7 +2823,7 @@ function renderMembersTab() {
             ? `<span class="avatar-img" style="width:48px;height:48px;display:inline-block;">${SVG.avatars[m.avatarId]}</span>`
             : m.photoURL
               ? `<img class="avatar-img" src="${esc(m.photoURL)}" alt="" referrerpolicy="no-referrer" style="width:48px;height:48px;" />`
-              : `<span class="avatar-img avatar-fallback" style="width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Press Start 2P',monospace;font-size:14px;">${esc(initials(m.displayName))}</span>`;
+              : `<span class="avatar-img avatar-fallback" style="width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:14px;">${esc(initials(m.displayName))}</span>`;
           return `
             <li class="member-card ${isMe ? 'me' : ''}">
               ${avatarHtml}
@@ -2890,7 +2890,7 @@ function renderSettingsTab() {
 
       <div style="margin-top: var(--sp-3);">
         <label>
-          <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">${s.hasGeminiKey ? 'Replace' : 'Set'} the key</span>
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">${s.hasGeminiKey ? 'Replace' : 'Set'} the key</span>
           <input type="password" id="${inputId}" placeholder="AIza..." autocomplete="off" />
         </label>
         <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap;">

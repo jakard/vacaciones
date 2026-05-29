@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Inter:wght@400;500;600;700;800&family=Silkscreen:wght@400;700&display=swap');
 
 /* ============================================================
    Vacaciones — Melee Night 16 design system
@@ -27,21 +27,19 @@
   --shadow-deep: #06080F;
   --voodoo-violet: #5B3A8C;
 
-  /* Type scale — Pirate skin (default). Bumped one notch for legibility:
-     body 16, body-lg 18, meta 14. Press Start 2P limited to wordmark
-     + ALL-CAPS buttons; the heavy lifting moves to Pixelify Sans 600. */
-  --fs-hero: 32px;       /* Press Start 2P */
-  --fs-h1: 22px;         /* Pixelify Sans 600 (was Press Start 2P 16) */
-  --fs-h2: 18px;         /* Pixelify Sans 600 (was Press Start 2P 13) */
-  --fs-button: 12px;     /* Press Start 2P, slightly bumped */
-  --fs-body-lg: 18px;    /* Pixelify Sans */
-  --fs-body: 16px;       /* Pixelify Sans */
-  --fs-meta: 14px;       /* Pixelify Sans */
+  /* Type scale — Inter everywhere. */
+  --fs-hero: 32px;
+  --fs-h1: 22px;
+  --fs-h2: 18px;
+  --fs-button: 13px;
+  --fs-body-lg: 18px;
+  --fs-body: 16px;
+  --fs-meta: 14px;
   --fs-coin: 20px;       /* Silkscreen */
 
   /* Skin-level tokens (used by the 3 skins via [data-skin=...]) */
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Press Start 2P', monospace;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Silkscreen', monospace;
   --line-body: 1.55;
   --panel-radius: 0;
@@ -80,7 +78,7 @@ html, body {
 svg { shape-rendering: crispEdges; image-rendering: pixelated; }
 
 button {
-  font-family: 'Press Start 2P', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-button);
   cursor: pointer;
   text-transform: uppercase;
@@ -89,7 +87,7 @@ button {
 }
 
 input, textarea, select {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   font-weight: 500;
   color: var(--ink-pure);
@@ -145,7 +143,7 @@ code {
   align-items: center;
   gap: var(--sp-2);
   color: var(--brass);
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: var(--fs-h1);
 }
 .brand:hover { text-decoration: none; color: var(--brass-bright); }
@@ -174,7 +172,7 @@ code {
   line-height: 1.1;
 }
 .name {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--cream);
 }
@@ -248,7 +246,7 @@ h3 {
   background: var(--wood-dark);
   color: var(--brass);
   padding: 6px var(--sp-3);
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: var(--fs-h2);
   margin: calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)) var(--sp-3);
   box-shadow:
@@ -423,7 +421,7 @@ label {
 }
 
 .login-title {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: var(--fs-hero);
   color: var(--brass-bright);
   text-shadow:
@@ -434,7 +432,7 @@ label {
 }
 
 .login-tagline {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   color: var(--cream);
   letter-spacing: 2px;
@@ -489,7 +487,7 @@ label {
 .mascot-bubble {
   background: var(--parchment);
   color: var(--ink-pure);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   padding: 6px 10px;
   max-width: 180px;
@@ -530,7 +528,7 @@ label {
   margin-bottom: var(--sp-2);
 }
 .hero p {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   color: var(--cream);
   margin: 0;
@@ -580,13 +578,13 @@ label {
 }
 .team-main { flex: 1; display: flex; flex-direction: column; }
 .team-main strong {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 12px;
   color: var(--ink-pure);
   letter-spacing: 1px;
 }
 .team-main small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -668,7 +666,7 @@ label {
   padding: 8px var(--sp-3);
   background: var(--ink-abyss);
   color: var(--parchment-dim);
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -704,7 +702,7 @@ label {
 
 .status-badge {
   display: inline-block;
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   letter-spacing: 1px;
   padding: 3px 6px;
@@ -728,7 +726,7 @@ label {
   flex-wrap: wrap;
 }
 .filter-chip {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   padding: 6px 10px;
   background: var(--ink-abyss);
@@ -758,7 +756,7 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-pure);
 }
@@ -774,7 +772,7 @@ label {
   gap: 4px;
 }
 .chip {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   padding: 2px 8px;
   background: var(--parchment-dim);
@@ -827,7 +825,7 @@ label {
     inset -1px -1px 0 var(--brass-deep);
 }
 .check-label {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--ink-pure);
 }
@@ -870,7 +868,7 @@ label {
 }
 .bounty-window {
   grid-area: window;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--ink-pure);
   display: flex;
@@ -878,7 +876,7 @@ label {
   line-height: 1.1;
 }
 .bounty-window strong {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   font-weight: 400;
 }
@@ -898,7 +896,7 @@ label {
   gap: 4px;
 }
 .bounty-doubloons small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-faded);
   text-transform: uppercase;
@@ -906,7 +904,7 @@ label {
 }
 .bounty-scope {
   grid-area: scope;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-pure);
   padding: 4px var(--sp-2);
@@ -917,7 +915,7 @@ label {
 .bounty-chips { grid-area: chips; }
 .bounty-sla {
   grid-area: sla;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -949,7 +947,7 @@ label {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-pure);
   padding: 4px var(--sp-2);
@@ -957,7 +955,7 @@ label {
   border: 1px solid var(--wood-dark);
 }
 .taken-by-label {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   color: var(--ink-pure);
   text-transform: uppercase;
@@ -969,7 +967,7 @@ label {
    ============================================================ */
 
 .breadcrumb {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
   margin-bottom: var(--sp-2);
@@ -995,7 +993,7 @@ label {
   color: var(--brass);
 }
 .team-header small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
 }
@@ -1036,7 +1034,7 @@ label {
 }
 .bucket small {
   display: block;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-faded);
   text-transform: uppercase;
@@ -1045,7 +1043,7 @@ label {
 }
 .bucket em {
   display: block;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-faded);
   font-style: normal;
@@ -1083,12 +1081,12 @@ label {
 }
 .ledger li > div { display: flex; flex-direction: column; gap: 2px; }
 .ledger li strong {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--ink-pure);
 }
 .ledger li small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-faded);
 }
@@ -1098,7 +1096,7 @@ label {
   font-size: var(--fs-coin);
 }
 .amount small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-weight: 400;
   color: var(--ink-faded);
   font-size: 14px;
@@ -1121,7 +1119,7 @@ label {
 }
 .section-head h2 { margin: 0; }
 .section-head small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
 }
@@ -1148,14 +1146,14 @@ label {
 }
 .bounty-flag { width: 32px; height: 32px; }
 .bounty-meta strong {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   display: block;
   color: var(--ink-pure);
   line-height: 1.1;
 }
 .bounty-meta small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -1174,7 +1172,7 @@ label {
   gap: 4px;
 }
 .bounty-price small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-faded);
   text-transform: uppercase;
@@ -1182,7 +1180,7 @@ label {
 }
 
 .own-tag {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   color: var(--parchment-dim);
   letter-spacing: 1px;
@@ -1212,7 +1210,7 @@ label {
 }
 .form-grid label.wide { grid-column: 1 / -1; }
 .form-grid label > span {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   color: var(--ink-pure);
   text-transform: uppercase;
@@ -1249,7 +1247,7 @@ label {
   color: var(--doubloon);
 }
 .preview .cost span {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--cream);
   text-transform: uppercase;
@@ -1257,7 +1255,7 @@ label {
 }
 .preview small {
   display: block;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
 }
@@ -1282,7 +1280,7 @@ label {
   padding: 10px var(--sp-4);
   background: var(--parchment);
   color: var(--ink-pure);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   display: flex;
   align-items: center;
@@ -1341,7 +1339,7 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   padding: 4px 8px;
   background: var(--voodoo-violet);
@@ -1387,14 +1385,14 @@ label {
 }
 .rank-info { display: flex; flex-direction: column; gap: 6px; }
 .rank-name {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 14px;
   color: var(--brass-bright);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 .rank-progress {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--cream);
 }
@@ -1444,7 +1442,7 @@ label {
   margin-bottom: 4px;
 }
 .badge-name {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 7px;
   color: var(--ink-pure);
   letter-spacing: 0.5px;
@@ -1488,7 +1486,7 @@ label {
 .podium-place.second { background: #D9D9D9; }
 .podium-place.third { background: #C49B5C; }
 .podium-rank {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 10px;
   color: var(--ink-pure);
   letter-spacing: 1px;
@@ -1506,13 +1504,13 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 14px;
   color: var(--ink-pure);
   box-shadow: 0 0 0 2px var(--wood-dark), 0 0 0 4px var(--brass);
 }
 .podium-name {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--ink-pure);
   margin-top: 4px;
@@ -1526,7 +1524,7 @@ label {
   gap: 4px;
 }
 .podium-voyages {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-faded);
 }
@@ -1553,14 +1551,14 @@ label {
   box-shadow: 0 0 0 2px var(--brass);
 }
 .wof-rank-num {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 12px;
   color: var(--ink-faded);
   text-align: center;
 }
 .wof-row .avatar-mini { width: 28px; height: 28px; }
 .wof-name {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
 }
@@ -1574,7 +1572,7 @@ label {
   gap: 4px;
 }
 .wof-meta {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
   margin-bottom: var(--sp-3);
@@ -1641,7 +1639,7 @@ label {
 .bell-dropdown .dropdown-title {
   background: var(--wood-dark);
   color: var(--brass);
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 10px;
   padding: 8px var(--sp-3);
   letter-spacing: 1px;
@@ -1650,7 +1648,7 @@ label {
 .bell-list li {
   padding: 8px var(--sp-3);
   border-bottom: 1px solid var(--parchment-dim);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   display: flex;
   gap: var(--sp-2);
@@ -1662,7 +1660,7 @@ label {
 .bell-empty {
   padding: var(--sp-4);
   text-align: center;
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -1710,14 +1708,14 @@ label {
   box-shadow: inset 1px 1px 0 var(--brass-bright), inset -1px -1px 0 var(--brass-deep), 0 0 0 2px var(--shadow-deep);
 }
 .mode-option strong {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-weight: 600;
   display: block;
   margin-bottom: 2px;
   color: var(--ink-pure);
 }
 .mode-option small {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   color: var(--ink-faded);
   font-size: var(--fs-meta);
 }
@@ -1728,7 +1726,7 @@ label {
 
 /* Status badges row */
 .mode-pill {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   padding: 3px 6px;
   background: var(--voodoo-violet);
@@ -1739,7 +1737,7 @@ label {
   box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.3);
 }
 .mine-pill {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   padding: 3px 6px;
   background: var(--elaine-cyan);
@@ -1760,7 +1758,7 @@ label {
 }
 .coverer-stack .avatar-mini:first-child { margin-left: 0; }
 .coverer-stack .more {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 9px;
   color: var(--ink-pure);
   margin-left: 4px;
@@ -1779,7 +1777,7 @@ label {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   color: var(--ink-pure);
 }
 .coverer-list li small {
@@ -1825,14 +1823,14 @@ label {
   user-select: none;
 }
 .day-card strong {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 9px;
   color: var(--ink-pure);
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 .day-card .day-date {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--ink-pure);
   font-weight: 600;
@@ -1907,7 +1905,7 @@ label {
 .meeting-row input { display: none; }
 .meeting-info {
   display: flex; flex-direction: column; gap: 2px;
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   color: var(--ink-pure);
 }
 .meeting-info strong { font-size: var(--fs-body); font-weight: 600; line-height: 1.2; }
@@ -1917,7 +1915,7 @@ label {
   display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;
 }
 .meeting-links a {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 12px;
   color: var(--ink-pure);
   background: var(--moonbeam);
@@ -1983,18 +1981,18 @@ label {
 .member-card.me { background: var(--moonbeam); }
 .member-main { display: flex; flex-direction: column; }
 .member-main strong {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
 }
 .member-main small {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   color: var(--ink-faded);
   font-size: var(--fs-meta);
 }
 .role-badge {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   padding: 3px 6px;
   letter-spacing: 0.5px;
@@ -2037,7 +2035,7 @@ label {
   border: 0;
   box-shadow: inset 1px 1px 0 var(--parchment-bright), inset -1px -1px 0 var(--parchment-dim), 0 0 0 1px var(--wood-dark);
   cursor: pointer;
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -2063,7 +2061,7 @@ label {
 }
 .ai-briefing h4 { color: var(--brass-bright); }
 .ai-content {
-  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--cream);
   line-height: 1.5;
@@ -2084,7 +2082,7 @@ label {
 }
 .setting-info { flex: 1; }
 .setting-info strong {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 11px;
   color: var(--ink-pure);
   letter-spacing: 1px;
@@ -2151,7 +2149,7 @@ label {
   image-rendering: pixelated;
 }
 .avatar-tile-label {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 7px;
   color: var(--ink-pure);
   letter-spacing: 1px;
@@ -2186,7 +2184,7 @@ label {
   position: relative;
   background: var(--parchment-bright);
   padding: var(--sp-3) var(--sp-4);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
   box-shadow:
@@ -2243,7 +2241,7 @@ label {
 }
 .tavern h2 { color: var(--brass); margin-bottom: var(--sp-2); }
 .tavern-meta {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
   margin-bottom: var(--sp-3);
@@ -2288,19 +2286,19 @@ label {
 }
 .scroll-head .arrow { color: var(--brass); font-size: 14px; }
 .scroll-head strong {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   font-weight: 400;
   color: var(--ink-pure);
 }
 .scroll-head small {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink-faded);
   margin-left: auto;
 }
 .scroll-msg {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
   margin: 0;
@@ -2309,7 +2307,7 @@ label {
 }
 
 .tip-hat {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 7px;
   background: var(--parchment-bright);
   color: var(--ink-pure);
@@ -2335,7 +2333,7 @@ label {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
 }
 .scroll-target strong { font-weight: 400; }
@@ -2358,7 +2356,7 @@ label {
   margin-bottom: var(--sp-3);
 }
 .bd-label {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 8px;
   color: var(--ink-faded);
   letter-spacing: 1px;
@@ -2366,7 +2364,7 @@ label {
   align-self: center;
 }
 .bd-value {
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--ink-pure);
 }
@@ -2377,7 +2375,7 @@ label {
   border-left: 3px solid var(--brass);
 }
 .bd-section h4 {
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 9px;
   color: var(--ink-pure);
   letter-spacing: 1px;
@@ -2420,13 +2418,13 @@ label {
   background: var(--wood-dark);
   color: var(--brass);
   padding: 10px var(--sp-4);
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: var(--fs-h2);
   letter-spacing: 1px;
 }
 .modal-body {
   padding: var(--sp-4);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
 }
 .modal-body p { margin: 0 0 var(--sp-3); }
@@ -2446,7 +2444,7 @@ label {
   padding: var(--sp-7) var(--sp-3);
   text-align: center;
   color: var(--cream);
-  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-body-lg);
 }
 .loading-doubloon {
@@ -2725,17 +2723,18 @@ label {
    Skin overrides
    ============================================================ */
 
-/* --- Pirate skin (default). Press Start 2P only on the wordmark and
-   the panel/modal title bars. Everything else gets Inter for
-   real-world legibility. */
+/* --- Pirate skin (default). All Inter; the only "pixel" anywhere
+   is in the SVG sprites + the doubloon counters (Silkscreen). */
 :root .login-title,
 :root .brand-name,
 :root .panel-title,
 :root .modal-title {
   font-family: var(--font-display);
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 800;
 }
+:root .login-title { font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; }
+:root .panel-title, :root .modal-title { text-transform: uppercase; font-size: 13px; }
 :root h1, :root h2, :root h3, :root h4 {
   font-family: var(--font-body);
   font-weight: 700;
@@ -3288,7 +3287,7 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Press Start 2P', monospace;
+  font-family: var(--font-display);
   font-size: 14px;
   letter-spacing: 2px;
   font-weight: 700;
