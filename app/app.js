@@ -1103,7 +1103,7 @@ function showCrewClaimModal() {
           `;
         }).join('')}
       </ul>
-      <p style="margin: 12px 0 0; font-family: 'Pixelify Sans', system-ui, sans-serif;">
+      <p style="margin: 12px 0 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;">
         <strong>${state.claim.selectedDayKeys.length} day${state.claim.selectedDayKeys.length === 1 ? '' : 's'}</strong> ·
         <strong style="color: var(--brass-deep);">${cost.totalCoins} doubloons</strong>
       </p>
@@ -1395,7 +1395,7 @@ function showManageCrewModal(team) {
         <input id="${inputPhoto}" type="text" value="${esc(team.photoURL ?? '')}" placeholder="https://…" />
       </label>
     </div>
-    <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">Paste a square image URL. Leave blank to use the default flag.</p>
+    <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">Paste a square image URL. Leave blank to use the default flag.</p>
   `;
   showModal({
     title: 'MANAGE CREW',
@@ -1789,7 +1789,7 @@ function showBountyDetail(bountyId) {
       <span class="status-badge status-${status}">${STATUS_LABEL[status] || status}</span>
       <span style="font-family: 'Silkscreen', monospace; font-size: 22px; color: var(--brass-deep); display: inline-flex; align-items: center; gap: 4px;">
         ${SVG.doubloon}${b.totalCoinsOffered ?? 0}
-        <span style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">doubloons</span>
+        <span style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">doubloons</span>
       </span>
     </div>
 
@@ -2232,7 +2232,7 @@ function renderHome() {
     <section class="actions">
       <div class="panel">
         <div class="panel-title">Form a crew</div>
-        <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.</p>
+        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.</p>
         <div class="row">
           <input id="new-team-name" type="text" placeholder="Crew name" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
           <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Forming…' : 'Hoist'}</button>
@@ -2240,7 +2240,7 @@ function renderHome() {
       </div>
       <div class="panel">
         <div class="panel-title">Sign on with a crew</div>
-        <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
+        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
         <div class="row">
           <input id="join-team-id" type="text" placeholder="Crew ID or link" ${state.busy.joinTeam ? 'disabled' : ''} />
           <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Boarding…' : 'Aye'}</button>
@@ -2642,7 +2642,7 @@ function renderPostTab() {
   return `
     <div class="create-card">
       <div class="panel-title">Post a bounty</div>
-      <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
+      <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
         ${ECONOMY.WEEKEND_MULTIPLIER}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.
       </p>
       <form id="create-form" autocomplete="off">

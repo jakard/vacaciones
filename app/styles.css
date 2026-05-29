@@ -40,7 +40,7 @@
   --fs-coin: 20px;       /* Silkscreen */
 
   /* Skin-level tokens (used by the 3 skins via [data-skin=...]) */
-  --font-body: 'Pixelify Sans', system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-display: 'Press Start 2P', monospace;
   --font-mono: 'Silkscreen', monospace;
   --line-body: 1.55;
@@ -2725,35 +2725,47 @@ label {
    Skin overrides
    ============================================================ */
 
-/* --- Pirate skin (default). Tighten a few labels back to Press Start 2P
-   for vibe; the rest of the headings already use Pixelify Sans 700. */
-:root .panel-title,
+/* --- Pirate skin (default). Press Start 2P only on the wordmark and
+   the panel/modal title bars. Everything else gets Inter for
+   real-world legibility. */
 :root .login-title,
 :root .brand-name,
-:root .btn,
-:root .btn-secondary,
-:root .btn-danger,
-:root .btn-google,
-:root button.btn,
-:root .tab,
-:root .filter-chip,
-:root .status-badge,
-:root .mode-pill,
-:root .mine-pill,
-:root .own-tag,
-:root .stan-progress,
-:root .day-card strong,
-:root .badge-name,
-:root .podium-rank,
-:root .wof-rank-num,
-:root .taken-by-label,
-:root .rank-name,
-:root .rank-chip,
-:root .role-badge,
-:root .modal-title,
-:root .setting-info strong {
+:root .panel-title,
+:root .modal-title {
   font-family: var(--font-display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
+:root h1, :root h2, :root h3, :root h4 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+:root .btn, :root .btn-secondary, :root .btn-danger, :root .btn-google,
+:root .btn-large, :root .btn-ghost {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+:root .tab, :root .filter-chip {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+:root .status-badge, :root .mode-pill, :root .mine-pill,
+:root .role-badge, :root .own-tag, :root .taken-by-label,
+:root .badge-name, :root .podium-rank, :root .wof-rank-num,
+:root .rank-name, :root .rank-chip {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+:root .day-card strong { font-family: var(--font-body); font-weight: 700; }
+:root .stan-progress { font-family: var(--font-body); }
+:root .setting-info strong { font-family: var(--font-body); font-weight: 700; }
 
 /* === Basic skin ============================================ */
 [data-skin="basic"] {
