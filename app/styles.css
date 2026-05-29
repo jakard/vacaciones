@@ -15,7 +15,8 @@
   --parchment-dim: #C4A86B;
   --wood-dark: #5A3A1F;
   --ink-pure: #1A0E08;
-  --ink-faded: #6B4F30;
+  /* Darker than the original #6B4F30 so muted text clears WCAG AA on parchment. */
+  --ink-faded: #5A3F22;
   --cream: #F7E7C2;
   --brass: #E0A93B;
   --brass-bright: #FFD86B;
@@ -291,6 +292,65 @@ h3 {
 .btn:focus-visible {
   outline: 2px dashed var(--brass-bright);
   outline-offset: 4px;
+}
+
+/* Global keyboard focus — every focusable element gets a visible ring.
+   Skin overrides further down can tighten this for HC / Basic. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[tabindex]:focus-visible,
+summary:focus-visible {
+  outline: 2px dashed var(--brass-bright);
+  outline-offset: 3px;
+}
+/* Make any element with `data-clickable` keyboard-focusable too. */
+[data-clickable] { cursor: pointer; }
+[data-clickable]:focus-visible {
+  outline: 2px dashed var(--brass-bright);
+  outline-offset: 3px;
+}
+/* Respect users who ask the OS to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Screen-reader-only utility — visually hidden but read aloud. */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+/* Skip link — hidden until focused, then jumps to main content. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: var(--ink-pure);
+  color: var(--brass-bright);
+  padding: 10px 16px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  z-index: 9999;
+  text-decoration: none;
+  border: 2px solid var(--brass-bright);
+}
+.skip-link:focus {
+  top: 8px;
+  left: 8px;
+  outline: 2px dashed var(--brass-bright);
+  outline-offset: 2px;
 }
 
 .btn-large {
@@ -703,7 +763,7 @@ label {
 .status-badge {
   display: inline-block;
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1px;
   padding: 3px 6px;
   text-transform: uppercase;
@@ -727,7 +787,7 @@ label {
 }
 .filter-chip {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   padding: 6px 10px;
   background: var(--ink-abyss);
   color: var(--parchment-dim);
@@ -956,7 +1016,7 @@ label {
 }
 .taken-by-label {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   color: var(--ink-pure);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1181,7 +1241,7 @@ label {
 
 .own-tag {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   color: var(--parchment-dim);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -1211,7 +1271,7 @@ label {
 .form-grid label.wide { grid-column: 1 / -1; }
 .form-grid label > span {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   color: var(--ink-pure);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1340,7 +1400,7 @@ label {
   align-items: center;
   gap: 4px;
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   padding: 4px 8px;
   background: var(--voodoo-violet);
   color: var(--cream);
@@ -1443,7 +1503,7 @@ label {
 }
 .badge-name {
   font-family: var(--font-display);
-  font-size: 7px;
+  font-size: 10px;
   color: var(--ink-pure);
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -1727,7 +1787,7 @@ label {
 /* Status badges row */
 .mode-pill {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   padding: 3px 6px;
   background: var(--voodoo-violet);
   color: var(--cream);
@@ -1738,7 +1798,7 @@ label {
 }
 .mine-pill {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   padding: 3px 6px;
   background: var(--elaine-cyan);
   color: var(--ink-pure);
@@ -1759,7 +1819,7 @@ label {
 .coverer-stack .avatar-mini:first-child { margin-left: 0; }
 .coverer-stack .more {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--ink-pure);
   margin-left: 4px;
 }
@@ -1824,7 +1884,7 @@ label {
 }
 .day-card strong {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--ink-pure);
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -1993,7 +2053,7 @@ label {
 }
 .role-badge {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   padding: 3px 6px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -2103,6 +2163,36 @@ label {
 }
 .ai-content strong { color: var(--brass-bright); }
 .ai-content br + br { margin-top: 8px; display: block; content: ''; }
+.ai-content p { margin: 0 0 var(--sp-3); }
+.ai-content p:last-child { margin-bottom: 0; }
+.ai-content h3, .ai-content h4, .ai-content h5, .ai-content h6 {
+  font-family: var(--font-display);
+  color: var(--brass-bright);
+  margin: var(--sp-3) 0 var(--sp-2);
+  font-size: var(--fs-body-lg);
+  line-height: 1.3;
+}
+.ai-content h4 { font-size: var(--fs-body); }
+.ai-content h5, .ai-content h6 { font-size: var(--fs-meta); text-transform: uppercase; letter-spacing: 0.5px; }
+.ai-content ul, .ai-content ol {
+  margin: 0 0 var(--sp-3);
+  padding-left: var(--sp-5);
+}
+.ai-content li { margin-bottom: 4px; }
+.ai-content code {
+  background: rgba(0,0,0,0.35);
+  color: var(--brass-bright);
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+.ai-content a {
+  color: var(--brass-bright);
+  text-decoration: underline;
+}
+.ai-content a:hover { color: var(--cream); }
+.ai-content em { font-style: italic; }
 
 /* ============================================================
    Crew Settings tab
@@ -2185,7 +2275,7 @@ label {
 }
 .avatar-tile-label {
   font-family: var(--font-display);
-  font-size: 7px;
+  font-size: 10px;
   color: var(--ink-pure);
   letter-spacing: 1px;
 }
@@ -2343,7 +2433,7 @@ label {
 
 .tip-hat {
   font-family: var(--font-display);
-  font-size: 7px;
+  font-size: 10px;
   background: var(--parchment-bright);
   color: var(--ink-pure);
   padding: 3px 6px;
@@ -2392,7 +2482,7 @@ label {
 }
 .bd-label {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 11px;
   color: var(--ink-faded);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -2411,7 +2501,7 @@ label {
 }
 .bd-section h4 {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--ink-pure);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -2565,7 +2655,7 @@ label {
   .login-card { gap: var(--sp-2); }
   .scroll { padding: var(--sp-3); }
   .scroll-head { font-size: var(--fs-meta); }
-  .invite-actions .btn-ghost { padding: 6px 8px; font-size: 8px; }
+  .invite-actions .btn-ghost { padding: 6px 8px; font-size: 12px; }
   .bounty {
     grid-template-areas:
       "status doubloons"

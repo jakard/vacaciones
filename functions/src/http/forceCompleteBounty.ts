@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
 import { CALLABLE_OPTS } from '../options';
@@ -13,6 +13,28 @@ const Schema = z.object({
 
 interface ForceCompleteResult {
   completed: boolean;
+  daysReleased: number;
+  coinsReleased: number;
+}
+
+function startOfDayUtc(d: Date): Date {
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+  );
+}
+
+function formatDateKey(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function dailyReleaseAmount(date: Date): number {
+  const dow = date.getUTCDay();
+  return dow === 0 || dow === 6
+    ? ECONOMY.COVERAGE_PRICE_PER_DAY * ECONOMY.WEEKEND_MULTIPLIER
+    : ECONOMY.COVERAGE_PRICE_PER_DAY;
 }
 
 export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>(
@@ -29,7 +51,7 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
     const uid = request.auth.uid;
     const db = getFirestore();
 
-    await db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
       const memberRef = db.doc(`teams/${teamId}/members/${uid}`);
       const requestRef = db.doc(`teams/${teamId}/coverageRequests/${requestId}`);
       const [memberSnap, reqSnap] = await Promise.all([
@@ -46,6 +68,10 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         status: string;
         covererUid?: string | null;
         requesterUid: string;
+        windowStart?: Timestamp;
+        windowEnd?: Timestamp;
+        selectedDayKeys?: string[];
+        dayCoverers?: Record<string, { uid: string }>;
       };
       if (req.status === 'completed') {
         throw new HttpsError('failed-precondition', 'Already completed.');
@@ -54,7 +80,62 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         throw new HttpsError('failed-precondition', 'Cancelled — use the appropriate action.');
       }
 
-      const feeBurnUid = req.covererUid ?? req.requesterUid;
+      // ----------------------------------------------------------------
+      // Release every billable day in the window to its coverer.
+      // Uses the same idempotency key as dailyCoverageRelease so re-running
+      // can never double-pay even if the scheduler already touched a day.
+      // ----------------------------------------------------------------
+      const fallbackCovererUid = req.covererUid ?? null;
+      const dayCoverers = req.dayCoverers ?? {};
+      const billableSet = req.selectedDayKeys ? new Set(req.selectedDayKeys) : null;
+
+      const releases: Array<{ uid: string; amount: number; dayKey: string; date: Date }> = [];
+      if (req.windowStart && req.windowEnd) {
+        const start = startOfDayUtc(req.windowStart.toDate());
+        const end = startOfDayUtc(req.windowEnd.toDate());
+        const cursor = new Date(start);
+        while (cursor.getTime() <= end.getTime()) {
+          const dayKey = formatDateKey(cursor);
+          const billable = !billableSet || billableSet.has(dayKey);
+          if (billable) {
+            const dayUid = dayCoverers[dayKey]?.uid ?? fallbackCovererUid;
+            if (dayUid) {
+              releases.push({
+                uid: dayUid,
+                amount: dailyReleaseAmount(cursor),
+                dayKey,
+                date: new Date(cursor),
+              });
+            }
+          }
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+      }
+
+      let coinsReleased = 0;
+      let daysReleased = 0;
+      for (const r of releases) {
+        const result = await recordLedgerEntry({
+          tx,
+          db,
+          teamId,
+          uid: r.uid,
+          type: 'coverageRelease',
+          amountSigned: r.amount,
+          balanceBucket: 'earned',
+          relatedRequestId: requestId,
+          idempotencyKey: `${requestId}_release_${r.dayKey}`,
+        });
+        if (result.applied) {
+          coinsReleased += r.amount;
+          daysReleased += 1;
+        }
+      }
+
+      // Burn the transaction fee. Match dailyCoverageRelease's convention:
+      // for crew bounties no single coverer should eat it, so fall back to
+      // the requester when there is no top-level covererUid.
+      const feeBurnUid = fallbackCovererUid ?? req.requesterUid;
       await recordLedgerEntry({
         tx,
         db,
@@ -69,6 +150,7 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
 
       tx.update(requestRef, {
         status: 'completed',
+        coinsReleased: FieldValue.increment(coinsReleased),
         forceCompletedByUid: uid,
         forceCompletedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -79,11 +161,21 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         action: 'forceCompleteBounty',
         actorUid: uid,
         target: requestId,
-        details: { previousStatus: req.status },
+        details: {
+          previousStatus: req.status,
+          daysReleased,
+          coinsReleased,
+        },
         createdAt: FieldValue.serverTimestamp(),
       });
+
+      return { coinsReleased, daysReleased };
     });
 
-    return { completed: true };
+    return {
+      completed: true,
+      daysReleased: result.daysReleased,
+      coinsReleased: result.coinsReleased,
+    };
   },
 );

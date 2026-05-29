@@ -31,12 +31,10 @@ export const updateMemberRole = onCall<unknown, Promise<UpdateRoleResult>>(
     await db.runTransaction(async (tx) => {
       const callerMemberRef = db.doc(`teams/${teamId}/members/${uid}`);
       const targetMemberRef = db.doc(`teams/${teamId}/members/${targetUid}`);
-      const teamRef = db.doc(`teams/${teamId}`);
 
-      const [callerSnap, targetSnap, teamSnap] = await Promise.all([
+      const [callerSnap, targetSnap] = await Promise.all([
         tx.get(callerMemberRef),
         tx.get(targetMemberRef),
-        tx.get(teamRef),
       ]);
 
       if (!callerSnap.exists) {

@@ -10,8 +10,9 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header id="header" hidden>
-    <a href="#/" class="brand">
+  <a class="skip-link" href="#app">Skip to main content</a>
+  <header id="header" hidden role="banner">
+    <a href="#/" class="brand" aria-label="Vacaciones — go to home">
       <svg class="brand-logo" viewBox="0 0 16 16" aria-hidden="true">
         <!-- Doubloon -->
         <rect width="16" height="16" fill="transparent"/>
@@ -33,9 +34,9 @@
     <div class="user" id="user-info"></div>
   </header>
 
-  <main id="app">
-    <div class="loading">
-      <span class="loading-doubloon">
+  <main id="app" role="main" tabindex="-1">
+    <div class="loading" role="status" aria-live="polite">
+      <span class="loading-doubloon" aria-hidden="true">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
           <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
@@ -50,7 +51,7 @@
     </div>
   </main>
 
-  <div id="toast" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="modal-root"></div>
   <div id="coin-shower"></div>
 

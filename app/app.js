@@ -9,11 +9,13 @@ import {
 import {
   collection,
   doc,
+  getDocs,
   getFirestore,
   limit,
   onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
 } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
 import {
@@ -81,12 +83,12 @@ const STATUS_LABEL = {
 const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 4, cancelled: 5 };
 
 const STAN_SCENES = [
-  { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand, are ye? Let me show ye the ropes." },
-  { speech: "Doubloons are how we trade coverage. 5 buy ye one day of shore leave. Weekend? Twice as dear — the Crown insists." },
-  { speech: "Yer starter chest holds 125 doubloons — 25 business days of leave from the jump. Spend wisely." },
-  { speech: "Every month the Crown drops 11 more stipend coins in yer purse — that's the year-after-year budget. Use 'em or watch 'em vanish at month's end." },
+  { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand? Let me show you the ropes." },
+  { speech: "Doubloons are how we trade coverage. 5 buy you one day of shore leave. Weekend? Twice as dear — the Crown insists." },
+  { speech: "Your starter chest holds 125 doubloons — 25 business days of leave from day one. Spend wisely." },
+  { speech: "Every month the Crown drops 11 more stipend doubloons in your purse — that's the year-after-year budget. Use them or watch them vanish at month's end." },
   { speech: "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time." },
-  { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now hoist a crew and post yer first bounty!" },
+  { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now form a crew and post your first bounty!" },
 ];
 
 const MASCOT_LINES = [
@@ -280,6 +282,71 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
+}
+
+/**
+ * Lightweight, safe Markdown renderer for Gemini briefings. Supports
+ * headings, bold, italic, inline code, links, ordered + unordered lists,
+ * and paragraphs. All text is HTML-escaped first so this never injects
+ * arbitrary HTML — it just promotes the safe subset back to markup.
+ */
+function renderMarkdown(src) {
+  if (!src) return '';
+  const lines = String(src).replace(/\r\n/g, '\n').split('\n');
+  const out = [];
+  let inList = null; // 'ul' | 'ol' | null
+  let para = [];
+  const flushPara = () => {
+    if (para.length === 0) return;
+    out.push('<p>' + inline(para.join(' ')) + '</p>');
+    para = [];
+  };
+  const flushList = () => {
+    if (!inList) return;
+    out.push(`</${inList}>`);
+    inList = null;
+  };
+  function inline(text) {
+    let s = esc(text);
+    // Code spans (escape inner already done).
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold then italic.
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    // Links — only http(s).
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return s;
+  }
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) { flushPara(); flushList(); continue; }
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h) {
+      flushPara(); flushList();
+      const lvl = Math.min(6, Math.max(3, h[1].length + 2)); // h1→h3 to keep our heading scale
+      out.push(`<h${lvl}>${inline(h[2])}</h${lvl}>`);
+      continue;
+    }
+    const ul = line.match(/^[-*+]\s+(.*)$/);
+    if (ul) {
+      flushPara();
+      if (inList !== 'ul') { flushList(); out.push('<ul>'); inList = 'ul'; }
+      out.push(`<li>${inline(ul[1])}</li>`);
+      continue;
+    }
+    const ol = line.match(/^\d+\.\s+(.*)$/);
+    if (ol) {
+      flushPara();
+      if (inList !== 'ol') { flushList(); out.push('<ol>'); inList = 'ol'; }
+      out.push(`<li>${inline(ol[1])}</li>`);
+      continue;
+    }
+    flushList();
+    para.push(line);
+  }
+  flushPara(); flushList();
+  return out.join('\n');
 }
 function startOfUtcDay(d) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -1436,14 +1503,44 @@ function confirmCancelBounty(bountyId) {
   showModal({
     title: 'CANCEL BOUNTY?',
     body: `<p>${message}</p>`,
-    primaryLabel: 'Aye, cancel',
+    primaryLabel: 'Cancel bounty',
     secondaryLabel: 'Nevermind',
     onPrimary: () => cancelBountyAction(bountyId),
   });
 }
 
-function exportLedgerCsv() {
-  const entries = state.ledger || [];
+async function exportLedgerCsv() {
+  if (!state.teamId || !state.user?.uid) {
+    showToast('No crew loaded.', 'info');
+    return;
+  }
+  showToast('Preparing CSV…', 'info', 2000);
+  // Page through the full ledger so we don't silently cap at the live
+  // listener's 40-row window. Hard cap of 10k rows to stay friendly.
+  const entries = [];
+  let cursor = null;
+  const PAGE = 500;
+  const MAX = 10000;
+  try {
+    while (entries.length < MAX) {
+      const baseQ = [
+        collection(db, `teams/${state.teamId}/ledgerEntries`),
+        where('uid', '==', state.user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(PAGE),
+      ];
+      const q = cursor ? query(...baseQ, startAfter(cursor)) : query(...baseQ);
+      const snap = await getDocs(q);
+      if (snap.empty) break;
+      for (const d of snap.docs) entries.push({ id: d.id, ...d.data() });
+      if (snap.docs.length < PAGE) break;
+      cursor = snap.docs[snap.docs.length - 1];
+    }
+  } catch (err) {
+    console.error('CSV export query failed', err);
+    showToast('Could not load full ledger.', 'error');
+    return;
+  }
   if (entries.length === 0) {
     showToast('Nothing to export.', 'info');
     return;
@@ -1462,7 +1559,8 @@ function exportLedgerCsv() {
     const s = String(cell ?? '');
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  // Prepend UTF-8 BOM so Excel reads non-ASCII characters correctly.
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1470,7 +1568,7 @@ function exportLedgerCsv() {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  showToast(`Exported ${entries.length} ledger entries.`, 'success');
+  showToast(`Exported ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`, 'success');
 }
 
 function showEditBountyModal(bountyId) {
@@ -1501,11 +1599,11 @@ function showEditBountyModal(bountyId) {
       <label class="wide"><span>Coverage scope</span><input id="${scopeId}" type="text" value="${esc(b.coverageScope || '')}" /></label>
       <label class="wide"><span>Emergency definition</span><textarea id="${emergId}" rows="2">${esc(b.emergencyDef || '')}</textarea></label>
       <div class="wide">
-        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Reachability</span>
+        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Reachability</span>
         <div class="check-group">${reachChecks}</div>
       </div>
       <div class="wide">
-        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">Coverage kinds</span>
+        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Coverage kinds</span>
         <div class="check-group">${kindChecks}</div>
       </div>
     </div>
@@ -1657,8 +1755,13 @@ async function grantBonusAction(targetUid, amount, reason, displayName) {
 
 async function forceCompleteAction(requestId) {
   try {
-    await callForceCompleteBounty({ teamId: state.teamId, requestId });
-    showToast('Bounty force-completed.', 'success');
+    const result = await callForceCompleteBounty({ teamId: state.teamId, requestId });
+    const released = result?.data?.coinsReleased ?? 0;
+    const days = result?.data?.daysReleased ?? 0;
+    const msg = released > 0
+      ? `Bounty force-completed. Released ${released} doubloons over ${days} day${days === 1 ? '' : 's'}.`
+      : 'Bounty force-completed.';
+    showToast(msg, 'success', 5000);
     audio.rank();
   } catch (err) { showToast(err.message, 'error', 6000); }
 }
@@ -1735,7 +1838,7 @@ async function topUpGrantAction() {
   showModal({
     title: 'TOP UP STARTER CHEST?',
     body: `<p>This will credit each crewmate who received the old 20-doubloon grant with the missing <strong>105 doubloons</strong> so everyone hits the new 125 starting balance. It runs once per crewmate (idempotent).</p>`,
-    primaryLabel: 'Aye, top up',
+    primaryLabel: 'Top up the grant',
     secondaryLabel: 'Cancel',
     onPrimary: async () => {
       try {
@@ -1806,10 +1909,18 @@ function launchCoinShower(label) {
 
 function showToast(message, kind = 'info', ttl = 3500) {
   const toastEl = document.getElementById('toast');
+  // Make sure the live region announces this toast to screen readers.
+  if (toastEl && !toastEl.hasAttribute('role')) {
+    toastEl.setAttribute('role', 'status');
+    toastEl.setAttribute('aria-live', 'polite');
+    toastEl.setAttribute('aria-atomic', 'true');
+  }
   const icon = kind === 'success' ? '✓' : kind === 'error' ? '!' : '⚓';
+  const srPrefix = kind === 'success' ? 'Success: ' : kind === 'error' ? 'Error: ' : '';
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
-  el.innerHTML = `<span class="toast-icon">${icon}</span><span>${esc(message)}</span>`;
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  el.innerHTML = `<span class="toast-icon" aria-hidden="true">${icon}</span><span class="sr-only">${esc(srPrefix)}</span><span>${esc(message)}</span>`;
   toastEl.appendChild(el);
   audio.toast();
   let timer;
@@ -1820,22 +1931,78 @@ function showToast(message, kind = 'info', ttl = 3500) {
   timer = setTimeout(dismiss, ttl);
 }
 
-function showModal({ title, body, primaryLabel = 'AYE', secondaryLabel, onPrimary, onSecondary, wide }) {
+// Modal stack — supports nested modals (e.g. confirm inside an admin modal).
+const __modalStack = [];
+
+function showModal({ title, body, primaryLabel = 'OK', secondaryLabel, onPrimary, onSecondary, wide }) {
   const root = document.getElementById('modal-root');
   const wrap = document.createElement('div');
+  const titleId = 'modal-title-' + Math.random().toString(36).slice(2, 9);
   wrap.className = 'modal-scrim';
   wrap.innerHTML = `
-    <div class="modal ${wide ? 'wide' : ''}">
-      <div class="modal-title">${esc(title)}</div>
+    <div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="modal-title" id="${titleId}">${esc(title)}</div>
       <div class="modal-body">${body}</div>
       <div class="modal-actions">
-        ${secondaryLabel ? `<button class="btn btn-secondary" data-modal="secondary">${esc(secondaryLabel)}</button>` : ''}
-        <button class="btn" data-modal="primary">${esc(primaryLabel)}</button>
+        ${secondaryLabel ? `<button class="btn btn-secondary" data-modal="secondary" type="button">${esc(secondaryLabel)}</button>` : ''}
+        <button class="btn" data-modal="primary" type="button">${esc(primaryLabel)}</button>
       </div>
     </div>`;
-  const close = () => wrap.remove();
+
+  // Capture the element that opened the modal so we can restore focus on close.
+  const opener = document.activeElement;
+  let removed = false;
+  const close = () => {
+    if (removed) return;
+    removed = true;
+    document.removeEventListener('keydown', onKeydown, true);
+    wrap.remove();
+    const idx = __modalStack.indexOf(wrap);
+    if (idx >= 0) __modalStack.splice(idx, 1);
+    // Return focus to the opener if it's still in the DOM and visible.
+    if (opener && document.body.contains(opener) && typeof opener.focus === 'function') {
+      try { opener.focus(); } catch (_) {}
+    }
+  };
+
+  // Focus trap — tab cycles inside the modal only.
+  function focusables() {
+    return Array.from(wrap.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((el) => el.offsetParent !== null);
+  }
+  function onKeydown(e) {
+    // Only the topmost modal handles keys.
+    if (__modalStack[__modalStack.length - 1] !== wrap) return;
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      e.preventDefault();
+      const result = onSecondary ? onSecondary() : undefined;
+      if (result !== false) close();
+      return;
+    }
+    if (e.key === 'Tab') {
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+  document.addEventListener('keydown', onKeydown, true);
+
   wrap.addEventListener('click', (e) => {
-    if (e.target === wrap) close();
+    if (e.target === wrap) {
+      const result = onSecondary ? onSecondary() : undefined;
+      if (result !== false) close();
+      return;
+    }
     const action = e.target.closest('[data-modal]')?.dataset.modal;
     if (action === 'primary') {
       const result = onPrimary?.();
@@ -1846,7 +2013,17 @@ function showModal({ title, body, primaryLabel = 'AYE', secondaryLabel, onPrimar
       if (result !== false) close();
     }
   });
+
   root.appendChild(wrap);
+  __modalStack.push(wrap);
+
+  // Focus the primary action by default (or first focusable if no primary).
+  requestAnimationFrame(() => {
+    const primary = wrap.querySelector('[data-modal="primary"]');
+    const fallback = focusables()[0];
+    (primary || fallback)?.focus();
+  });
+
   return { close };
 }
 
@@ -1871,7 +2048,7 @@ function renderStanScene() {
   showModal({
     title: 'STAN, HARBORMASTER',
     body,
-    primaryLabel: isLast ? 'Set sail' : 'Aye, next',
+    primaryLabel: isLast ? 'Set sail' : 'Next',
     secondaryLabel: idx === 0 ? 'Skip' : 'Back',
     onPrimary: () => {
       audio.click();
@@ -1994,7 +2171,7 @@ function showBountyDetail(bountyId) {
     ${b.aiBriefing ? `
       <div class="bd-section ai-briefing">
         <h4>✨ AI briefing</h4>
-        <div class="ai-content">${esc(b.aiBriefing.content || '').replace(/\n/g, '<br>')}</div>
+        <div class="ai-content markdown">${renderMarkdown(b.aiBriefing.content || '')}</div>
         <small class="muted" style="display: block; margin-top: 8px;">Generated by Gemini · ${esc(timeAgo(new Date(b.aiBriefing.generatedAtMs || 0)))}</small>
       </div>` : ''}
     ${mine && (b.status === 'open' || b.status === 'accepted' || b.status === 'active') ? `
@@ -2120,28 +2297,28 @@ function renderUserInfo() {
         ${SVG.doubloon}<span>${totalBalance}</span>
       </span>` : ''}
     ${rank && team ? `<span class="rank-chip" title="${esc(rank.name)} (${rank.icon})"><span class="rank-icon">${rank.icon}</span>${esc(rank.name)}</span>` : ''}
-    <button class="bell" data-action="bell" title="Notifications" aria-label="Notifications">
-      🔔${unread > 0 ? `<span class="bell-badge">${unread}</span>` : ''}
+    <button class="bell" data-action="bell" title="Notifications" aria-label="${unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
+      <span aria-hidden="true">🔔</span>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
     </button>
-    <button class="sound-toggle" data-action="open-skin-picker" title="Theme">🎨</button>
-    <button class="sound-toggle ${audio.enabled ? 'on' : ''}" data-action="sound" title="Sound effects">
-      ${audio.enabled ? '🔊' : '🔇'}
+    <button class="sound-toggle" data-action="open-skin-picker" title="Theme" aria-label="Choose theme"><span aria-hidden="true">🎨</span></button>
+    <button class="sound-toggle ${audio.enabled ? 'on' : ''}" data-action="sound" title="Sound effects" aria-label="${audio.enabled ? 'Mute sound effects' : 'Unmute sound effects'}" aria-pressed="${audio.enabled ? 'true' : 'false'}">
+      <span aria-hidden="true">${audio.enabled ? '🔊' : '🔇'}</span>
     </button>
-    <button class="avatar-slot" data-action="pick-avatar-open" title="Choose your pirate" aria-label="Choose your pirate">
+    <button class="avatar-slot" data-action="pick-avatar-open" title="Choose your pirate" aria-label="Choose your avatar">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 32, klass: 'avatar-img' })}
     </button>
     <div class="who">
       <span class="name">${esc(u.displayName ?? '')}</span>
       <span class="email">${esc(u.email ?? '')}</span>
     </div>
-    <button class="btn-secondary" data-action="sign-out" style="padding: 6px 10px; font-size: 8px;">SIGN OUT</button>
+    <button class="btn-secondary" data-action="sign-out" style="padding: 6px 10px; font-size: 11px;">SIGN OUT</button>
     ${state.bellOpen ? renderBellDropdown(notifs) : ''}
   `;
 }
 
 function renderBellDropdown(notifs) {
   return `
-    <div class="bell-dropdown">
+    <div class="bell-dropdown" role="region" aria-label="Recent activity">
       <div class="dropdown-title">Recent activity</div>
       ${notifs.length === 0 ? `
         <div class="bell-empty">Nothing new in the harbour.</div>
@@ -2149,7 +2326,7 @@ function renderBellDropdown(notifs) {
         <ul class="bell-list">
           ${notifs.map((n) => `
             <li>
-              <span class="bell-icon">${n.icon}</span>
+              <span class="bell-icon" aria-hidden="true">${n.icon}</span>
               <span>
                 ${esc(n.text)}
                 <span class="bell-meta">${esc(timeAgo(n.time))}${n.meta ? ` · ${esc(n.meta)}` : ''}</span>
@@ -2191,7 +2368,7 @@ function renderHelp() {
     <div class="panel">
       <div class="panel-title">The doubloon economy</div>
       <h3 style="margin-top: 12px;">🪙 Your purse, your starter chest, the Crown's stipend</h3>
-      <p>Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend coins expire at the end of each month, so spend 'em or lose 'em. Earned coins (the ones you got by covering crewmates) never expire.</p>
+      <p>Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend doubloons expire at the end of each month, so spend them or lose them. Earned doubloons (the ones you got by covering crewmates) never expire.</p>
       <h3>📅 What a day of coverage costs</h3>
       <p>One day costs <strong>5 doubloons</strong> (Mon–Fri). Weekend days cost <strong>10</strong>. Holidays don't have special rates yet — they cost what their weekday says.</p>
       <h3>🏴‍☠️ Posting a bounty</h3>
@@ -2199,9 +2376,9 @@ function renderHelp() {
       <h3>⚓ Taking a voyage</h3>
       <p>Browse the Bounty Board. Click any open bounty to see the full briefing. In crew mode you pick which days you can cover; in single mode you take the whole window. Doubloons release to you one day at a time as the days pass, paid out by a daily cron.</p>
       <h3>🏆 Voyage Rank + Wall of Fame</h3>
-      <p>Your rank (Cabin Boy → Commodore) is based on lifetime coins earned by covering. The Wall of Fame ranks crewmates by what they earned in the last 90 days, so old salts can't sit on their laurels.</p>
+      <p>Your rank (Cabin Boy → Commodore) is based on lifetime doubloons earned by covering. The Wall of Fame ranks crewmates by what they earned in the last 90 days, so old salts can't sit on their laurels.</p>
       <h3>🪶 Thank-You Scrolls</h3>
-      <p>Recognition that isn't tied to coins. Send a scroll to a crewmate who covered you well, or tip your hat to anyone on the Wall of Fame.</p>
+      <p>Recognition that isn't tied to doubloons. Send a scroll to a crewmate who covered you well, or tip your hat to anyone on the Wall of Fame.</p>
       <h3>📅 Google Calendar</h3>
       <p>Optional. Connect Calendar in the post form to pick which meetings the coverer should attend. When you accept a bounty you can add a coverage marker + the meetings to your own Calendar with one click.</p>
       <h3>🤖 Gemini briefing (manager-configured)</h3>
@@ -2417,13 +2594,13 @@ function renderTeam() {
         <button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 SHARE INVITE</button>
       </div>
     </header>
-    <nav class="tabs">
-      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}">Bounty Board ${openCount > 0 ? `<span class="tab-count">${openCount}</span>` : ''}</a>
-      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}">Treasure Chest</a>
-      <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}">Wall of Fame</a>
-      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}">Crew</a>
-      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}">Post Bounty</a>
-      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}">⚙ Settings</a>` : ''}
+    <nav class="tabs" aria-label="Crew navigation">
+      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}" ${tab === 'bounties' ? 'aria-current="page"' : ''}>Bounty Board ${openCount > 0 ? `<span class="tab-count" aria-label="${openCount} open">${openCount}</span>` : ''}</a>
+      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}" ${tab === 'chest' ? 'aria-current="page"' : ''}>Treasure Chest</a>
+      <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}" ${tab === 'wof' ? 'aria-current="page"' : ''}>Wall of Fame</a>
+      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}" ${tab === 'members' ? 'aria-current="page"' : ''}>Crew</a>
+      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}" ${tab === 'post' ? 'aria-current="page"' : ''}>Post Bounty</a>
+      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}" ${tab === 'settings' ? 'aria-current="page"' : ''}><span aria-hidden="true">⚙ </span>Settings</a>` : ''}
     </nav>
     ${body}
   `;
@@ -2538,7 +2715,7 @@ function renderBountyCard(b) {
   }
 
   return `
-    <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" style="cursor: pointer;">
+    <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" role="button" tabindex="0" aria-label="Bounty from ${esc(b.requesterDisplayName ?? 'crewmate')}, ${esc(statusLabel)}" style="cursor: pointer;">
       <div class="bounty-status-area">
         <span class="status-badge status-${status}">${esc(statusLabel)}</span>
         ${isCrew ? `<span class="mode-pill" title="${claimedCount}/${allDays.length} days claimed">🏴‍☠️ CREW · ${claimedCount}/${allDays.length}</span>` : ''}
@@ -2673,10 +2850,10 @@ function renderDayPicker() {
           const cost = isWeekend ? 10 : 5;
           const sel = selectedSet.has(key);
           return `
-            <li class="day-card ${sel ? 'selected' : 'off'} ${isWeekend ? 'weekend' : ''}" data-action="toggle-day" data-day-key="${esc(key)}">
-              <strong>${WEEKDAY_NAMES[dow]}</strong>
-              <span class="day-date">${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}</span>
-              <span class="day-cost">${cost} <small>${SVG.doubloon}</small></span>
+            <li class="day-card ${sel ? 'selected' : 'off'} ${isWeekend ? 'weekend' : ''}" data-action="toggle-day" data-day-key="${esc(key)}" role="button" tabindex="0" aria-pressed="${sel ? 'true' : 'false'}" aria-label="${WEEKDAY_NAMES[dow]} ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}, ${cost} doubloons, ${sel ? 'selected' : 'not selected'}">
+              <strong aria-hidden="true">${WEEKDAY_NAMES[dow]}</strong>
+              <span class="day-date" aria-hidden="true">${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}</span>
+              <span class="day-cost" aria-hidden="true">${cost} <small>${SVG.doubloon}</small></span>
             </li>
           `;
         }).join('')}
@@ -2797,12 +2974,12 @@ function renderPostTab() {
             </div>
           </label>
           <div class="wide">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
             ${renderDayPicker()}
           </div>
 
           <div class="wide">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
             <div class="mode-toggle">
               <label class="mode-option ${(f.coverageMode || 'single') === 'single' ? 'selected' : ''}">
                 <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
@@ -2824,7 +3001,7 @@ function renderPostTab() {
           <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
 
           <div class="wide">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
             ${renderMeetingsPicker()}
           </div>
           <label class="wide"><span>SLA the coverer should hold</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
@@ -2958,7 +3135,7 @@ function renderMembersTab() {
                 <span class="member-stat">${SVG.doubloon}<strong>${m.earnedLast90d}</strong></span>
                 <small>90d earned</small>
               </div>
-              ${state.myRole === 'manager' ? `<button class="kebab" data-action="member-admin" data-uid="${esc(m.uid)}" title="Admin actions">⋯</button>` : ''}
+              ${state.myRole === 'manager' ? `<button class="kebab" data-action="member-admin" data-uid="${esc(m.uid)}" title="Admin actions" aria-label="Admin actions for ${esc(m.displayName || 'crewmate')}" aria-haspopup="dialog"><span aria-hidden="true">⋯</span></button>` : ''}
             </li>
           `;
         }).join('')}
@@ -3013,7 +3190,7 @@ function renderSettingsTab() {
 
       <div style="margin-top: var(--sp-3);">
         <label>
-          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">${s.hasGeminiKey ? 'Replace' : 'Set'} the key</span>
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${s.hasGeminiKey ? 'Replace' : 'Set'} the key</span>
           <input type="password" id="${inputId}" placeholder="AIza..." autocomplete="off" />
         </label>
         <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap;">
@@ -3067,7 +3244,9 @@ function renderSettingsTab() {
               updateMemberRole: `made ${a.targetName || 'crewmate'} a ${a.details?.to || 'role'}`,
               removeMember: `removed ${a.targetName || 'crewmate'}`,
               grantBonusDoubloons: `granted ${a.details?.amount || ''} doubloons to ${a.targetName || 'crewmate'}`,
-              forceCompleteBounty: 'force-completed a bounty',
+              forceCompleteBounty: a.details?.coinsReleased
+                ? `force-completed a bounty (released ${a.details.coinsReleased} doubloons over ${a.details.daysReleased} day${a.details.daysReleased === 1 ? '' : 's'})`
+                : 'force-completed a bounty',
             })[a.action] || a.action;
             const reason = a.details?.reason ? ` · "${esc(a.details.reason)}"` : '';
             return `
@@ -3110,7 +3289,7 @@ function renderTavern() {
             const reactionBar = ['🪙','🍻','🏴‍☠️','⚓','🦜'].map((emo) => {
               const cnt = counts[emo] || 0;
               const mine = myReact === emo;
-              return `<button class="react-btn ${mine ? 'mine' : ''}" data-action="react-scroll" data-scroll-id="${esc(s.id)}" data-emoji="${esc(emo)}" data-mine="${mine ? '1' : '0'}">${emo}${cnt > 0 ? ` <span class="react-count">${cnt}</span>` : ''}</button>`;
+              return `<button class="react-btn ${mine ? 'mine' : ''}" data-action="react-scroll" data-scroll-id="${esc(s.id)}" data-emoji="${esc(emo)}" data-mine="${mine ? '1' : '0'}" aria-pressed="${mine ? 'true' : 'false'}" aria-label="React with ${esc(emo)}${cnt > 0 ? `, ${cnt} reaction${cnt === 1 ? '' : 's'}` : ''}"><span aria-hidden="true">${emo}</span>${cnt > 0 ? ` <span class="react-count" aria-hidden="true">${cnt}</span>` : ''}</button>`;
             }).join('');
             return `
               <li class="scroll">
@@ -3288,7 +3467,7 @@ document.addEventListener('click', async (e) => {
     showModal({
       title: 'PROMOTE TO CAPTAIN?',
       body: `<p>This will give <strong>${esc(t.dataset.name)}</strong> manager rights — they'll be able to edit the crew, cancel bounties, grant bonuses, change roles.</p>`,
-      primaryLabel: 'Aye, promote',
+      primaryLabel: 'Promote to manager',
       secondaryLabel: 'Cancel',
       onPrimary: () => changeMemberRole(t.dataset.uid, 'manager', t.dataset.name),
     });
@@ -3297,7 +3476,7 @@ document.addEventListener('click', async (e) => {
     showModal({
       title: 'DEMOTE TO CREWMATE?',
       body: `<p>This will remove manager rights from <strong>${esc(t.dataset.name)}</strong>.</p>`,
-      primaryLabel: 'Aye, demote',
+      primaryLabel: 'Demote to crewmate',
       secondaryLabel: 'Cancel',
       onPrimary: () => changeMemberRole(t.dataset.uid, 'member', t.dataset.name),
     });
@@ -3306,7 +3485,7 @@ document.addEventListener('click', async (e) => {
     showModal({
       title: 'REMOVE FROM CREW?',
       body: `<p>This will boot <strong>${esc(t.dataset.name)}</strong> from the crew. They can be re-invited but their wallet for this crew is sealed.</p>`,
-      primaryLabel: 'Aye, remove',
+      primaryLabel: 'Remove from crew',
       secondaryLabel: 'Cancel',
       onPrimary: () => removeMemberAction(t.dataset.uid, t.dataset.name),
     });
@@ -3314,8 +3493,8 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     showModal({
       title: 'FORCE COMPLETE BOUNTY?',
-      body: `<p>This marks the bounty as completed immediately and burns the harbour fee. Use only when the regular daily release won't finish (coverer disappeared, etc.).</p>`,
-      primaryLabel: 'Aye, complete it',
+      body: `<p>This marks the bounty as completed immediately. Any unreleased doubloons for the covered days are paid out to the coverer(s) right now, then the harbour fee is burned. Use when the regular daily release can't finish on its own.</p>`,
+      primaryLabel: 'Force complete',
       secondaryLabel: 'Cancel',
       onPrimary: () => forceCompleteAction(t.dataset.bountyId),
     });
@@ -3338,7 +3517,7 @@ document.addEventListener('click', async (e) => {
     showModal({
       title: 'CLEAR GEMINI KEY?',
       body: '<p>The crew will lose access to AI-powered features until you set a new key.</p>',
-      primaryLabel: 'Aye, clear it',
+      primaryLabel: 'Clear log',
       secondaryLabel: 'Nevermind',
       onPrimary: () => saveCrewSettings({ geminiApiKey: null }),
     });
@@ -3418,6 +3597,16 @@ document.addEventListener('keydown', (e) => {
     joinTeam(raw);
   }
   if (e.key === 'Escape' && state.bellOpen) { state.bellOpen = false; renderUserInfo(); }
+  // Enter / Space on a focused bounty card opens its detail.
+  if ((e.key === 'Enter' || e.key === ' ') && document.activeElement?.matches?.('.bounty[data-bounty-id][role="button"]')) {
+    e.preventDefault();
+    showBountyDetail(document.activeElement.dataset.bountyId);
+  }
+  // Enter / Space on a focused day-card toggles it.
+  if ((e.key === 'Enter' || e.key === ' ') && document.activeElement?.matches?.('.day-card[data-day-key][role="button"]')) {
+    e.preventDefault();
+    document.activeElement.click();
+  }
 });
 
 render();
