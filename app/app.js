@@ -153,6 +153,22 @@ const callGenerateBriefing = httpsCallableFromURL(functions, callableURL('genera
    Sound module (Web Audio chiptune SFX)
    ============================================================ */
 
+const SKIN_OPTIONS = [
+  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Pixelify Sans. The original vibe, more readable.' },
+  { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
+  { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
+];
+
+const skin = {
+  current() { return localStorage.getItem('vacaciones.skin') || 'pirate'; },
+  set(id) {
+    if (!SKIN_OPTIONS.some((s) => s.id === id)) return;
+    localStorage.setItem('vacaciones.skin', id);
+    document.documentElement.dataset.skin = id;
+  },
+};
+skin.set(skin.current());
+
 const audio = {
   ctx: null,
   enabled: localStorage.getItem('vacaciones.sound') === 'on',
@@ -1318,6 +1334,30 @@ async function sendScrollAction(teamId, toUid, message, bountyId) {
   }
 }
 
+function showSkinPicker() {
+  const current = skin.current();
+  const body = `
+    <p style="margin: 0 0 12px;">Pick a look. Persists across visits on this browser.</p>
+    <div class="skin-picker-grid">
+      ${SKIN_OPTIONS.map((s) => `
+        <button class="skin-card ${s.id === current ? 'selected' : ''}" data-action="pick-skin" data-id="${esc(s.id)}">
+          <div class="skin-preview skin-preview-${s.id}">${s.id === 'pirate' ? 'VACACIONES' : (s.id === 'basic' ? 'Vacaciones' : 'VACACIONES')}</div>
+          <div class="skin-card-meta">
+            <strong>${esc(s.label)}</strong>
+            <small>${esc(s.desc)}</small>
+          </div>
+        </button>
+      `).join('')}
+    </div>
+  `;
+  showModal({
+    title: 'CHOOSE A SKIN',
+    body,
+    wide: true,
+    primaryLabel: 'Close',
+  });
+}
+
 function showAvatarPicker() {
   const current = state.userDoc?.avatarId ?? null;
   const grid = AVATAR_LIST.map((id) => {
@@ -1961,6 +2001,7 @@ function renderUserInfo() {
     <button class="bell" data-action="bell" title="Notifications" aria-label="Notifications">
       🔔${unread > 0 ? `<span class="bell-badge">${unread}</span>` : ''}
     </button>
+    <button class="sound-toggle" data-action="open-skin-picker" title="Theme">🎨</button>
     <button class="sound-toggle ${audio.enabled ? 'on' : ''}" data-action="sound" title="Sound effects">
       ${audio.enabled ? '🔊' : '🔇'}
     </button>
@@ -2988,6 +3029,15 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     showSendScrollModal(t.dataset.toUid, t.dataset.toName, null);
+  } else if (action === 'open-skin-picker') {
+    e.preventDefault();
+    showSkinPicker();
+  } else if (action === 'pick-skin') {
+    e.preventDefault();
+    skin.set(t.dataset.id);
+    document.querySelectorAll('.skin-card').forEach((el) => el.classList.toggle('selected', el === t));
+    showToast('Skin applied.', 'success', 2500);
+    render();
   } else if (action === 'pick-avatar-open') {
     e.preventDefault();
     showAvatarPicker();
