@@ -3,24 +3,56 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vacaciones — Coverage marketplace</title>
-  <meta name="description" content="A vacation coverage marketplace with a virtual coin economy for Google Technical Account Managers." />
+  <title>Vacaciones — Tales of Monkey Coverage</title>
+  <meta name="description" content="A pirate-themed coverage marketplace for Google TAMs. Post a bounty, earn doubloons, take time off without dropping the ball." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header id="header" hidden>
     <a href="#/" class="brand">
-      <span class="logo">V</span>
-      <span class="brand-name">Vacaciones</span>
+      <svg class="brand-logo" viewBox="0 0 16 16" aria-hidden="true">
+        <!-- Doubloon -->
+        <rect width="16" height="16" fill="transparent"/>
+        <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
+        <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
+        <rect x="1" y="3" width="14" height="10" fill="#5A3A1F"/>
+        <rect x="2" y="13" width="12" height="1" fill="#5A3A1F"/>
+        <rect x="3" y="14" width="10" height="1" fill="#5A3A1F"/>
+        <rect x="3" y="3" width="10" height="10" fill="#FFCB47"/>
+        <rect x="4" y="4" width="8" height="8" fill="#E0A93B"/>
+        <rect x="6" y="5" width="1" height="6" fill="#8C6418"/>
+        <rect x="9" y="5" width="1" height="6" fill="#8C6418"/>
+        <rect x="6" y="7" width="4" height="1" fill="#8C6418"/>
+        <rect x="6" y="9" width="4" height="1" fill="#8C6418"/>
+        <rect x="4" y="4" width="2" height="1" fill="#FFD86B"/>
+      </svg>
+      <span class="brand-name">VACACIONES</span>
     </a>
     <div class="user" id="user-info"></div>
   </header>
 
   <main id="app">
-    <div class="loading">Loading&hellip;</div>
+    <div class="loading">
+      <span class="loading-doubloon">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
+          <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
+          <rect x="1" y="3" width="14" height="10" fill="#5A3A1F"/>
+          <rect x="2" y="13" width="12" height="1" fill="#5A3A1F"/>
+          <rect x="3" y="14" width="10" height="1" fill="#5A3A1F"/>
+          <rect x="3" y="3" width="10" height="10" fill="#FFCB47"/>
+          <rect x="4" y="4" width="8" height="8" fill="#E0A93B"/>
+        </svg>
+      </span>
+      Loading the harbor&hellip;
+    </div>
   </main>
 
-  <div id="toast"></div>
+  <div id="toast" aria-live="polite"></div>
+  <div id="modal-root"></div>
+  <div id="coin-shower"></div>
 
   <script type="module" src="app.js"></script>
 </body>

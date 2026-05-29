@@ -7,9 +7,19 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      { "source": "/api/initUser", "function": { "functionId": "initUser", "region": "us-central1" } },
+      { "source": "/api/createTeam", "function": { "functionId": "createTeam", "region": "us-central1" } },
+      { "source": "/api/joinTeam", "function": { "functionId": "joinTeam", "region": "us-central1" } },
+      { "source": "/api/createCoverageRequest", "function": { "functionId": "createCoverageRequest", "region": "us-central1" } },
+      { "source": "/api/acceptCoverageRequest", "function": { "functionId": "acceptCoverageRequest", "region": "us-central1" } },
+      { "source": "**", "destination": "/index.html" }
+    ],
+    "headers": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/**",
+        "headers": [
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+        ]
       }
     ]
   },
