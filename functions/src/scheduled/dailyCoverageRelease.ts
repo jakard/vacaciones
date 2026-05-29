@@ -45,6 +45,8 @@ export const dailyCoverageRelease = onSchedule(
       const windowEnd = startOfDayUtc(
         (data['windowEnd'] as Timestamp).toDate(),
       );
+      const selectedDayKeys =
+        (data['selectedDayKeys'] as string[] | undefined) ?? null;
 
       try {
         await releaseDaysUpTo(
@@ -55,6 +57,7 @@ export const dailyCoverageRelease = onSchedule(
           windowStart,
           windowEnd,
           today,
+          selectedDayKeys,
         );
         if (today.getTime() > windowEnd.getTime()) {
           await completeRequest(db, teamId, requestId, covererUid);
@@ -78,39 +81,46 @@ async function releaseDaysUpTo(
   windowStart: Date,
   windowEnd: Date,
   today: Date,
+  selectedDayKeys: string[] | null,
 ): Promise<void> {
   if (today.getTime() < windowStart.getTime()) return;
 
   const releaseUpTo =
     today.getTime() < windowEnd.getTime() ? today : windowEnd;
   const cursor = new Date(windowStart);
+  const selectedSet = selectedDayKeys ? new Set(selectedDayKeys) : null;
 
   while (cursor.getTime() <= releaseUpTo.getTime()) {
     const day = new Date(cursor);
-    const amount = dailyReleaseAmount(day);
-    await db.runTransaction(async (tx) => {
-      const result = await recordLedgerEntry({
-        tx,
-        db,
-        teamId,
-        uid: covererUid,
-        type: 'coverageRelease',
-        amountSigned: amount,
-        balanceBucket: 'earned',
-        relatedRequestId: requestId,
-        idempotencyKey: `${requestId}_release_${formatDateKey(day)}`,
-      });
-      if (result.applied) {
-        const requestRef = db.doc(
-          `teams/${teamId}/coverageRequests/${requestId}`,
-        );
-        tx.update(requestRef, {
-          coinsReleased: FieldValue.increment(amount),
-          status: 'active',
-          updatedAt: FieldValue.serverTimestamp(),
+    const dayKey = formatDateKey(day);
+    // Skip days that the requester explicitly removed from coverage.
+    const billable = !selectedSet || selectedSet.has(dayKey);
+    if (billable) {
+      const amount = dailyReleaseAmount(day);
+      await db.runTransaction(async (tx) => {
+        const result = await recordLedgerEntry({
+          tx,
+          db,
+          teamId,
+          uid: covererUid,
+          type: 'coverageRelease',
+          amountSigned: amount,
+          balanceBucket: 'earned',
+          relatedRequestId: requestId,
+          idempotencyKey: `${requestId}_release_${dayKey}`,
         });
-      }
-    });
+        if (result.applied) {
+          const requestRef = db.doc(
+            `teams/${teamId}/coverageRequests/${requestId}`,
+          );
+          tx.update(requestRef, {
+            coinsReleased: FieldValue.increment(amount),
+            status: 'active',
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 }

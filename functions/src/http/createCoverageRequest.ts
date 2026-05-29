@@ -42,6 +42,9 @@ const CreateCoverageRequestSchema = z.object({
   windowStartIso: z.string().datetime(),
   windowEndIso: z.string().datetime(),
   timezone: z.string().trim().min(1),
+  // YYYY-MM-DD keys for the specific days the coverer needs to be on the
+  // hook. Optional — if omitted, falls back to every day in the window.
+  selectedDayKeys: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(366).optional(),
   reachability: z.array(z.enum(REACHABILITY)).min(1).max(REACHABILITY.length),
   coverageKinds: z.array(z.enum(COVERAGE_KIND)).max(COVERAGE_KIND.length).optional(),
   coverageScope: z.string().trim().max(500).nullable().optional(),
@@ -49,6 +52,31 @@ const CreateCoverageRequestSchema = z.object({
   emergencyDef: z.string().max(500).nullable().optional(),
   meetings: z.array(MeetingSchema).max(50).optional(),
 });
+
+function formatDateKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function dayCost(d: Date): number {
+  const dow = d.getUTCDay();
+  return dow === 0 || dow === 6 ? 10 : 5;
+}
+
+function allDaysInWindow(start: Date, end: Date): string[] {
+  const out: string[] = [];
+  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+  while (cursor.getTime() <= last.getTime()) {
+    out.push(formatDateKey(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
 
 interface CreateCoverageRequestResult {
   requestId: string;
@@ -79,6 +107,7 @@ export const createCoverageRequest = onCall<
     sla,
     emergencyDef,
     meetings,
+    selectedDayKeys,
   } = parsed.data;
   const token = request.auth.token;
 
@@ -91,9 +120,26 @@ export const createCoverageRequest = onCall<
     );
   }
 
-  const { totalCoins: coinsOffered, days } = computeCoverageCost(start, end);
-  if (days === 0) {
-    throw new HttpsError('invalid-argument', 'Window must cover at least one day.');
+  // Determine which days are billable. Default = every day in the window.
+  const allKeys = allDaysInWindow(start, end);
+  const billableKeys =
+    selectedDayKeys && selectedDayKeys.length > 0
+      ? selectedDayKeys.filter((k) => allKeys.includes(k))
+      : allKeys;
+
+  if (billableKeys.length === 0) {
+    throw new HttpsError('invalid-argument', 'At least one day must be selected.');
+  }
+
+  const coinsOffered = billableKeys.reduce((sum, k) => sum + dayCost(parseDateKey(k)), 0);
+
+  // Keep the shared helper around as a sanity check for "all-days" cases.
+  if (!selectedDayKeys || selectedDayKeys.length === 0) {
+    const fromHelper = computeCoverageCost(start, end);
+    if (fromHelper.totalCoins !== coinsOffered) {
+      // Should never happen; keeps the legacy contract intact.
+      throw new HttpsError('internal', 'Cost calc mismatch.');
+    }
   }
 
   const uid = request.auth.uid;
@@ -136,6 +182,7 @@ export const createCoverageRequest = onCall<
       reachability,
       coverageKinds: coverageKinds ?? [],
       coverageScope: coverageScope?.trim() ? coverageScope.trim() : null,
+      selectedDayKeys: billableKeys,
       meetings: meetings ?? [],
       sla,
       emergencyDef: emergencyDef ?? null,

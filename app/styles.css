@@ -1676,6 +1676,67 @@ label {
 .sound-toggle.on { color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
 
 /* ============================================================
+   Day-by-day picker (post bounty form)
+   ============================================================ */
+
+.day-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+.day-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  background: var(--parchment-bright);
+  cursor: pointer;
+  box-shadow: inset 1px 1px 0 var(--parchment-dim), 0 0 0 2px var(--wood-dark);
+  text-align: center;
+  user-select: none;
+}
+.day-card strong {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--ink-pure);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.day-card .day-date {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-size: var(--fs-meta);
+  color: var(--ink-pure);
+  font-weight: 600;
+}
+.day-card .day-cost {
+  font-family: 'Silkscreen', monospace;
+  font-size: var(--fs-meta);
+  color: var(--ink-pure);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.day-card .day-cost small { display: inline-block; width: 12px; height: 12px; }
+.day-card.weekend { background: #F4E3B4; }
+.day-card.selected {
+  background: var(--brass);
+  box-shadow:
+    inset 1px 1px 0 var(--brass-bright),
+    inset -1px -1px 0 var(--brass-deep),
+    0 0 0 2px var(--shadow-deep);
+}
+.day-card.selected.weekend {
+  background: var(--lechuck-red);
+  color: var(--cream);
+}
+.day-card.selected.weekend strong,
+.day-card.selected.weekend .day-date,
+.day-card.selected.weekend .day-cost { color: var(--cream); }
+.day-card.off { opacity: 0.4; }
+.day-card:hover { transform: translate(-1px, -1px); }
+.day-card:active { transform: translate(1px, 1px); }
+
+/* ============================================================
    Meetings picker + meeting cards
    ============================================================ */
 

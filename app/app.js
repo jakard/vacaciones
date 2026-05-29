@@ -36,10 +36,11 @@ const firebaseConfig = {
 
 const ECONOMY = {
   ONBOARDING_GRANT: 20,
-  MONTHLY_STIPEND: 10,
+  MONTHLY_STIPEND: 11,
   COVERAGE_PRICE_PER_DAY: 5,
   WEEKEND_MULTIPLIER: 2,
   TRANSACTION_FEE: 1,
+  DEFAULT_ANNUAL_PTO_DAYS: 25,
 };
 
 const REACHABILITY_OPTIONS = [
@@ -82,7 +83,7 @@ const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 
 const STAN_SCENES = [
   { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand, are ye? Let me show ye the ropes." },
   { speech: "Doubloons are how we trade coverage. 5 buy ye one day of shore leave. Weekend? Twice as dear — the Crown insists." },
-  { speech: "Every month the Crown drops 10 stipend coins in yer purse. Spend 'em or watch 'em vanish at month's end. Don't be a hoarder." },
+  { speech: "Every month the Crown drops 11 stipend coins in yer purse — enough for 25 business days of leave a year. Spend 'em or watch 'em vanish at month's end. Don't be a hoarder." },
   { speech: "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time." },
   { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now hoist a crew and post yer first bounty!" },
 ];
@@ -219,6 +220,7 @@ const state = {
     sla: 'P1 within 2h, P2 next business day',
     emergencyDef: '',
     meetings: [],
+    selectedDayKeys: [],
   },
   calendarEvents: [],
   calendarLoading: false,
@@ -267,6 +269,39 @@ function computeCoverageCost(start, end) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return { totalCoins, weekdays, weekendDays, days };
+}
+
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatDateKey(d) {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+function parseDateKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function allDayKeysInRange(start, end) {
+  if (!start || !end || end < start) return [];
+  const out = [];
+  const cursor = startOfUtcDay(start);
+  const last = startOfUtcDay(end);
+  while (cursor.getTime() <= last.getTime()) {
+    out.push(formatDateKey(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+function computeCostFromKeys(keys) {
+  let totalCoins = 0, weekdays = 0, weekendDays = 0;
+  for (const key of keys) {
+    const d = parseDateKey(key);
+    const dow = d.getUTCDay();
+    const isWeekend = dow === 0 || dow === 6;
+    totalCoins += ECONOMY.COVERAGE_PRICE_PER_DAY * (isWeekend ? ECONOMY.WEEKEND_MULTIPLIER : 1);
+    if (isWeekend) weekendDays++; else weekdays++;
+  }
+  return { totalCoins, days: keys.length, weekdays, weekendDays };
 }
 function formatDate(d) {
   if (!d) return '—';
@@ -936,11 +971,18 @@ async function postBounty() {
   if (f.reachability.length === 0) { showToast('Pick at least one reachability option.', 'error'); return; }
   state.busy.postRequest = true; render();
   try {
+    const selectedDayKeys = f.selectedDayKeys.length > 0 ? f.selectedDayKeys : allDayKeysInRange(start, end);
+    if (selectedDayKeys.length === 0) {
+      showToast('Pick at least one day to be covered.', 'error');
+      state.busy.postRequest = false; render();
+      return;
+    }
     const result = await callCreateCoverageRequest({
       teamId: state.teamId,
       windowStartIso: start.toISOString(),
       windowEndIso: end.toISOString(),
       timezone: f.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      selectedDayKeys,
       reachability: f.reachability,
       coverageKinds: f.coverageKinds,
       coverageScope: f.coverageScope || null,
@@ -952,7 +994,7 @@ async function postBounty() {
     state.formState = {
       startDate: '', endDate: '', timezone: state.formState.timezone,
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: '',
-      sla: state.formState.sla, emergencyDef: '', meetings: [],
+      sla: state.formState.sla, emergencyDef: '', meetings: [], selectedDayKeys: [],
     };
     state.calendarEvents = [];
     state.calendarLastWindow = null;
@@ -1047,37 +1089,85 @@ async function connectCalendarAction() {
   }
 }
 
+async function addCoverageMarker(bountyId, requesterName, windowStartMs, windowEndMs) {
+  const key = `vacaciones.addedMarker.${bountyId}`;
+  if (localStorage.getItem(key) === '1') return false;
+  let token = calendar.getToken();
+  if (!token) token = await calendar.connect();
+  // All-day event spanning the window. Google Calendar end.date is exclusive.
+  const startDate = new Date(windowStartMs).toISOString().slice(0, 10);
+  const endDateInclusive = new Date(windowEndMs).toISOString().slice(0, 10);
+  const endDate = new Date(new Date(endDateInclusive).getTime() + 86400000).toISOString().slice(0, 10);
+  const body = {
+    summary: `🏴‍☠️ Covering for ${requesterName}`,
+    description: `You're covering ${requesterName}'s shore leave through Vacaciones.\n\nBounty: ${location.origin}/#/team/${encodeURIComponent(state.teamId || '')}`,
+    start: { date: startDate },
+    end: { date: endDate },
+    transparency: 'transparent',
+  };
+  let res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) {
+    calendar.clearToken();
+    token = await calendar.connect();
+    res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+  if (!res.ok) throw new Error(`Marker add failed (${res.status})`);
+  localStorage.setItem(key, '1');
+  return true;
+}
+
 async function addAllBountyMeetings(bountyId) {
   const b = state.bounties.find((x) => x.id === bountyId);
-  if (!b || !arr(b.meetings).length) {
-    showToast('No meetings to add.', 'info');
-    return;
-  }
+  if (!b) return;
   if (!calendar.isConnected()) {
     try { await calendar.connect(); }
     catch (err) { showToast(`Calendar connect failed: ${err.message}`, 'error'); return; }
   }
-  const already = getAddedMeetingIds(bountyId);
-  const toAdd = arr(b.meetings).filter((m) => !already.has(m.googleEventId));
-  if (toAdd.length === 0) {
-    showToast('All meetings already on your calendar.', 'info');
+  const meetingsAlready = getAddedMeetingIds(bountyId);
+  const meetingsToAdd = arr(b.meetings).filter((m) => !meetingsAlready.has(m.googleEventId));
+  const markerKey = `vacaciones.addedMarker.${bountyId}`;
+  const markerAlready = localStorage.getItem(markerKey) === '1';
+  if (meetingsToAdd.length === 0 && markerAlready) {
+    showToast('Everything already on your calendar.', 'info');
     return;
   }
-  let added = 0;
-  for (const m of toAdd) {
+  let addedMeetings = 0;
+  for (const m of meetingsToAdd) {
     try {
       await calendar.addEvent(m);
       markMeetingAdded(bountyId, m.googleEventId);
-      added++;
+      addedMeetings++;
     } catch (err) {
       console.error('add event failed', m, err);
     }
   }
-  if (added > 0) {
-    showToast(`Added ${added} meeting${added === 1 ? '' : 's'} to your calendar.`, 'success');
+  let addedMarker = false;
+  if (!markerAlready) {
+    try {
+      const requesterName = b.requesterDisplayName || 'a crewmate';
+      const startMs = b.windowStart?.toMillis?.() ?? Date.now();
+      const endMs = b.windowEnd?.toMillis?.() ?? startMs;
+      addedMarker = await addCoverageMarker(bountyId, requesterName, startMs, endMs);
+    } catch (err) {
+      console.error('marker add failed', err);
+    }
+  }
+  if (addedMeetings > 0 || addedMarker) {
+    const bits = [];
+    if (addedMarker) bits.push('coverage marker');
+    if (addedMeetings > 0) bits.push(`${addedMeetings} meeting${addedMeetings === 1 ? '' : 's'}`);
+    showToast(`Added ${bits.join(' + ')} to your calendar.`, 'success');
     audio.coin();
   } else {
-    showToast('Could not add meetings.', 'error');
+    showToast('Nothing new to add.', 'info');
   }
 }
 
@@ -1446,10 +1536,15 @@ function showBountyDetail(bountyId) {
         ${b.covererUid === state.user?.uid ? (() => {
           const added = getAddedMeetingIds(b.id);
           const remaining = arr(b.meetings).filter((m) => !added.has(m.googleEventId)).length;
+          const markerAdded = localStorage.getItem(`vacaciones.addedMarker.${b.id}`) === '1';
+          const allDone = remaining === 0 && markerAdded;
+          const label = allDone
+            ? 'All added to your calendar'
+            : !markerAdded && remaining === 0
+              ? '📅 Add coverage marker to my calendar'
+              : `📅 Add coverage marker${remaining > 0 ? ` + ${remaining} meeting${remaining === 1 ? '' : 's'}` : ''} to my calendar`;
           return `<div style="margin-top: 12px;">
-            <button class="btn btn-secondary" data-action="add-meetings" data-bounty-id="${esc(b.id)}" ${remaining === 0 ? 'disabled' : ''}>
-              📅 ${remaining === 0 ? 'All added to your calendar' : `Add ${remaining} meeting${remaining === 1 ? '' : 's'} to my calendar`}
-            </button>
+            <button class="btn btn-secondary" data-action="add-meetings" data-bounty-id="${esc(b.id)}" ${allDone ? 'disabled' : ''}>${esc(label)}</button>
           </div>`;
         })() : ''}
       </div>` : ''}
@@ -1960,6 +2055,46 @@ function renderChestTab() {
 }
 
 /* Post tab */
+function renderDayPicker() {
+  const f = state.formState;
+  const start = parseLocalDate(f.startDate);
+  const end = parseLocalDate(f.endDate);
+  if (!start || !end || end < start) {
+    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">Pick the date range above first.</span></div>`;
+  }
+  const allKeys = allDayKeysInRange(start, end);
+  const selectedSet = new Set(f.selectedDayKeys.length > 0 ? f.selectedDayKeys : allKeys);
+  if (f.selectedDayKeys.length === 0) f.selectedDayKeys = allKeys.slice();
+  const cost = computeCostFromKeys(Array.from(selectedSet));
+  return `
+    <div class="meetings-picker">
+      <div class="meetings-head">
+        <span class="muted" style="font-size: var(--fs-meta);">${selectedSet.size} of ${allKeys.length} day${allKeys.length === 1 ? '' : 's'} · ${cost.totalCoins} doubloons</span>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn-ghost" data-action="select-weekdays">Weekdays only</button>
+          <button type="button" class="btn-ghost" data-action="select-all-days">All</button>
+        </div>
+      </div>
+      <ul class="day-list">
+        ${allKeys.map((key) => {
+          const d = parseDateKey(key);
+          const dow = d.getUTCDay();
+          const isWeekend = dow === 0 || dow === 6;
+          const cost = isWeekend ? 10 : 5;
+          const sel = selectedSet.has(key);
+          return `
+            <li class="day-card ${sel ? 'selected' : 'off'} ${isWeekend ? 'weekend' : ''}" data-action="toggle-day" data-day-key="${esc(key)}">
+              <strong>${WEEKDAY_NAMES[dow]}</strong>
+              <span class="day-date">${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}</span>
+              <span class="day-cost">${cost} <small>${SVG.doubloon}</small></span>
+            </li>
+          `;
+        }).join('')}
+      </ul>
+    </div>
+  `;
+}
+
 function renderMeetingsPicker() {
   const f = state.formState;
   const hasDates = !!parseLocalDate(f.startDate) && !!parseLocalDate(f.endDate);
@@ -2025,11 +2160,17 @@ function renderMeetingsPicker() {
   `;
 }
 
+function computeCurrentPostCost() {
+  const f = state.formState;
+  if (f.selectedDayKeys.length > 0) return computeCostFromKeys(f.selectedDayKeys);
+  return computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+}
+
 function renderPostTab() {
   const tz = state.formState.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   state.formState.timezone = tz;
   const f = state.formState;
-  const cost = computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+  const cost = computeCurrentPostCost();
   return `
     <div class="create-card">
       <div class="panel-title">Post a bounty</div>
@@ -2065,6 +2206,11 @@ function renderPostTab() {
               `).join('')}
             </div>
           </label>
+          <div class="wide">
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
+            ${renderDayPicker()}
+          </div>
+
           <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
 
           <div class="wide">
@@ -2348,6 +2494,29 @@ document.addEventListener('click', async (e) => {
     if (key.length < 8) { showToast('Key looks too short. Double-check.', 'error'); return; }
     saveCrewSettings({ geminiApiKey: key });
     if (input) input.value = '';
+  } else if (action === 'toggle-day') {
+    e.preventDefault();
+    const key = t.dataset.dayKey;
+    const idx = state.formState.selectedDayKeys.indexOf(key);
+    if (idx >= 0) state.formState.selectedDayKeys.splice(idx, 1);
+    else state.formState.selectedDayKeys.push(key);
+    render();
+  } else if (action === 'select-weekdays') {
+    e.preventDefault();
+    const start = parseLocalDate(state.formState.startDate);
+    const end = parseLocalDate(state.formState.endDate);
+    const all = allDayKeysInRange(start, end);
+    state.formState.selectedDayKeys = all.filter((k) => {
+      const dow = parseDateKey(k).getUTCDay();
+      return dow !== 0 && dow !== 6;
+    });
+    render();
+  } else if (action === 'select-all-days') {
+    e.preventDefault();
+    const start = parseLocalDate(state.formState.startDate);
+    const end = parseLocalDate(state.formState.endDate);
+    state.formState.selectedDayKeys = allDayKeysInRange(start, end);
+    render();
   } else if (action === 'connect-calendar') {
     e.preventDefault();
     connectCalendarAction();
@@ -2393,6 +2562,12 @@ function syncFormStateFromDom(form) {
   const prevEnd = f.endDate;
   f.startDate = data.get('startDate') || '';
   f.endDate = data.get('endDate') || '';
+  // When dates change, reset selectedDayKeys so the day picker rebuilds
+  if (f.startDate !== prevStart || f.endDate !== prevEnd) {
+    const start = parseLocalDate(f.startDate);
+    const end = parseLocalDate(f.endDate);
+    f.selectedDayKeys = allDayKeysInRange(start, end);
+  }
   f.timezone = (data.get('timezone') || '').trim();
   f.sla = (data.get('sla') || '').trim();
   f.emergencyDef = (data.get('emergencyDef') || '').trim();
@@ -2409,7 +2584,7 @@ function syncFormStateFromDom(form) {
   }
   const previewEl = document.querySelector('.preview');
   if (previewEl) {
-    const cost = computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+    const cost = computeCurrentPostCost();
     previewEl.innerHTML = cost.days > 0
       ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>doubloons</span></div>
          <small>${cost.days} day${cost.days === 1 ? '' : 's'} · ${cost.weekdays} weekday · ${cost.weekendDays} weekend</small>`
