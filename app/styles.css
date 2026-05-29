@@ -1676,6 +1676,124 @@ label {
 .sound-toggle.on { color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
 
 /* ============================================================
+   Coverage mode toggle (Post form) + crew bits
+   ============================================================ */
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+.mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--parchment-bright);
+  cursor: pointer;
+  box-shadow: inset 1px 1px 0 var(--parchment-dim), 0 0 0 2px var(--wood-dark);
+}
+.mode-option input { margin-top: 4px; }
+.mode-option.selected {
+  background: var(--brass);
+  box-shadow: inset 1px 1px 0 var(--brass-bright), inset -1px -1px 0 var(--brass-deep), 0 0 0 2px var(--shadow-deep);
+}
+.mode-option strong {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink-pure);
+}
+.mode-option small {
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  color: var(--ink-faded);
+  font-size: var(--fs-meta);
+}
+
+@media (max-width: 540px) {
+  .mode-toggle { grid-template-columns: 1fr; }
+}
+
+/* Status badges row */
+.mode-pill {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 3px 6px;
+  background: var(--voodoo-violet);
+  color: var(--cream);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-left: 4px;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.3);
+}
+.mine-pill {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 3px 6px;
+  background: var(--elaine-cyan);
+  color: var(--ink-pure);
+  letter-spacing: 0.5px;
+  margin-left: 4px;
+}
+
+/* Coverer stack on bounty card */
+.crew-coverers { gap: var(--sp-2); }
+.coverer-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.coverer-stack .avatar-mini {
+  margin-left: -6px;
+  box-shadow: 0 0 0 1px var(--wood-dark), 0 0 0 2px var(--parchment);
+}
+.coverer-stack .avatar-mini:first-child { margin-left: 0; }
+.coverer-stack .more {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--ink-pure);
+  margin-left: 4px;
+}
+
+/* Crew coverers list in bounty detail */
+.coverer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.coverer-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  color: var(--ink-pure);
+}
+.coverer-list li small {
+  margin-left: auto;
+  font-size: var(--fs-meta);
+  color: var(--ink-faded);
+}
+
+/* Crew claim modal — day cards */
+.day-card.claimed {
+  background: var(--parchment-dim);
+  color: var(--ink-faded);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.day-card.mine {
+  background: var(--elaine-cyan);
+  color: var(--ink-pure);
+  box-shadow:
+    inset 1px 1px 0 #95dde1,
+    inset -1px -1px 0 #3aa1a8,
+    0 0 0 2px var(--shadow-deep);
+}
+
+/* ============================================================
    Day-by-day picker (post bounty form)
    ============================================================ */
 

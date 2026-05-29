@@ -221,7 +221,9 @@ const state = {
     emergencyDef: '',
     meetings: [],
     selectedDayKeys: [],
+    coverageMode: 'single',
   },
+  claim: { bountyId: null, selectedDayKeys: [] },
   calendarEvents: [],
   calendarLoading: false,
   calendarError: null,
@@ -983,6 +985,7 @@ async function postBounty() {
       windowEndIso: end.toISOString(),
       timezone: f.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       selectedDayKeys,
+      coverageMode: f.coverageMode || 'single',
       reachability: f.reachability,
       coverageKinds: f.coverageKinds,
       coverageScope: f.coverageScope || null,
@@ -995,6 +998,7 @@ async function postBounty() {
       startDate: '', endDate: '', timezone: state.formState.timezone,
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: '',
       sla: state.formState.sla, emergencyDef: '', meetings: [], selectedDayKeys: [],
+      coverageMode: 'single',
     };
     state.calendarEvents = [];
     state.calendarLastWindow = null;
@@ -1003,15 +1007,126 @@ async function postBounty() {
   finally { state.busy.postRequest = false; render(); }
 }
 
-async function acceptRequest(requestId) {
+async function acceptRequest(requestId, dayKeysToClaim) {
   if (state.busy.acceptId) return;
   state.busy.acceptId = requestId; render();
   try {
-    const result = await callAcceptCoverageRequest({ teamId: state.teamId, requestId });
-    showToast(`Voyage accepted. ${result.data.coinsEscrowed} doubloons locked in escrow.`, 'success');
+    const payload = { teamId: state.teamId, requestId };
+    if (dayKeysToClaim && dayKeysToClaim.length > 0) {
+      payload.dayKeysToClaim = dayKeysToClaim;
+    }
+    const result = await callAcceptCoverageRequest(payload);
+    const days = result.data.claimedDayKeys?.length ?? 0;
+    const allClaimed = !!result.data.allClaimed;
+    const msg = allClaimed
+      ? `Voyage accepted in full. ${result.data.coinsEscrowed} doubloons in escrow.`
+      : `Took ${days} day${days === 1 ? '' : 's'}. ${result.data.coinsEscrowed} doubloons in escrow.`;
+    showToast(msg, 'success');
     audio.coin();
   } catch (err) { showToast(err.message, 'error', 6000); }
   finally { state.busy.acceptId = null; render(); }
+}
+
+function startCrewClaim(bountyId) {
+  state.claim.bountyId = bountyId;
+  state.claim.selectedDayKeys = [];
+  showCrewClaimModal();
+}
+
+function showCrewClaimModal() {
+  const b = state.bounties.find((x) => x.id === state.claim.bountyId);
+  if (!b) return;
+  const allKeys = arr(b.selectedDayKeys);
+  const coverers = b.dayCoverers || {};
+  const renderInner = () => {
+    const selectedSet = new Set(state.claim.selectedDayKeys);
+    const cost = computeCostFromKeys(state.claim.selectedDayKeys);
+    return `
+      <p style="margin: 0 0 8px;">Pick the days you can cover. Unclaimed days are tappable.</p>
+      <ul class="day-list">
+        ${allKeys.map((key) => {
+          const d = parseDateKey(key);
+          const dow = d.getUTCDay();
+          const isWeekend = dow === 0 || dow === 6;
+          const dayCoverer = coverers[key];
+          const claimedByMe = dayCoverer?.uid === state.user?.uid;
+          const claimedByOther = !!dayCoverer && !claimedByMe;
+          const selected = selectedSet.has(key);
+          const klass = claimedByOther
+            ? 'day-card claimed'
+            : claimedByMe
+              ? 'day-card mine'
+              : selected
+                ? `day-card selected ${isWeekend ? 'weekend' : ''}`
+                : `day-card off ${isWeekend ? 'weekend' : ''}`;
+          const inner = claimedByOther
+            ? `<small>Taken</small>${dayCoverer?.displayName ? `<small style="font-size: 10px;">${esc(shortName(dayCoverer.displayName))}</small>` : ''}`
+            : claimedByMe
+              ? `<small>Yours</small>`
+              : `<span class="day-cost">${isWeekend ? 10 : 5} <small>${SVG.doubloon}</small></span>`;
+          return `
+            <li class="${klass}" ${(claimedByOther || claimedByMe) ? '' : `data-action="claim-toggle-day" data-day-key="${esc(key)}"`}>
+              <strong>${WEEKDAY_NAMES[dow]}</strong>
+              <span class="day-date">${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}</span>
+              ${inner}
+            </li>
+          `;
+        }).join('')}
+      </ul>
+      <p style="margin: 12px 0 0; font-family: 'Pixelify Sans', system-ui, sans-serif;">
+        <strong>${state.claim.selectedDayKeys.length} day${state.claim.selectedDayKeys.length === 1 ? '' : 's'}</strong> ·
+        <strong style="color: var(--brass-deep);">${cost.totalCoins} doubloons</strong>
+      </p>
+    `;
+  };
+  // Custom inline modal (so we can re-render the contents on toggles without closing it)
+  const root = document.getElementById('modal-root');
+  root.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-scrim';
+  wrap.innerHTML = `
+    <div class="modal wide">
+      <div class="modal-title">CLAIM YOUR DAYS</div>
+      <div class="modal-body" id="crew-claim-body">${renderInner()}</div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" data-action="claim-cancel">Cancel</button>
+        <button class="btn" data-action="claim-submit" ${state.claim.selectedDayKeys.length === 0 ? 'disabled' : ''}>
+          Take ${state.claim.selectedDayKeys.length} day${state.claim.selectedDayKeys.length === 1 ? '' : 's'}
+        </button>
+      </div>
+    </div>`;
+  wrap.addEventListener('click', async (e) => {
+    if (e.target === wrap) { wrap.remove(); state.claim.bountyId = null; }
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (action === 'claim-cancel') { wrap.remove(); state.claim.bountyId = null; }
+    if (action === 'claim-toggle-day') {
+      const k = e.target.closest('[data-day-key]')?.dataset.dayKey;
+      if (!k) return;
+      const idx = state.claim.selectedDayKeys.indexOf(k);
+      if (idx >= 0) state.claim.selectedDayKeys.splice(idx, 1);
+      else state.claim.selectedDayKeys.push(k);
+      // Re-render the contents without closing the modal
+      const body = document.getElementById('crew-claim-body');
+      if (body) body.innerHTML = renderInner();
+      const submit = wrap.querySelector('[data-action="claim-submit"]');
+      if (submit) {
+        const n = state.claim.selectedDayKeys.length;
+        submit.textContent = `Take ${n} day${n === 1 ? '' : 's'}`;
+        if (n === 0) submit.setAttribute('disabled', '');
+        else submit.removeAttribute('disabled');
+      }
+      audio.click();
+    }
+    if (action === 'claim-submit') {
+      if (state.claim.selectedDayKeys.length === 0) return;
+      const bountyId = state.claim.bountyId;
+      const days = state.claim.selectedDayKeys.slice();
+      wrap.remove();
+      state.claim.bountyId = null;
+      await acceptRequest(bountyId, days);
+    }
+  });
+  root.appendChild(wrap);
 }
 
 async function setAvatar(avatarId) {
@@ -1469,15 +1584,45 @@ function showBountyDetail(bountyId) {
       </div>
     </div>
 
-    ${b.covererUid ? `
-      <div class="bd-section">
-        <h4>Covered by</h4>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          ${b.covererPhotoURL ? `<img class="avatar-mini" src="${esc(b.covererPhotoURL)}" alt="" referrerpolicy="no-referrer" style="width: 32px; height: 32px;" />` : ''}
-          <span class="bd-value">${esc(b.covererDisplayName || 'A crewmate')}${b.covererUid === state.user?.uid ? ' (you)' : ''}</span>
-        </div>
-      </div>
-    ` : ''}
+    ${(() => {
+      const crewMode = (b.coverageMode || 'single') === 'crew';
+      const coverers = arr(b.coverers);
+      const dayCoverers = b.dayCoverers || {};
+      const allKeys = arr(b.selectedDayKeys);
+      if (crewMode && coverers.length > 0) {
+        return `
+          <div class="bd-section">
+            <h4>Crew coverers (${coverers.length})</h4>
+            <ul class="coverer-list">
+              ${coverers.map((c) => {
+                const mineDays = allKeys.filter((k) => dayCoverers[k]?.uid === c.uid);
+                return `<li>
+                  ${c.photoURL ? `<img class="avatar-mini" src="${esc(c.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 28px; height: 28px;" />` : ''}
+                  <span>${esc(shortName(c.displayName || 'Crewmate'))}${c.uid === state.user?.uid ? ' (you)' : ''}</span>
+                  <small>${mineDays.length} day${mineDays.length === 1 ? '' : 's'}</small>
+                </li>`;
+              }).join('')}
+            </ul>
+            ${(() => {
+              const remaining = allKeys.filter((k) => !dayCoverers[k]).length;
+              return remaining > 0 ? `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${remaining} day${remaining === 1 ? '' : 's'} still open.</p>` : `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">All days claimed.</p>`;
+            })()}
+          </div>
+        `;
+      }
+      if (b.covererUid) {
+        return `
+          <div class="bd-section">
+            <h4>Covered by</h4>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${b.covererPhotoURL ? `<img class="avatar-mini" src="${esc(b.covererPhotoURL)}" alt="" referrerpolicy="no-referrer" style="width: 32px; height: 32px;" />` : ''}
+              <span class="bd-value">${esc(b.covererDisplayName || 'A crewmate')}${b.covererUid === state.user?.uid ? ' (you)' : ''}</span>
+            </div>
+          </div>
+        `;
+      }
+      return '';
+    })()}
 
     <div class="bd-grid">
       <span class="bd-label">Window</span>
@@ -1549,7 +1694,20 @@ function showBountyDetail(bountyId) {
         })() : ''}
       </div>` : ''}
   `;
-  if (status === 'open' && !mine) {
+  const isCrew = (b.coverageMode || 'single') === 'crew';
+  const dayCoverers = b.dayCoverers || {};
+  const allDayKeys = arr(b.selectedDayKeys);
+  const remainingDays = allDayKeys.filter((k) => !dayCoverers[k]).length;
+  if (status === 'open' && !mine && isCrew && remainingDays > 0) {
+    showModal({
+      title: 'BOUNTY DETAIL',
+      body,
+      wide: true,
+      primaryLabel: `Claim days (${remainingDays} left)`,
+      secondaryLabel: 'Back',
+      onPrimary: () => startCrewClaim(bountyId),
+    });
+  } else if (status === 'open' && !mine) {
     showModal({
       title: 'BOUNTY DETAIL',
       body,
@@ -1934,29 +2092,54 @@ function renderBountyCard(b) {
   const status = b.status || 'open';
   const statusLabel = STATUS_LABEL[status] || status.toUpperCase();
   const mine = b.requesterUid === state.user?.uid;
-  const youCover = b.covererUid === state.user?.uid;
   const accepting = state.busy.acceptId === b.id;
   const days = Math.max(1, Math.round(((b.windowEnd?.toDate?.() ?? new Date()) - (b.windowStart?.toDate?.() ?? new Date())) / 86400000) + 1);
   const reaches = arr(b.reachability).map((r) => REACHABILITY_OPTIONS.find((o) => o.value === r)).filter(Boolean);
   const kinds = arr(b.coverageKinds).map((k) => COVERAGE_KIND_OPTIONS.find((o) => o.value === k)).filter(Boolean);
   const reqName = b.requesterDisplayName || (mine ? 'You' : 'A crewmate');
   const reqPhoto = b.requesterPhotoURL;
-  const covererName = b.covererDisplayName || (youCover ? 'You' : null);
-  const covererPhoto = b.covererPhotoURL;
+  const mode = b.coverageMode || 'single';
+  const isCrew = mode === 'crew';
+  const allDays = arr(b.selectedDayKeys);
+  const dayCoverers = b.dayCoverers || {};
+  const claimedCount = allDays.filter((k) => dayCoverers[k]).length;
+  const remainingCount = allDays.length - claimedCount;
+  const coverers = arr(b.coverers);
+  const youCover = coverers.some((c) => c.uid === state.user?.uid)
+    || b.covererUid === state.user?.uid;
+  const youHaveDays = allDays.some((k) => dayCoverers[k]?.uid === state.user?.uid);
 
   let actionHtml = '';
-  if (mine) actionHtml = `<span class="own-tag bounty-action">Your bounty</span>`;
-  else if (status === 'open') actionHtml = `<div class="bounty-action"><button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Take voyage'}</button></div>`;
-  else if (covererName) actionHtml = `<div class="taken-by">
-    <span class="taken-by-label">Covered by</span>
-    ${covererPhoto ? `<img class="avatar-mini" src="${esc(covererPhoto)}" alt="" referrerpolicy="no-referrer"/>` : ''}
-    <span>${esc(shortName(covererName))}</span>
-  </div>`;
-  else actionHtml = `<div class="bounty-action"><span class="own-tag">${esc(statusLabel)}</span></div>`;
+  if (mine) {
+    actionHtml = `<span class="own-tag bounty-action">Your bounty</span>`;
+  } else if (isCrew && status === 'open') {
+    actionHtml = `<div class="bounty-action"><button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : `Claim days (${remainingCount} left)`}</button></div>`;
+  } else if (status === 'open') {
+    actionHtml = `<div class="bounty-action"><button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Take voyage'}</button></div>`;
+  } else if (isCrew && coverers.length > 0) {
+    actionHtml = `<div class="taken-by crew-coverers">
+      <span class="taken-by-label">Crew</span>
+      <div class="coverer-stack">${coverers.slice(0, 4).map((c) => c.photoURL ? `<img class="avatar-mini" src="${esc(c.photoURL)}" alt="" referrerpolicy="no-referrer" title="${esc(c.displayName ?? '')}"/>` : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;" title="${esc(c.displayName ?? '')}"></span>`).join('')}${coverers.length > 4 ? `<span class="more">+${coverers.length - 4}</span>` : ''}</div>
+    </div>`;
+  } else if (b.covererDisplayName || youCover) {
+    const covererName = b.covererDisplayName || 'You';
+    const covererPhoto = b.covererPhotoURL;
+    actionHtml = `<div class="taken-by">
+      <span class="taken-by-label">Covered by</span>
+      ${covererPhoto ? `<img class="avatar-mini" src="${esc(covererPhoto)}" alt="" referrerpolicy="no-referrer"/>` : ''}
+      <span>${esc(shortName(covererName))}</span>
+    </div>`;
+  } else {
+    actionHtml = `<div class="bounty-action"><span class="own-tag">${esc(statusLabel)}</span></div>`;
+  }
 
   return `
     <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" style="cursor: pointer;">
-      <div class="bounty-status-area"><span class="status-badge status-${status}">${esc(statusLabel)}</span></div>
+      <div class="bounty-status-area">
+        <span class="status-badge status-${status}">${esc(statusLabel)}</span>
+        ${isCrew ? `<span class="mode-pill" title="${claimedCount}/${allDays.length} days claimed">🏴‍☠️ CREW · ${claimedCount}/${allDays.length}</span>` : ''}
+        ${youHaveDays && isCrew ? `<span class="mine-pill">YOU</span>` : ''}
+      </div>
       <div class="bounty-requester" title="${esc(b.requesterDisplayName ?? '')}">
         ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;"></span>`}
         <span class="requester-chip"><span class="who-name">${esc(shortName(reqName))}</span></span>
@@ -2211,6 +2394,26 @@ function renderPostTab() {
             ${renderDayPicker()}
           </div>
 
+          <div class="wide">
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
+            <div class="mode-toggle">
+              <label class="mode-option ${(f.coverageMode || 'single') === 'single' ? 'selected' : ''}">
+                <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
+                <div>
+                  <strong>👤 Single coverer</strong>
+                  <small>One crewmate takes the whole window. Some clients want only one person on the rotation.</small>
+                </div>
+              </label>
+              <label class="mode-option ${f.coverageMode === 'crew' ? 'selected' : ''}">
+                <input type="radio" name="coverageMode" value="crew" ${f.coverageMode === 'crew' ? 'checked' : ''} />
+                <div>
+                  <strong>🏴‍☠️ Crew coverage</strong>
+                  <small>Several crewmates can split the days. Long vacations get covered faster.</small>
+                </div>
+              </label>
+            </div>
+          </div>
+
           <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
 
           <div class="wide">
@@ -2445,6 +2648,10 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     await acceptRequest(t.dataset.id);
+  } else if (action === 'crew-claim') {
+    e.preventDefault();
+    e.stopPropagation();
+    startCrewClaim(t.dataset.id);
   } else if (action === 'copy-invite') {
     e.preventDefault();
     await copyInviteLink(t.dataset.id);
@@ -2574,6 +2781,7 @@ function syncFormStateFromDom(form) {
   f.coverageScope = (data.get('coverageScope') || '').trim();
   f.reachability = data.getAll('reachability');
   f.coverageKinds = data.getAll('coverageKinds');
+  f.coverageMode = data.get('coverageMode') || 'single';
   // Sync meeting selections from DOM
   const selectedIds = new Set(data.getAll('meeting'));
   f.meetings = state.calendarEvents.filter((m) => selectedIds.has(m.googleEventId));
