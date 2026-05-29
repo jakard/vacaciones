@@ -43,10 +43,19 @@ const ECONOMY = {
 };
 
 const REACHABILITY_OPTIONS = [
-  { value: 'unreachable', label: 'Unreachable — true shore leave' },
-  { value: 'email-only-emergencies', label: 'Email only, emergencies' },
-  { value: 'phone-emergencies', label: 'Phone, P1 emergencies only' },
-  { value: 'daily-check-in', label: 'Daily check-in' },
+  { value: 'unreachable', short: 'Unreachable', label: 'Unreachable — true shore leave', icon: '🌴' },
+  { value: 'email-only-emergencies', short: 'Email', label: 'Email only, emergencies', icon: '📧' },
+  { value: 'phone-emergencies', short: 'Phone', label: 'Phone for P1 emergencies', icon: '📞' },
+  { value: 'daily-check-in', short: 'Daily check-in', label: 'Daily check-in', icon: '📅' },
+];
+
+const COVERAGE_KIND_OPTIONS = [
+  { value: 'inbox', label: 'Inbox / email', icon: '📬' },
+  { value: 'meetings', label: 'Standing meetings', icon: '📅' },
+  { value: 'escalations', label: 'Open escalations', icon: '🔥' },
+  { value: 'one-on-ones', label: 'Customer 1:1s', icon: '🤝' },
+  { value: 'chat', label: 'Slack / Chat', icon: '💬' },
+  { value: 'on-call', label: 'On-call rotation', icon: '📟' },
 ];
 
 const LEDGER_TYPE_LABELS = {
@@ -59,6 +68,17 @@ const LEDGER_TYPE_LABELS = {
   feeBurn: 'Harbour fee',
   managerAdvance: 'Captain’s advance',
 };
+
+const STATUS_LABEL = {
+  open: 'OPEN',
+  accepted: 'TAKEN',
+  active: 'ACTIVE',
+  completed: 'COMPLETED',
+  cancelled: 'CANCELLED',
+  draft: 'DRAFT',
+};
+
+const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 4, cancelled: 5 };
 
 const MASCOT_LINES = [
   '"Ahoy, weary TAM!"',
@@ -93,11 +113,23 @@ const state = {
   user: null,
   view: 'login',
   teamId: null,
+  teamTab: 'bounties', // 'bounties' | 'chest' | 'post'
+  bountyFilter: 'all', // 'all' | 'open' | 'taken' | 'done' | 'mine'
   myTeams: [],
   walletDoc: null,
   ledger: [],
   prevLedgerIds: new Set(),
-  openRequests: [],
+  bounties: [],
+  formState: {
+    startDate: '',
+    endDate: '',
+    timezone: '',
+    reachability: ['email-only-emergencies'],
+    coverageKinds: [],
+    coverageScope: '',
+    sla: 'P1 within 2h, P2 next business day',
+    emergencyDef: '',
+  },
   busy: { signIn: false, createTeam: false, joinTeam: false, postRequest: false, acceptId: null },
 };
 
@@ -160,16 +192,29 @@ function firstName(name) {
   return name.split(' ')[0] ?? name;
 }
 
+function shortName(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[1][0]}.`;
+}
+
 function pickMascotLine() {
   return MASCOT_LINES[Math.floor(Math.random() * MASCOT_LINES.length)];
 }
 
+function arr(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') return [val];
+  return [];
+}
+
 /* ============================================================
-   SVG sprites
+   SVG sprites (subset — see styles for the rest)
    ============================================================ */
 
 const SVG = {
-  // 16x16 doubloon
   doubloon: `<svg viewBox="0 0 16 16" aria-hidden="true">
     <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
     <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
@@ -184,7 +229,6 @@ const SVG = {
     <rect x="6" y="9" width="4" height="1" fill="#8C6418"/>
     <rect x="4" y="4" width="2" height="1" fill="#FFD86B"/>
   </svg>`,
-  // 32x32 flag (for team / bounty)
   flag: `<svg viewBox="0 0 32 32" aria-hidden="true">
     <rect x="6" y="3" width="2" height="26" fill="#5A3A1F"/>
     <rect x="8" y="5" width="18" height="12" fill="#C8362D"/>
@@ -195,21 +239,7 @@ const SVG = {
     <rect x="12" y="11" width="3" height="1" fill="#1A0E08"/>
     <rect x="17" y="11" width="6" height="2" fill="#1A0E08"/>
   </svg>`,
-  // 32x32 scroll (for bounty open status)
-  scroll: `<svg viewBox="0 0 32 32" aria-hidden="true">
-    <rect x="4" y="6" width="24" height="20" fill="#E8D7A8"/>
-    <rect x="4" y="6" width="24" height="2" fill="#C4A86B"/>
-    <rect x="4" y="24" width="24" height="2" fill="#C4A86B"/>
-    <rect x="2" y="6" width="2" height="20" fill="#5A3A1F"/>
-    <rect x="28" y="6" width="2" height="20" fill="#5A3A1F"/>
-    <rect x="8" y="11" width="16" height="1" fill="#6B4F30"/>
-    <rect x="8" y="14" width="14" height="1" fill="#6B4F30"/>
-    <rect x="8" y="17" width="16" height="1" fill="#6B4F30"/>
-    <rect x="8" y="20" width="10" height="1" fill="#6B4F30"/>
-  </svg>`,
-  // 96x96 turtle mascot
   turtle: `<svg viewBox="0 0 32 32" aria-hidden="true">
-    <!-- shell -->
     <rect x="8" y="11" width="16" height="9" fill="#5A3A1F"/>
     <rect x="7" y="12" width="18" height="7" fill="#8C6418"/>
     <rect x="8" y="13" width="16" height="5" fill="#A57B36"/>
@@ -217,21 +247,16 @@ const SVG = {
     <rect x="14" y="14" width="2" height="2" fill="#5A3A1F"/>
     <rect x="18" y="14" width="2" height="2" fill="#5A3A1F"/>
     <rect x="20" y="14" width="2" height="2" fill="#5A3A1F"/>
-    <!-- head -->
     <rect x="4" y="14" width="4" height="4" fill="#2A6A1E"/>
     <rect x="3" y="15" width="1" height="2" fill="#2A6A1E"/>
     <rect x="5" y="15" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="5" y="15" width="1" height="1" fill="#1A0E08" opacity="0"/>
     <rect x="6" y="15" width="1" height="1" fill="#1A0E08"/>
-    <!-- pirate hat -->
     <rect x="4" y="12" width="6" height="2" fill="#1A0E08"/>
     <rect x="3" y="13" width="8" height="1" fill="#1A0E08"/>
     <rect x="6" y="11" width="2" height="1" fill="#1A0E08"/>
     <rect x="5" y="13" width="1" height="1" fill="#E0A93B"/>
-    <!-- legs -->
     <rect x="9" y="20" width="2" height="3" fill="#2A6A1E"/>
     <rect x="21" y="20" width="2" height="3" fill="#2A6A1E"/>
-    <!-- tail -->
     <rect x="24" y="14" width="2" height="2" fill="#2A6A1E"/>
   </svg>`,
 };
@@ -243,7 +268,12 @@ const SVG = {
 function parseHash() {
   const h = location.hash || '#/';
   if (h.startsWith('#/team/')) {
-    return { view: 'team', teamId: decodeURIComponent(h.slice('#/team/'.length)) };
+    const rest = h.slice('#/team/'.length);
+    const [tid, sub] = rest.split('/');
+    let tab = 'bounties';
+    if (sub === 'chest') tab = 'chest';
+    else if (sub === 'post') tab = 'post';
+    return { view: 'team', teamId: decodeURIComponent(tid), tab };
   }
   if (h.startsWith('#/join/')) {
     return { view: 'home', joinId: decodeURIComponent(h.slice('#/join/'.length)) };
@@ -251,9 +281,13 @@ function parseHash() {
   return { view: 'home', teamId: null };
 }
 
-function navigate(view, teamId) {
-  if (view === 'team' && teamId) location.hash = `#/team/${encodeURIComponent(teamId)}`;
-  else location.hash = '#/';
+function navigate(view, teamId, tab) {
+  if (view === 'team' && teamId) {
+    const suffix = tab && tab !== 'bounties' ? `/${tab}` : '';
+    location.hash = `#/team/${encodeURIComponent(teamId)}${suffix}`;
+  } else {
+    location.hash = '#/';
+  }
 }
 
 window.addEventListener('hashchange', applyRoute);
@@ -269,7 +303,6 @@ function applyRoute() {
   }
   const r = parseHash();
   if (r.joinId) {
-    // Auto-join from invite link
     location.hash = '#/';
     joinTeam(r.joinId);
     return;
@@ -283,6 +316,7 @@ function applyRoute() {
     teardownTeamSubs();
   }
   state.view = r.view;
+  state.teamTab = r.tab ?? 'bounties';
   render();
 }
 
@@ -294,14 +328,10 @@ onAuthStateChanged(auth, async (user) => {
   state.authReady = true;
   state.user = user;
   setHeaderVisible(!!user);
-  renderUserInfo();
   if (user) {
     try {
       const result = await callInitUser();
-      if (result.data.initialized) {
-        // Brand new user — show welcome modal
-        showWelcomeModal();
-      }
+      if (result.data.initialized) showWelcomeModal();
     } catch (err) {
       console.error('initUser failed', err);
       showToast(`Could not register your sailor card: ${err.message}`, 'error', 5000);
@@ -333,11 +363,8 @@ async function signIn() {
 }
 
 async function handleSignOut() {
-  try {
-    await signOut(auth);
-  } catch (err) {
-    showToast(err.message, 'error', 5000);
-  }
+  try { await signOut(auth); }
+  catch (err) { showToast(err.message, 'error', 5000); }
 }
 
 /* ============================================================
@@ -351,8 +378,7 @@ function subscribeMyTeams() {
     collection(db, 'teams'),
     where('memberUids', 'array-contains', state.user.uid),
   );
-  unsubTeams = onSnapshot(
-    q,
+  unsubTeams = onSnapshot(q,
     (snap) => {
       state.myTeams = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       render();
@@ -368,7 +394,7 @@ function subscribeTeam(teamId) {
   if (!state.user || !teamId) return;
   state.walletDoc = null;
   state.ledger = [];
-  state.openRequests = [];
+  state.bounties = [];
   state.prevLedgerIds = new Set();
 
   unsubWallet = onSnapshot(
@@ -389,7 +415,6 @@ function subscribeTeam(teamId) {
     ),
     (snap) => {
       const next = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Detect new credit entries → coin shower
       if (state.prevLedgerIds.size > 0) {
         const fresh = next.filter((e) => !state.prevLedgerIds.has(e.id));
         for (const entry of fresh) {
@@ -405,17 +430,20 @@ function subscribeTeam(teamId) {
     (err) => console.error('ledger query failed', err),
   );
 
+  // All recent bounties (any status except cancelled), client-side filter by tab/filter
   unsubRequests = onSnapshot(
     query(
       collection(db, `teams/${teamId}/coverageRequests`),
-      where('status', '==', 'open'),
       orderBy('windowStart', 'asc'),
+      limit(100),
     ),
     (snap) => {
-      state.openRequests = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      state.bounties = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((b) => b.status !== 'cancelled');
       render();
     },
-    (err) => console.error('open requests query failed', err),
+    (err) => console.error('bounties query failed', err),
   );
 }
 
@@ -458,11 +486,8 @@ async function joinTeam(teamId) {
   render();
   try {
     const result = await callJoinTeam({ teamId });
-    if (result.data.alreadyMember) {
-      showToast('You’re already aboard that crew.', 'info');
-    } else {
-      showToast('Signed aboard! 20 doubloons in your chest.', 'success');
-    }
+    if (result.data.alreadyMember) showToast('You’re already aboard that crew.', 'info');
+    else showToast('Signed aboard! 20 doubloons in your chest.', 'success');
     const input = document.getElementById('join-team-id');
     if (input) input.value = '';
     navigate('team', result.data.teamId);
@@ -474,12 +499,17 @@ async function joinTeam(teamId) {
   }
 }
 
-async function postCoverageRequest(form) {
+async function postBounty() {
   if (state.busy.postRequest) return;
-  const start = parseLocalDate(form.startDate);
-  const end = parseLocalDate(form.endDate);
+  const f = state.formState;
+  const start = parseLocalDate(f.startDate);
+  const end = parseLocalDate(f.endDate);
   if (!start || !end || end < start) {
     showToast('Pick a valid date window.', 'error');
+    return;
+  }
+  if (f.reachability.length === 0) {
+    showToast('Pick at least one reachability option.', 'error');
     return;
   }
   state.busy.postRequest = true;
@@ -489,19 +519,26 @@ async function postCoverageRequest(form) {
       teamId: state.teamId,
       windowStartIso: start.toISOString(),
       windowEndIso: end.toISOString(),
-      timezone: form.timezone,
-      reachability: form.reachability,
-      sla: form.sla,
-      emergencyDef: form.emergencyDef || null,
+      timezone: f.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      reachability: f.reachability,
+      coverageKinds: f.coverageKinds,
+      coverageScope: f.coverageScope || null,
+      sla: f.sla,
+      emergencyDef: f.emergencyDef || null,
     });
     showToast(`Bounty posted for ${result.data.coinsOffered} doubloons. Anchors aweigh!`, 'success');
-    const startEl = document.getElementById('start-date');
-    const endEl = document.getElementById('end-date');
-    const emEl = document.getElementById('emergency-def');
-    if (startEl) startEl.value = '';
-    if (endEl) endEl.value = '';
-    if (emEl) emEl.value = '';
-    renderCostPreview();
+    // Reset form state
+    state.formState = {
+      startDate: '',
+      endDate: '',
+      timezone: state.formState.timezone,
+      reachability: ['email-only-emergencies'],
+      coverageKinds: [],
+      coverageScope: '',
+      sla: state.formState.sla,
+      emergencyDef: '',
+    };
+    navigate('team', state.teamId, 'bounties');
   } catch (err) {
     showToast(err.message, 'error', 6000);
   } finally {
@@ -536,14 +573,13 @@ async function copyInviteLink(teamId) {
 }
 
 /* ============================================================
-   Coin shower
+   Coin shower + toasts + modal
    ============================================================ */
 
 function launchCoinShower(label) {
   const root = document.getElementById('coin-shower');
   if (!root) return;
-  // Anchor at the wallet bucket if visible, otherwise top-center
-  const anchor = document.querySelector('.bucket.total') ?? document.body;
+  const anchor = document.querySelector('.coin-pill') ?? document.querySelector('.bucket.total') ?? document.body;
   const r = anchor.getBoundingClientRect();
   const pop = document.createElement('div');
   pop.className = 'pop';
@@ -554,10 +590,6 @@ function launchCoinShower(label) {
   root.appendChild(pop);
   setTimeout(() => pop.remove(), 950);
 }
-
-/* ============================================================
-   Toasts
-   ============================================================ */
 
 function showToast(message, kind = 'info', ttl = 3500) {
   const toastEl = document.getElementById('toast');
@@ -578,10 +610,6 @@ function showToast(message, kind = 'info', ttl = 3500) {
   el.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, 1500); });
   timer = setTimeout(dismiss, ttl);
 }
-
-/* ============================================================
-   Modal
-   ============================================================ */
 
 function showModal({ title, body, primaryLabel = 'AYE', secondaryLabel, onPrimary, onSecondary }) {
   const root = document.getElementById('modal-root');
@@ -612,10 +640,10 @@ function showWelcomeModal() {
     body: `
       <p>Welcome aboard <strong>Vacaciones</strong> — the coverage marketplace where TAMs trade doubloons to take leave without dropping the ball.</p>
       <ul>
-        <li><strong>20 doubloons</strong> jingle in your starter chest the moment you join a crew.</li>
+        <li><strong>20 doubloons</strong> in your starter chest the moment you join a crew.</li>
         <li>The Crown drops <strong>10 stipend coins</strong> in your purse every month — spend them or they vanish at month’s end.</li>
-        <li>A day of coverage costs <strong>5 doubloons</strong> (weekends double).</li>
-        <li>Cover a crewmate, earn their doubloons as the days pass. The top earners get the captain’s pirate hat.</li>
+        <li>A coverage day costs <strong>5 doubloons</strong> (weekends double).</li>
+        <li>Cover a crewmate, earn their doubloons as the days pass. Top earners get the captain’s hat.</li>
       </ul>
       <p>Find your crew, post a bounty, take your damn vacation.</p>
     `,
@@ -633,15 +661,11 @@ function setHeaderVisible(visible) {
 
 function renderUserInfo() {
   const target = document.getElementById('user-info');
-  if (!state.user) {
-    target.innerHTML = '';
-    return;
-  }
+  if (!state.user) { target.innerHTML = ''; return; }
   const u = state.user;
   const team = state.teamId ? state.myTeams.find((t) => t.id === state.teamId) : null;
   const wallet = state.walletDoc;
   const totalBalance = wallet ? (wallet.earnedBalance ?? 0) + (wallet.stipendBalance ?? 0) : null;
-
   target.innerHTML = `
     ${totalBalance !== null && team ? `
       <span class="coin-pill" title="Total doubloons in this crew">
@@ -657,7 +681,7 @@ function renderUserInfo() {
 }
 
 /* ============================================================
-   Rendering
+   Rendering — top
    ============================================================ */
 
 function render() {
@@ -672,6 +696,10 @@ function render() {
   else if (state.view === 'team') app.innerHTML = renderTeam();
   else app.innerHTML = '';
 }
+
+/* ============================================================
+   Login
+   ============================================================ */
 
 function renderLogin() {
   const busy = state.busy.signIn;
@@ -702,12 +730,9 @@ function renderLogin() {
 }
 
 function renderHarborBg() {
-  // Inline SVG: night-time pirate harbor scene
   return `
     <svg class="login-bg" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <!-- Sky -->
       <rect width="320" height="130" fill="#0F1A2E"/>
-      <!-- Stars -->
       <rect x="20" y="20" width="1" height="1" fill="#F7E7C2"/>
       <rect x="48" y="34" width="1" height="1" fill="#F7E7C2"/>
       <rect x="80" y="18" width="1" height="1" fill="#F7E7C2"/>
@@ -719,16 +744,13 @@ function renderHarborBg() {
       <rect x="60" y="60" width="1" height="1" fill="#A6C2E8"/>
       <rect x="115" y="70" width="1" height="1" fill="#A6C2E8"/>
       <rect x="200" y="80" width="1" height="1" fill="#A6C2E8"/>
-      <!-- Moon -->
       <circle cx="80" cy="55" r="20" fill="#F7E7C2"/>
       <circle cx="74" cy="50" r="3" fill="#C4A86B" opacity="0.6"/>
       <circle cx="86" cy="60" r="2" fill="#C4A86B" opacity="0.6"/>
-      <!-- Moon dither halo -->
       <rect x="56" y="40" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
       <rect x="100" y="40" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
       <rect x="58" y="70" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
       <rect x="102" y="68" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
-      <!-- Sea -->
       <rect x="0" y="130" width="320" height="70" fill="#1E2D4A"/>
       <rect x="0" y="130" width="320" height="2" fill="#5BC9D1"/>
       <rect x="20" y="138" width="6" height="1" fill="#A6C2E8" opacity="0.5"/>
@@ -736,15 +758,12 @@ function renderHarborBg() {
       <rect x="140" y="148" width="10" height="1" fill="#A6C2E8" opacity="0.5"/>
       <rect x="210" y="155" width="12" height="1" fill="#A6C2E8" opacity="0.5"/>
       <rect x="280" y="162" width="10" height="1" fill="#A6C2E8" opacity="0.5"/>
-      <!-- Moon reflection on water -->
       <rect x="74" y="134" width="12" height="1" fill="#F7E7C2" opacity="0.7"/>
       <rect x="76" y="140" width="8" height="1" fill="#F7E7C2" opacity="0.4"/>
       <rect x="78" y="146" width="4" height="1" fill="#F7E7C2" opacity="0.3"/>
-      <!-- Distant island silhouette -->
       <rect x="220" y="115" width="60" height="15" fill="#0A1320"/>
       <rect x="230" y="105" width="40" height="10" fill="#0A1320"/>
       <rect x="240" y="100" width="20" height="5" fill="#0A1320"/>
-      <!-- Ship hull -->
       <rect x="180" y="110" width="40" height="20" fill="#2A1810"/>
       <rect x="178" y="112" width="44" height="16" fill="#3D2418"/>
       <rect x="175" y="120" width="50" height="8" fill="#3D2418"/>
@@ -752,26 +771,21 @@ function renderHarborBg() {
       <rect x="194" y="116" width="2" height="2" fill="#FFCB47"/>
       <rect x="202" y="116" width="2" height="2" fill="#FFCB47"/>
       <rect x="210" y="116" width="2" height="2" fill="#FFCB47"/>
-      <!-- Ship masts and sails -->
       <rect x="195" y="70" width="1" height="40" fill="#1A0E08"/>
       <rect x="205" y="60" width="1" height="50" fill="#1A0E08"/>
       <rect x="215" y="75" width="1" height="35" fill="#1A0E08"/>
       <rect x="188" y="78" width="15" height="20" fill="#E8D7A8" opacity="0.85"/>
       <rect x="200" y="68" width="12" height="32" fill="#E8D7A8" opacity="0.85"/>
       <rect x="211" y="82" width="8" height="20" fill="#E8D7A8" opacity="0.85"/>
-      <!-- Pirate flag -->
       <rect x="205" y="56" width="8" height="5" fill="#1A0E08"/>
       <rect x="207" y="57" width="2" height="2" fill="#F7E7C2"/>
       <rect x="210" y="57" width="2" height="2" fill="#F7E7C2"/>
-      <!-- Dock -->
       <rect x="0" y="148" width="60" height="6" fill="#5A3A1F"/>
       <rect x="0" y="154" width="60" height="2" fill="#3D2418"/>
-      <!-- Dock posts with lanterns -->
       <rect x="14" y="120" width="2" height="34" fill="#5A3A1F"/>
       <rect x="11" y="120" width="8" height="6" fill="#1A0E08"/>
       <rect x="12" y="121" width="6" height="4" fill="#FFCB47"/>
       <rect x="13" y="122" width="4" height="2" fill="#FFD86B"/>
-      <!-- Lantern glow -->
       <rect x="9" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
       <rect x="20" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
       <rect x="14" y="126" width="2" height="2" fill="#E0A93B" opacity="0.4"/>
@@ -781,7 +795,6 @@ function renderHarborBg() {
       <rect x="33" y="122" width="4" height="2" fill="#FFD86B"/>
       <rect x="29" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
       <rect x="40" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
-      <!-- Palm tree -->
       <rect x="50" y="130" width="3" height="18" fill="#5A3A1F"/>
       <rect x="44" y="126" width="6" height="2" fill="#2A6A1E"/>
       <rect x="40" y="128" width="8" height="2" fill="#2A6A1E"/>
@@ -792,6 +805,10 @@ function renderHarborBg() {
     </svg>
   `;
 }
+
+/* ============================================================
+   Home
+   ============================================================ */
 
 function renderHome() {
   const teams = state.myTeams;
@@ -834,25 +851,24 @@ function renderHome() {
         <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Crewmates each get 20 doubloons to start.</p>
         <div class="row">
           <input id="new-team-name" type="text" placeholder="Crew name" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
-          <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>
-            ${state.busy.createTeam ? 'Forming…' : 'Hoist'}
-          </button>
+          <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Forming…' : 'Hoist'}</button>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-title">Sign on with a crew</div>
         <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
         <div class="row">
-          <input id="join-team-id" type="text" placeholder="Crew ID" ${state.busy.joinTeam ? 'disabled' : ''} />
-          <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>
-            ${state.busy.joinTeam ? 'Boarding…' : 'Aye'}
-          </button>
+          <input id="join-team-id" type="text" placeholder="Crew ID or link" ${state.busy.joinTeam ? 'disabled' : ''} />
+          <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Boarding…' : 'Aye'}</button>
         </div>
       </div>
     </section>
   `;
 }
+
+/* ============================================================
+   Team page (tabs)
+   ============================================================ */
 
 function renderTeam() {
   const team = state.myTeams.find((t) => t.id === state.teamId);
@@ -866,6 +882,14 @@ function renderTeam() {
       </div>
     `;
   }
+  const openCount = state.bounties.filter((b) => b.status === 'open').length;
+  const tab = state.teamTab;
+
+  let body = '';
+  if (tab === 'chest') body = renderChestTab();
+  else if (tab === 'post') body = renderPostTab();
+  else body = renderBountyBoardTab();
+
   return `
     <nav class="breadcrumb">
       <a href="#/">Crews</a>
@@ -883,13 +907,151 @@ function renderTeam() {
       </div>
     </header>
 
-    ${renderBounties()}
-    ${renderWallet()}
-    ${renderCreateForm()}
+    <nav class="tabs">
+      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}">
+        Bounty Board ${openCount > 0 ? `<span class="tab-count">${openCount}</span>` : ''}
+      </a>
+      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}">
+        Treasure Chest
+      </a>
+      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}">
+        Post Bounty
+      </a>
+    </nav>
+
+    ${body}
   `;
 }
 
-function renderWallet() {
+/* ============================================================
+   Tab: Bounty Board
+   ============================================================ */
+
+function renderBountyBoardTab() {
+  const filter = state.bountyFilter;
+  let list = state.bounties.slice();
+
+  // Apply filter
+  if (filter === 'open') list = list.filter((b) => b.status === 'open');
+  else if (filter === 'taken') list = list.filter((b) => b.status === 'accepted' || b.status === 'active');
+  else if (filter === 'done') list = list.filter((b) => b.status === 'completed');
+  else if (filter === 'mine') list = list.filter((b) => b.requesterUid === state.user.uid);
+
+  // Sort: open first, then by status priority, then by windowStart
+  list.sort((a, b) => {
+    const sa = STATUS_PRIORITY[a.status] ?? 99;
+    const sb = STATUS_PRIORITY[b.status] ?? 99;
+    if (sa !== sb) return sa - sb;
+    return (a.windowStart?.toMillis() ?? 0) - (b.windowStart?.toMillis() ?? 0);
+  });
+
+  const counts = {
+    all: state.bounties.length,
+    open: state.bounties.filter((b) => b.status === 'open').length,
+    taken: state.bounties.filter((b) => b.status === 'accepted' || b.status === 'active').length,
+    done: state.bounties.filter((b) => b.status === 'completed').length,
+    mine: state.bounties.filter((b) => b.requesterUid === state.user?.uid).length,
+  };
+
+  return `
+    <section>
+      <div class="filter-row">
+        ${renderFilter('all', `All · ${counts.all}`)}
+        ${renderFilter('open', `Open · ${counts.open}`)}
+        ${renderFilter('taken', `Taken · ${counts.taken}`)}
+        ${renderFilter('done', `Done · ${counts.done}`)}
+        ${renderFilter('mine', `Mine · ${counts.mine}`)}
+      </div>
+
+      ${list.length === 0 ? `
+        <div class="empty-card">
+          <div class="empty-mascot">${SVG.turtle}</div>
+          <p><strong>${filter === 'all' ? 'The bounty board is empty.' : `No ${filter} bounties.`}</strong></p>
+          <p class="muted">${filter === 'all'
+            ? 'Post one yourself — your crewmates earn doubloons by covering you.'
+            : 'Switch the filter above to see other bounties.'}</p>
+          ${filter === 'all' ? `<p style="margin-top: 16px;"><a href="#/team/${esc(state.teamId)}/post">▶ Post a bounty</a></p>` : ''}
+        </div>
+      ` : `
+        <ul class="bounties">
+          ${list.map(renderBountyCard).join('')}
+        </ul>
+      `}
+    </section>
+  `;
+}
+
+function renderFilter(value, label) {
+  const active = state.bountyFilter === value;
+  return `<button class="filter-chip ${active ? 'active' : ''}" data-action="set-filter" data-filter="${value}">${esc(label)}</button>`;
+}
+
+function renderBountyCard(b) {
+  const status = b.status || 'open';
+  const statusLabel = STATUS_LABEL[status] || status.toUpperCase();
+  const mine = b.requesterUid === state.user?.uid;
+  const youCover = b.covererUid === state.user?.uid;
+  const accepting = state.busy.acceptId === b.id;
+  const days = Math.max(1, Math.round(((b.windowEnd?.toDate?.() ?? new Date()) - (b.windowStart?.toDate?.() ?? new Date())) / 86400000) + 1);
+  const reaches = arr(b.reachability).map((r) => REACHABILITY_OPTIONS.find((o) => o.value === r)).filter(Boolean);
+  const kinds = arr(b.coverageKinds).map((k) => COVERAGE_KIND_OPTIONS.find((o) => o.value === k)).filter(Boolean);
+  const reqName = b.requesterDisplayName || (mine ? 'You' : 'A crewmate');
+  const reqPhoto = b.requesterPhotoURL;
+  const covererName = b.covererDisplayName || (youCover ? 'You' : null);
+  const covererPhoto = b.covererPhotoURL;
+
+  let actionHtml = '';
+  if (mine) {
+    actionHtml = `<span class="own-tag bounty-action">Your bounty</span>`;
+  } else if (status === 'open') {
+    actionHtml = `<div class="bounty-action"><button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Take voyage'}</button></div>`;
+  } else if (covererName) {
+    actionHtml = `<div class="taken-by">
+      <span class="taken-by-label">Covered by</span>
+      ${covererPhoto ? `<img class="avatar-mini" src="${esc(covererPhoto)}" alt="" referrerpolicy="no-referrer"/>` : ''}
+      <span>${esc(shortName(covererName))}</span>
+    </div>`;
+  } else {
+    actionHtml = `<div class="bounty-action"><span class="own-tag">${esc(statusLabel)}</span></div>`;
+  }
+
+  return `
+    <li class="bounty bounty-${status}">
+      <div class="bounty-status-area">
+        <span class="status-badge status-${status}">${esc(statusLabel)}</span>
+      </div>
+      <div class="bounty-requester" title="${esc(b.requesterDisplayName ?? '')}">
+        ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />`
+                  : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;"></span>`}
+        <span class="requester-chip"><span class="who-name">${esc(shortName(reqName))}</span></span>
+      </div>
+      <div class="bounty-window">
+        <strong>${esc(formatDate(b.windowStart?.toDate()))} → ${esc(formatDate(b.windowEnd?.toDate()))}</strong>
+        <small>${days} day${days === 1 ? '' : 's'} · ${esc(b.timezone || '')}</small>
+      </div>
+      <div class="bounty-doubloons">
+        <strong>${SVG.doubloon}${b.totalCoinsOffered ?? 0}</strong>
+        <small>doubloons</small>
+      </div>
+      ${b.coverageScope ? `<div class="bounty-scope"><strong>Scope:</strong>${esc(b.coverageScope)}</div>` : ''}
+      ${(reaches.length > 0 || kinds.length > 0) ? `
+        <div class="bounty-chips">
+          <div class="chips">
+            ${reaches.map((r) => `<span class="chip chip-cream" title="${esc(r.label)}">${r.icon} ${esc(r.short)}</span>`).join('')}
+            ${kinds.map((k) => `<span class="chip chip-cyan" title="${esc(k.label)}">${k.icon} ${esc(k.label)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+      ${b.sla ? `<div class="bounty-sla"><strong>SLA:</strong> ${esc(b.sla)}</div>` : ''}
+      ${actionHtml}
+    </li>
+  `;
+}
+
+/* ============================================================
+   Tab: Treasure Chest
+   ============================================================ */
+
+function renderChestTab() {
   const w = state.walletDoc;
   return `
     <div class="panel wallet-panel">
@@ -935,122 +1097,91 @@ function renderWallet() {
   `;
 }
 
-function renderBounties() {
-  const reqs = state.openRequests;
-  return `
-    <section>
-      <div class="section-head">
-        <h2>The bounty board</h2>
-        <small>${reqs.length} open</small>
-      </div>
-      ${reqs.length === 0 ? `
-        <div class="empty-card">
-          <div class="empty-mascot">${SVG.turtle}</div>
-          <p><strong>No bounties posted.</strong></p>
-          <p class="muted">When a crewmate puts one up, you can earn their doubloons by covering.</p>
-        </div>
-      ` : `
-        <ul class="bounties">
-          ${reqs.map((r) => {
-            const mine = r.requesterUid === state.user.uid;
-            const reachLabel = REACHABILITY_OPTIONS.find((o) => o.value === r.reachability)?.label ?? r.reachability;
-            const accepting = state.busy.acceptId === r.id;
-            return `
-              <li class="bounty">
-                <span class="bounty-flag">${SVG.scroll}</span>
-                <div class="bounty-meta">
-                  <strong>${esc(formatDate(r.windowStart?.toDate()))} → ${esc(formatDate(r.windowEnd?.toDate()))}</strong>
-                  <small>${esc(r.timezone)} · ${esc(reachLabel)}</small>
-                </div>
-                <div class="bounty-price">
-                  <strong>${SVG.doubloon}${r.totalCoinsOffered}</strong>
-                  <small>doubloons</small>
-                </div>
-                ${mine
-                  ? `<span class="own-tag">Your bounty</span>`
-                  : `<button class="btn" data-action="accept" data-id="${esc(r.id)}" ${accepting ? 'disabled' : ''}>
-                       ${accepting ? 'Accepting…' : 'Take voyage'}
-                     </button>`
-                }
-              </li>
-            `;
-          }).join('')}
-        </ul>
-      `}
-    </section>
-  `;
-}
+/* ============================================================
+   Tab: Post Bounty
+   ============================================================ */
 
-function renderCreateForm() {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+function renderPostTab() {
+  const tz = state.formState.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  state.formState.timezone = tz;
+  const f = state.formState;
+  const cost = computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+
   return `
     <div class="create-card">
       <div class="panel-title">Post a bounty</div>
-      <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 14px;">${ECONOMY.WEEKEND_MULTIPLIER}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.</p>
+      <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 14px;">
+        ${ECONOMY.WEEKEND_MULTIPLIER}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.
+      </p>
       <form id="create-form" autocomplete="off">
         <div class="form-grid">
           <label>
             <span>Shore leave from</span>
-            <input type="date" id="start-date" name="startDate" />
+            <input type="date" name="startDate" value="${esc(f.startDate)}" />
           </label>
           <label>
             <span>Returning by</span>
-            <input type="date" id="end-date" name="endDate" />
+            <input type="date" name="endDate" value="${esc(f.endDate)}" />
           </label>
-          <label>
+          <label class="wide">
             <span>Timezone</span>
-            <input type="text" id="timezone" name="timezone" value="${esc(tz)}" />
+            <input type="text" name="timezone" value="${esc(tz)}" />
           </label>
-          <label>
-            <span>How reachable?</span>
-            <select id="reachability" name="reachability">
-              ${REACHABILITY_OPTIONS.map((o) => `
-                <option value="${esc(o.value)}" ${o.value === 'email-only-emergencies' ? 'selected' : ''}>${esc(o.label)}</option>
+
+          <label class="wide">
+            <span>What you’re covered for · pick any</span>
+            <div class="check-group">
+              ${COVERAGE_KIND_OPTIONS.map((k) => `
+                <label class="check-pixel">
+                  <input type="checkbox" name="coverageKinds" value="${esc(k.value)}" ${f.coverageKinds.includes(k.value) ? 'checked' : ''}/>
+                  <span class="check-box"></span>
+                  <span class="check-label">${k.icon} ${esc(k.label)}</span>
+                </label>
               `).join('')}
-            </select>
+            </div>
           </label>
+
+          <label class="wide">
+            <span>How reachable while away · pick any</span>
+            <div class="check-group">
+              ${REACHABILITY_OPTIONS.map((r) => `
+                <label class="check-pixel">
+                  <input type="checkbox" name="reachability" value="${esc(r.value)}" ${f.reachability.includes(r.value) ? 'checked' : ''}/>
+                  <span class="check-box"></span>
+                  <span class="check-label">${r.icon} ${esc(r.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </label>
+
+          <label class="wide">
+            <span>Coverage scope · which accounts / responsibilities</span>
+            <input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" />
+          </label>
+
           <label class="wide">
             <span>SLA the coverer should hold</span>
-            <input type="text" id="sla" name="sla" value="P1 within 2h, P2 next business day" />
+            <input type="text" name="sla" value="${esc(f.sla)}" />
           </label>
+
           <label class="wide">
             <span>What counts as a real emergency? (optional)</span>
-            <textarea id="emergency-def" name="emergencyDef" rows="2" placeholder="“Wake me only if Acme’s production is down.”"></textarea>
+            <textarea name="emergencyDef" rows="2" placeholder="“Wake me only if Acme’s production is down.”">${esc(f.emergencyDef)}</textarea>
           </label>
         </div>
+
         <div class="preview-row">
-          <div id="cost-preview" class="preview" data-total-coins="0">
-            <small class="muted-light">Pick a window to preview the cost.</small>
+          <div class="preview">
+            ${cost.days > 0 ? `
+              <div class="cost"><strong>${cost.totalCoins}</strong><span>doubloons</span></div>
+              <small>${cost.days} day${cost.days === 1 ? '' : 's'} · ${cost.weekdays} weekday · ${cost.weekendDays} weekend</small>
+            ` : `<small class="muted-light">Pick a window to preview the cost.</small>`}
           </div>
-          <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>
-            ${state.busy.postRequest ? 'Posting…' : 'Post bounty'}
-          </button>
+          <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${state.busy.postRequest ? 'Posting…' : 'Post bounty'}</button>
         </div>
       </form>
     </div>
   `;
-}
-
-function renderCostPreview() {
-  const previewEl = document.getElementById('cost-preview');
-  if (!previewEl) return;
-  const startEl = document.getElementById('start-date');
-  const endEl = document.getElementById('end-date');
-  const start = parseLocalDate(startEl?.value);
-  const end = parseLocalDate(endEl?.value);
-  const cost = computeCoverageCost(start, end);
-  previewEl.dataset.totalCoins = String(cost.totalCoins);
-  if (cost.days > 0) {
-    previewEl.innerHTML = `
-      <div class="cost">
-        <strong>${cost.totalCoins}</strong>
-        <span>doubloons</span>
-      </div>
-      <small>${cost.days} day${cost.days === 1 ? '' : 's'} · ${cost.weekdays} weekday · ${cost.weekendDays} weekend</small>
-    `;
-  } else {
-    previewEl.innerHTML = `<small class="muted-light">Pick a window to preview the cost.</small>`;
-  }
 }
 
 /* ============================================================
@@ -1061,20 +1192,15 @@ document.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-action]');
   if (!t) return;
   const action = t.dataset.action;
-  if (action === 'sign-in') {
-    e.preventDefault();
-    await signIn();
-  } else if (action === 'sign-out') {
-    e.preventDefault();
-    await handleSignOut();
-  } else if (action === 'create-team') {
+  if (action === 'sign-in') { e.preventDefault(); await signIn(); }
+  else if (action === 'sign-out') { e.preventDefault(); await handleSignOut(); }
+  else if (action === 'create-team') {
     e.preventDefault();
     const input = document.getElementById('new-team-name');
     await createTeam(input.value.trim());
   } else if (action === 'join-team') {
     e.preventDefault();
     const input = document.getElementById('join-team-id');
-    // Accept both raw IDs and invite links
     let raw = input.value.trim();
     const m = raw.match(/#\/join\/([^?&#]+)/);
     if (m) raw = decodeURIComponent(m[1]);
@@ -1085,30 +1211,52 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'copy-invite') {
     e.preventDefault();
     await copyInviteLink(t.dataset.id);
+  } else if (action === 'set-filter') {
+    e.preventDefault();
+    state.bountyFilter = t.dataset.filter;
+    render();
   }
 });
 
 document.addEventListener('submit', async (e) => {
   if (e.target.id === 'create-form') {
     e.preventDefault();
-    const form = e.target;
-    const data = {
-      startDate: form.startDate.value,
-      endDate: form.endDate.value,
-      timezone: form.timezone.value.trim(),
-      reachability: form.reachability.value,
-      sla: form.sla.value.trim(),
-      emergencyDef: form.emergencyDef.value.trim(),
-    };
-    await postCoverageRequest(data);
+    syncFormStateFromDom(e.target);
+    await postBounty();
   }
 });
 
 document.addEventListener('input', (e) => {
-  if (e.target.id === 'start-date' || e.target.id === 'end-date') {
-    renderCostPreview();
-  }
+  const form = e.target.closest('#create-form');
+  if (form) syncFormStateFromDom(form);
 });
+
+document.addEventListener('change', (e) => {
+  const form = e.target.closest('#create-form');
+  if (form) syncFormStateFromDom(form);
+});
+
+function syncFormStateFromDom(form) {
+  const data = new FormData(form);
+  const f = state.formState;
+  f.startDate = data.get('startDate') || '';
+  f.endDate = data.get('endDate') || '';
+  f.timezone = (data.get('timezone') || '').trim();
+  f.sla = (data.get('sla') || '').trim();
+  f.emergencyDef = (data.get('emergencyDef') || '').trim();
+  f.coverageScope = (data.get('coverageScope') || '').trim();
+  f.reachability = data.getAll('reachability');
+  f.coverageKinds = data.getAll('coverageKinds');
+  // Update cost preview without full re-render
+  const previewEl = document.querySelector('.preview');
+  if (previewEl) {
+    const cost = computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+    previewEl.innerHTML = cost.days > 0
+      ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>doubloons</span></div>
+         <small>${cost.days} day${cost.days === 1 ? '' : 's'} · ${cost.weekdays} weekday · ${cost.weekendDays} weekend</small>`
+      : `<small class="muted-light">Pick a window to preview the cost.</small>`;
+  }
+}
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && document.activeElement?.id === 'new-team-name') {

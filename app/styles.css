@@ -640,6 +640,321 @@ label {
 }
 
 /* ============================================================
+   Tabs
+   ============================================================ */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 var(--sp-4);
+  border-bottom: 2px solid var(--wood-dark);
+  padding-bottom: 0;
+  position: relative;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px var(--sp-3);
+  background: var(--ink-abyss);
+  color: var(--parchment-dim);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: inset 0 0 0 2px var(--wood-dark);
+  position: relative;
+  top: 2px;
+}
+.tab:hover { color: var(--brass); text-decoration: none; }
+.tab.active {
+  background: var(--parchment);
+  color: var(--ink-pure);
+  box-shadow:
+    inset 0 0 0 2px var(--brass),
+    0 2px 0 var(--parchment);
+}
+.tab-count {
+  font-family: 'Silkscreen', monospace;
+  font-size: 12px;
+  background: var(--wood-dark);
+  color: var(--brass);
+  padding: 1px 6px;
+  letter-spacing: 0;
+}
+.tab.active .tab-count {
+  background: var(--brass);
+  color: var(--ink-pure);
+}
+
+/* ============================================================
+   Status badges
+   ============================================================ */
+
+.status-badge {
+  display: inline-block;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  letter-spacing: 1px;
+  padding: 3px 6px;
+  text-transform: uppercase;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -1px -1px 0 rgba(0,0,0,0.3), 0 0 0 1px var(--ink-pure);
+}
+.status-open { background: #FFCB47; color: var(--ink-pure); }
+.status-taken { background: var(--elaine-cyan); color: var(--ink-pure); }
+.status-active { background: #6BD18E; color: var(--ink-pure); }
+.status-done { background: var(--parchment-dim); color: var(--ink-pure); }
+.status-cancelled { background: var(--lechuck-red); color: var(--cream); }
+
+/* ============================================================
+   Filter chips (status filter on bounty board)
+   ============================================================ */
+
+.filter-row {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  flex-wrap: wrap;
+}
+.filter-chip {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 6px 10px;
+  background: var(--ink-abyss);
+  color: var(--parchment-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 2px var(--wood-dark);
+}
+.filter-chip:hover { color: var(--brass); }
+.filter-chip.active {
+  background: var(--brass);
+  color: var(--ink-pure);
+  box-shadow: inset 0 0 0 2px var(--brass-bright), 0 0 0 1px var(--shadow-deep);
+}
+
+/* ============================================================
+   Avatar mini (for requester chip)
+   ============================================================ */
+
+.avatar-mini {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 0 0 1px var(--wood-dark);
+  image-rendering: pixelated;
+}
+.requester-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-meta);
+  color: var(--ink-pure);
+}
+.requester-chip .who-name { font-weight: 400; }
+
+/* ============================================================
+   Reach chips (multi-select reachability + kinds)
+   ============================================================ */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  padding: 2px 8px;
+  background: var(--parchment-dim);
+  color: var(--ink-pure);
+  letter-spacing: 0.5px;
+  border: 1px solid var(--wood-dark);
+}
+.chip-cyan { background: var(--moonbeam); }
+.chip-cream { background: var(--parchment-bright); }
+
+/* ============================================================
+   Pixel checkbox group (used in post form)
+   ============================================================ */
+
+.check-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+.check-pixel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px var(--sp-2);
+  background: var(--parchment-bright);
+  cursor: pointer;
+  box-shadow: inset 1px 1px 0 var(--parchment-dim), 0 0 0 1px var(--wood-dark);
+  user-select: none;
+}
+.check-pixel:hover { background: var(--parchment); }
+.check-pixel input { display: none; }
+.check-box {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background: var(--parchment-bright);
+  position: relative;
+  box-shadow:
+    inset 1px 1px 0 var(--parchment-dim),
+    inset -1px -1px 0 var(--parchment-bright),
+    0 0 0 2px var(--wood-dark);
+}
+.check-pixel input:checked + .check-box::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background: var(--brass);
+  box-shadow:
+    inset 1px 1px 0 var(--brass-bright),
+    inset -1px -1px 0 var(--brass-deep);
+}
+.check-label {
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body);
+  color: var(--ink-pure);
+}
+
+/* ============================================================
+   New rich bounty card
+   ============================================================ */
+
+.bounty {
+  display: grid;
+  grid-template-areas:
+    "status status doubloons"
+    "requester window doubloons"
+    "scope scope scope"
+    "chips chips chips"
+    "sla sla action";
+  grid-template-columns: auto 1fr auto;
+  gap: var(--sp-2) var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--parchment);
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    inset 2px 2px 0 var(--parchment-bright),
+    inset -2px -2px 0 var(--parchment-dim),
+    4px 4px 0 0 var(--shadow-deep);
+  position: relative;
+}
+.bounty-open { background: var(--parchment); }
+.bounty-taken,
+.bounty-active { background: #E8E0D0; box-shadow: 0 0 0 2px var(--wood-dark), inset 2px 2px 0 #F0E8D8, inset -2px -2px 0 #B8A878, 4px 4px 0 0 var(--shadow-deep); }
+.bounty-done { background: #D8D0C0; opacity: 0.75; box-shadow: 0 0 0 2px var(--wood-dark), 3px 3px 0 0 var(--shadow-deep); }
+
+.bounty-status-area { grid-area: status; display: flex; gap: 6px; align-items: center; }
+.bounty-requester {
+  grid-area: requester;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.bounty-window {
+  grid-area: window;
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body);
+  color: var(--ink-pure);
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.bounty-window strong {
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-body-lg);
+  font-weight: 400;
+}
+.bounty-window small { color: var(--ink-faded); font-size: 14px; }
+.bounty-doubloons {
+  grid-area: doubloons;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: 'Silkscreen', monospace;
+}
+.bounty-doubloons strong {
+  font-size: 26px;
+  color: var(--ink-pure);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bounty-doubloons small {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: var(--ink-faded);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.bounty-scope {
+  grid-area: scope;
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-meta);
+  color: var(--ink-pure);
+  padding: 4px var(--sp-2);
+  background: var(--parchment-bright);
+  border-left: 3px solid var(--brass);
+}
+.bounty-scope strong { color: var(--ink-faded); margin-right: 4px; }
+.bounty-chips { grid-area: chips; }
+.bounty-sla {
+  grid-area: sla;
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-meta);
+  color: var(--ink-faded);
+}
+.bounty-action { grid-area: action; justify-self: end; }
+
+@media (max-width: 720px) {
+  .bounty {
+    grid-template-areas:
+      "status doubloons"
+      "requester doubloons"
+      "window window"
+      "scope scope"
+      "chips chips"
+      "sla sla"
+      "action action";
+    grid-template-columns: 1fr auto;
+  }
+  .bounty-doubloons { align-items: flex-end; }
+  .bounty-action { justify-self: stretch; }
+  .bounty-action .btn { width: 100%; }
+}
+
+/* ============================================================
+   Coverer chip on taken bounties
+   ============================================================ */
+
+.taken-by {
+  grid-area: action;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: 'VT323', monospace;
+  font-size: var(--fs-meta);
+  color: var(--ink-pure);
+  padding: 4px var(--sp-2);
+  background: var(--moonbeam);
+  border: 1px solid var(--wood-dark);
+}
+.taken-by-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--ink-pure);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
    Team page header / breadcrumb
    ============================================================ */
 

@@ -12,12 +12,23 @@ const REACHABILITY = [
   'daily-check-in',
 ] as const;
 
+const COVERAGE_KIND = [
+  'inbox',
+  'meetings',
+  'escalations',
+  'one-on-ones',
+  'chat',
+  'on-call',
+] as const;
+
 const CreateCoverageRequestSchema = z.object({
   teamId: z.string().trim().min(1),
   windowStartIso: z.string().datetime(),
   windowEndIso: z.string().datetime(),
   timezone: z.string().trim().min(1),
-  reachability: z.enum(REACHABILITY),
+  reachability: z.array(z.enum(REACHABILITY)).min(1).max(REACHABILITY.length),
+  coverageKinds: z.array(z.enum(COVERAGE_KIND)).max(COVERAGE_KIND.length).optional(),
+  coverageScope: z.string().trim().max(500).nullable().optional(),
   sla: z.string().trim().min(1).max(200),
   emergencyDef: z.string().max(500).nullable().optional(),
 });
@@ -46,9 +57,12 @@ export const createCoverageRequest = onCall<
     windowEndIso,
     timezone,
     reachability,
+    coverageKinds,
+    coverageScope,
     sla,
     emergencyDef,
   } = parsed.data;
+  const token = request.auth.token;
 
   const start = new Date(windowStartIso);
   const end = new Date(windowEndIso);
@@ -93,11 +107,17 @@ export const createCoverageRequest = onCall<
 
     tx.create(requestRef, {
       requesterUid: uid,
+      requesterDisplayName: token.name ?? token.email ?? '',
+      requesterPhotoURL: token.picture ?? null,
       covererUid: null,
+      covererDisplayName: null,
+      covererPhotoURL: null,
       windowStart: Timestamp.fromDate(start),
       windowEnd: Timestamp.fromDate(end),
       timezone,
       reachability,
+      coverageKinds: coverageKinds ?? [],
+      coverageScope: coverageScope?.trim() ? coverageScope.trim() : null,
       sla,
       emergencyDef: emergencyDef ?? null,
       status: 'open',

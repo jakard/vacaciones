@@ -28,6 +28,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
 
     const { teamId, requestId } = parsed.data;
     const uid = request.auth.uid;
+    const token = request.auth.token;
     const db = getFirestore();
 
     const requestRef = db.doc(`teams/${teamId}/coverageRequests/${requestId}`);
@@ -119,6 +120,8 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
 
       tx.update(requestRef, {
         covererUid: uid,
+        covererDisplayName: token.name ?? token.email ?? '',
+        covererPhotoURL: token.picture ?? null,
         status: 'accepted',
         coinsEscrowed: amount,
         updatedAt: FieldValue.serverTimestamp(),
