@@ -88,6 +88,13 @@ service cloud.firestore {
         allow read: if isTeamMember(teamId);
         allow write: if false;
       }
+
+      // Crew private settings (API keys, integration credentials) — Admin
+      // SDK ONLY. Client reads/writes always denied. Reads happen via
+      // getCrewSettings callable, which returns metadata not the secret.
+      match /private/{settingsId} {
+        allow read, write: if false;
+      }
     }
 
     // Default deny everything else

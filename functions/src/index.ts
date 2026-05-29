@@ -32,5 +32,7 @@ export { sendScroll } from './http/sendScroll';
 export { setProfile } from './http/setProfile';
 export { cancelBounty } from './http/cancelBounty';
 export { updateTeam } from './http/updateTeam';
+export { updateCrewSettings } from './http/updateCrewSettings';
+export { getCrewSettings } from './http/getCrewSettings';
 export { dailyCoverageRelease } from './scheduled/dailyCoverageRelease';
 export { monthlyStipendMint } from './scheduled/monthlyStipendMint';

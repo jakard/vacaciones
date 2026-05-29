@@ -139,6 +139,8 @@ const callSendScroll = httpsCallableFromURL(functions, callableURL('sendScroll')
 const callSetProfile = httpsCallableFromURL(functions, callableURL('setProfile'));
 const callCancelBounty = httpsCallableFromURL(functions, callableURL('cancelBounty'));
 const callUpdateTeam = httpsCallableFromURL(functions, callableURL('updateTeam'));
+const callUpdateCrewSettings = httpsCallableFromURL(functions, callableURL('updateCrewSettings'));
+const callGetCrewSettings = httpsCallableFromURL(functions, callableURL('getCrewSettings'));
 
 /* ============================================================
    Sound module (Web Audio chiptune SFX)
@@ -199,6 +201,8 @@ const state = {
   scrolls: [],
   userDoc: null,
   myRole: null,
+  crewSettings: null,
+  crewSettingsLoading: false,
   leaderboard: null,
   leaderboardLoading: false,
   onboardingScene: 0,
@@ -526,6 +530,7 @@ function parseHash() {
     if (sub === 'chest') tab = 'chest';
     else if (sub === 'post') tab = 'post';
     else if (sub === 'wof') tab = 'wof';
+    else if (sub === 'settings') tab = 'settings';
     return { view: 'team', teamId: decodeURIComponent(tid), tab };
   }
   if (h.startsWith('#/join/')) return { view: 'home', joinId: decodeURIComponent(h.slice('#/join/'.length)) };
@@ -572,6 +577,8 @@ function applyRoute() {
 
   // Lazy load leaderboard when wof tab opens
   if (state.view === 'team' && state.teamTab === 'wof') refreshLeaderboard();
+  // Lazy load crew settings when settings tab opens (manager only)
+  if (state.view === 'team' && state.teamTab === 'settings') refreshCrewSettings();
 
   render();
 }
@@ -909,7 +916,7 @@ function showManageCrewModal(team) {
         <input id="${inputPhoto}" type="text" value="${esc(team.photoURL ?? '')}" placeholder="https://…" />
       </label>
     </div>
-    <p class="muted" style="font-family: 'VT323', monospace; font-size: 16px; margin: 8px 0 0;">Paste a square image URL. Leave blank to use the default flag.</p>
+    <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">Paste a square image URL. Leave blank to use the default flag.</p>
   `;
   showModal({
     title: 'MANAGE CREW',
@@ -997,6 +1004,29 @@ async function refreshLeaderboard() {
     console.error('leaderboard fetch failed', err);
     showToast(`Could not load the Wall of Fame: ${err.message}`, 'error', 5000);
   } finally { state.leaderboardLoading = false; render(); }
+}
+
+async function refreshCrewSettings() {
+  if (!state.teamId || state.crewSettingsLoading) return;
+  if (state.myRole !== 'manager') return;
+  state.crewSettingsLoading = true; render();
+  try {
+    const result = await callGetCrewSettings({ teamId: state.teamId });
+    state.crewSettings = result.data;
+  } catch (err) {
+    console.error('crew settings fetch failed', err);
+    showToast(`Could not load settings: ${err.message}`, 'error', 5000);
+  } finally { state.crewSettingsLoading = false; render(); }
+}
+
+async function saveCrewSettings(updates) {
+  try {
+    await callUpdateCrewSettings({ teamId: state.teamId, ...updates });
+    showToast('Crew settings saved.', 'success');
+    await refreshCrewSettings();
+  } catch (err) {
+    showToast(err.message, 'error', 6000);
+  }
 }
 
 /* ============================================================
@@ -1117,7 +1147,7 @@ function showBountyDetail(bountyId) {
       <span class="status-badge status-${status}">${STATUS_LABEL[status] || status}</span>
       <span style="font-family: 'Silkscreen', monospace; font-size: 22px; color: var(--brass-deep); display: inline-flex; align-items: center; gap: 4px;">
         ${SVG.doubloon}${b.totalCoinsOffered ?? 0}
-        <span style="font-family: 'VT323', monospace; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">doubloons</span>
+        <span style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">doubloons</span>
       </span>
     </div>
 
@@ -1435,7 +1465,7 @@ function renderHome() {
     <section class="actions">
       <div class="panel">
         <div class="panel-title">Form a crew</div>
-        <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Crewmates each get 20 doubloons to start.</p>
+        <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Crewmates each get 20 doubloons to start.</p>
         <div class="row">
           <input id="new-team-name" type="text" placeholder="Crew name" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
           <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Forming…' : 'Hoist'}</button>
@@ -1443,7 +1473,7 @@ function renderHome() {
       </div>
       <div class="panel">
         <div class="panel-title">Sign on with a crew</div>
-        <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
+        <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
         <div class="row">
           <input id="join-team-id" type="text" placeholder="Crew ID or link" ${state.busy.joinTeam ? 'disabled' : ''} />
           <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Boarding…' : 'Aye'}</button>
@@ -1475,6 +1505,7 @@ function renderTeam() {
   if (tab === 'chest') body = renderChestTab();
   else if (tab === 'post') body = renderPostTab();
   else if (tab === 'wof') body = renderWofTab();
+  else if (tab === 'settings') body = renderSettingsTab();
   else body = renderBountyBoardTab();
 
   return `
@@ -1501,6 +1532,7 @@ function renderTeam() {
       <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}">Treasure Chest</a>
       <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}">Wall of Fame</a>
       <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}">Post Bounty</a>
+      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}">⚙ Settings</a>` : ''}
     </nav>
     ${body}
   `;
@@ -1686,7 +1718,7 @@ function renderPostTab() {
   return `
     <div class="create-card">
       <div class="panel-title">Post a bounty</div>
-      <p class="muted" style="font-family: 'VT323', monospace; font-size: 18px; margin: 0 0 14px;">
+      <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
         ${ECONOMY.WEEKEND_MULTIPLIER}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.
       </p>
       <form id="create-form" autocomplete="off">
@@ -1815,6 +1847,70 @@ function renderWofTab() {
   `;
 }
 
+function renderSettingsTab() {
+  if (state.myRole !== 'manager') {
+    return `
+      <div class="empty-card">
+        <div class="empty-mascot">${SVG.turtle}</div>
+        <p><strong>Captain's quarters.</strong></p>
+        <p class="muted">Only the crew manager can edit settings.</p>
+      </div>
+    `;
+  }
+  if (state.crewSettingsLoading && !state.crewSettings) {
+    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Loading the captain's ledger&hellip;</div>`;
+  }
+  const s = state.crewSettings || { hasGeminiKey: false, geminiKeyLast4: null, geminiKeySetAtMs: null };
+  const inputId = 'gemini-key-' + Math.random().toString(36).slice(2, 8);
+  return `
+    <div class="panel">
+      <div class="panel-title">Crew settings</div>
+      <p class="muted" style="margin: 0 0 var(--sp-3); font-size: var(--fs-meta);">
+        These settings only the manager can change. Secret keys are stored server-side
+        and never returned to the browser — only metadata (last 4 chars, set date).
+      </p>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <strong>Gemini API key</strong>
+          <p class="muted" style="margin: 4px 0 0; font-size: var(--fs-meta);">
+            Used by future AI-powered features (briefing extraction, smart bounty drafts).
+            Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+          </p>
+          ${s.hasGeminiKey ? `
+            <p class="setting-status" style="margin: 8px 0 0;">
+              <span class="status-badge status-active">CONFIGURED</span>
+              ends in <code>${esc(s.geminiKeyLast4 ?? '????')}</code>
+              ${s.geminiKeySetAtMs ? ` · set ${esc(timeAgo(new Date(s.geminiKeySetAtMs)))}` : ''}
+            </p>
+          ` : `
+            <p class="setting-status" style="margin: 8px 0 0;">
+              <span class="status-badge status-cancelled">NOT SET</span>
+            </p>
+          `}
+        </div>
+      </div>
+
+      <div style="margin-top: var(--sp-3);">
+        <label>
+          <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;">${s.hasGeminiKey ? 'Replace' : 'Set'} the key</span>
+          <input type="password" id="${inputId}" placeholder="AIza..." autocomplete="off" />
+        </label>
+        <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap;">
+          <button class="btn" data-action="save-gemini" data-input-id="${inputId}">Save key</button>
+          ${s.hasGeminiKey ? `<button class="btn btn-danger" data-action="clear-gemini">Clear key</button>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: var(--sp-4);">
+      <div class="panel-title">Crew identity</div>
+      <p class="muted" style="margin: 0 0 var(--sp-2); font-size: var(--fs-meta);">Name and crew photo also live under MANAGE on the header.</p>
+      <button class="btn btn-secondary" data-action="manage-crew">✏ Open Manage Crew</button>
+    </div>
+  `;
+}
+
 function renderTavern() {
   const scrolls = state.scrolls || [];
   return `
@@ -1924,6 +2020,23 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     const team = state.myTeams.find((t) => t.id === state.teamId);
     if (team) showManageCrewModal(team);
+  } else if (action === 'save-gemini') {
+    e.preventDefault();
+    const input = document.getElementById(t.dataset.inputId);
+    const key = input?.value?.trim() ?? '';
+    if (!key) { showToast('Paste an API key first.', 'error'); return; }
+    if (key.length < 8) { showToast('Key looks too short. Double-check.', 'error'); return; }
+    saveCrewSettings({ geminiApiKey: key });
+    if (input) input.value = '';
+  } else if (action === 'clear-gemini') {
+    e.preventDefault();
+    showModal({
+      title: 'CLEAR GEMINI KEY?',
+      body: '<p>The crew will lose access to AI-powered features until you set a new key.</p>',
+      primaryLabel: 'Aye, clear it',
+      secondaryLabel: 'Nevermind',
+      onPrimary: () => saveCrewSettings({ geminiApiKey: null }),
+    });
   }
 });
 

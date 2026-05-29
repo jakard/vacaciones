@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
 
 /* ============================================================
    Vacaciones — Melee Night 16 design system
@@ -27,15 +27,16 @@
   --shadow-deep: #06080F;
   --voodoo-violet: #5B3A8C;
 
-  /* Type scale (locked to pixel sizes) */
-  --fs-hero: 32px;
-  --fs-h1: 16px;
-  --fs-h2: 12px;
-  --fs-button: 12px;
-  --fs-body-lg: 24px;
-  --fs-body: 20px;
-  --fs-meta: 16px;
-  --fs-coin: 20px;
+  /* Type scale — Pixelify Sans is more readable than VT323 so the
+     absolute sizes drop. Press Start 2P + Silkscreen stay pixel-locked. */
+  --fs-hero: 32px;       /* Press Start 2P */
+  --fs-h1: 16px;         /* Press Start 2P */
+  --fs-h2: 13px;         /* Press Start 2P */
+  --fs-button: 11px;     /* Press Start 2P */
+  --fs-body-lg: 17px;    /* Pixelify Sans, larger body */
+  --fs-body: 15px;       /* Pixelify Sans, default body */
+  --fs-meta: 13px;       /* Pixelify Sans, captions */
+  --fs-coin: 18px;       /* Silkscreen */
 
   /* Spacing — 8px grid */
   --sp-1: 4px;
@@ -56,14 +57,11 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: 'VT323', monospace;
-  font-size: var(--fs-body-lg);
-  line-height: 1.2;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
+  font-size: var(--fs-body);
+  line-height: 1.4;
   color: var(--cream);
   background: var(--ink-sea);
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: grayscale;
-  font-smooth: never;
   text-rendering: geometricPrecision;
   image-rendering: pixelated;
   min-height: 100vh;
@@ -81,8 +79,9 @@ button {
 }
 
 input, textarea, select {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
+  font-weight: 500;
   color: var(--ink-pure);
 }
 
@@ -164,7 +163,7 @@ code {
   line-height: 1.1;
 }
 .name {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--cream);
 }
@@ -424,7 +423,7 @@ label {
 }
 
 .login-tagline {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   color: var(--cream);
   letter-spacing: 2px;
@@ -479,7 +478,7 @@ label {
 .mascot-bubble {
   background: var(--parchment);
   color: var(--ink-pure);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   padding: 6px 10px;
   max-width: 180px;
@@ -520,7 +519,7 @@ label {
   margin-bottom: var(--sp-2);
 }
 .hero p {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   color: var(--cream);
   margin: 0;
@@ -576,7 +575,7 @@ label {
   letter-spacing: 1px;
 }
 .team-main small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -748,7 +747,7 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-pure);
 }
@@ -764,7 +763,7 @@ label {
   gap: 4px;
 }
 .chip {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   padding: 2px 8px;
   background: var(--parchment-dim);
@@ -817,7 +816,7 @@ label {
     inset -1px -1px 0 var(--brass-deep);
 }
 .check-label {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   color: var(--ink-pure);
 }
@@ -860,7 +859,7 @@ label {
 }
 .bounty-window {
   grid-area: window;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   color: var(--ink-pure);
   display: flex;
@@ -868,7 +867,7 @@ label {
   line-height: 1.1;
 }
 .bounty-window strong {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   font-weight: 400;
 }
@@ -888,7 +887,7 @@ label {
   gap: 4px;
 }
 .bounty-doubloons small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   color: var(--ink-faded);
   text-transform: uppercase;
@@ -896,7 +895,7 @@ label {
 }
 .bounty-scope {
   grid-area: scope;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-pure);
   padding: 4px var(--sp-2);
@@ -907,7 +906,7 @@ label {
 .bounty-chips { grid-area: chips; }
 .bounty-sla {
   grid-area: sla;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -939,7 +938,7 @@ label {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-pure);
   padding: 4px var(--sp-2);
@@ -959,7 +958,7 @@ label {
    ============================================================ */
 
 .breadcrumb {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
   margin-bottom: var(--sp-2);
@@ -985,7 +984,7 @@ label {
   color: var(--brass);
 }
 .team-header small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
 }
@@ -1026,7 +1025,7 @@ label {
 }
 .bucket small {
   display: block;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-faded);
   text-transform: uppercase;
@@ -1035,7 +1034,7 @@ label {
 }
 .bucket em {
   display: block;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   color: var(--ink-faded);
   font-style: normal;
@@ -1073,12 +1072,12 @@ label {
 }
 .ledger li > div { display: flex; flex-direction: column; gap: 2px; }
 .ledger li strong {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   color: var(--ink-pure);
 }
 .ledger li small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   color: var(--ink-faded);
 }
@@ -1088,7 +1087,7 @@ label {
   font-size: var(--fs-coin);
 }
 .amount small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-weight: 400;
   color: var(--ink-faded);
   font-size: 14px;
@@ -1111,7 +1110,7 @@ label {
 }
 .section-head h2 { margin: 0; }
 .section-head small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
 }
@@ -1138,14 +1137,14 @@ label {
 }
 .bounty-flag { width: 32px; height: 32px; }
 .bounty-meta strong {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   display: block;
   color: var(--ink-pure);
   line-height: 1.1;
 }
 .bounty-meta small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -1164,7 +1163,7 @@ label {
   gap: 4px;
 }
 .bounty-price small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   color: var(--ink-faded);
   text-transform: uppercase;
@@ -1239,7 +1238,7 @@ label {
   color: var(--doubloon);
 }
 .preview .cost span {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--cream);
   text-transform: uppercase;
@@ -1247,7 +1246,7 @@ label {
 }
 .preview small {
   display: block;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
 }
@@ -1272,7 +1271,7 @@ label {
   padding: 10px var(--sp-4);
   background: var(--parchment);
   color: var(--ink-pure);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   display: flex;
   align-items: center;
@@ -1384,7 +1383,7 @@ label {
   text-transform: uppercase;
 }
 .rank-progress {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--cream);
 }
@@ -1502,7 +1501,7 @@ label {
   box-shadow: 0 0 0 2px var(--wood-dark), 0 0 0 4px var(--brass);
 }
 .podium-name {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   color: var(--ink-pure);
   margin-top: 4px;
@@ -1516,7 +1515,7 @@ label {
   gap: 4px;
 }
 .podium-voyages {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   color: var(--ink-faded);
 }
@@ -1550,7 +1549,7 @@ label {
 }
 .wof-row .avatar-mini { width: 28px; height: 28px; }
 .wof-name {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
 }
@@ -1564,7 +1563,7 @@ label {
   gap: 4px;
 }
 .wof-meta {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
   margin-bottom: var(--sp-3);
@@ -1640,7 +1639,7 @@ label {
 .bell-list li {
   padding: 8px var(--sp-3);
   border-bottom: 1px solid var(--parchment-dim);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   display: flex;
   gap: var(--sp-2);
@@ -1652,7 +1651,7 @@ label {
 .bell-empty {
   padding: var(--sp-4);
   text-align: center;
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-faded);
 }
@@ -1675,6 +1674,31 @@ label {
 }
 .sound-toggle:hover { color: var(--brass); }
 .sound-toggle.on { color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
+
+/* ============================================================
+   Crew Settings tab
+   ============================================================ */
+
+.setting-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px dashed var(--parchment-dim);
+}
+.setting-info { flex: 1; }
+.setting-info strong {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: var(--ink-pure);
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 4px;
+}
+.setting-status code {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+}
 
 /* ============================================================
    Avatar slot + picker
@@ -1766,7 +1790,7 @@ label {
   position: relative;
   background: var(--parchment-bright);
   padding: var(--sp-3) var(--sp-4);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
   box-shadow:
@@ -1823,7 +1847,7 @@ label {
 }
 .tavern h2 { color: var(--brass); margin-bottom: var(--sp-2); }
 .tavern-meta {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--parchment-dim);
   margin-bottom: var(--sp-3);
@@ -1868,19 +1892,19 @@ label {
 }
 .scroll-head .arrow { color: var(--brass); font-size: 14px; }
 .scroll-head strong {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   font-weight: 400;
   color: var(--ink-pure);
 }
 .scroll-head small {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: 14px;
   color: var(--ink-faded);
   margin-left: auto;
 }
 .scroll-msg {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
   color: var(--ink-pure);
   margin: 0;
@@ -1915,7 +1939,7 @@ label {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
 }
 .scroll-target strong { font-weight: 400; }
@@ -1946,7 +1970,7 @@ label {
   align-self: center;
 }
 .bd-value {
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body);
   color: var(--ink-pure);
 }
@@ -2006,7 +2030,7 @@ label {
 }
 .modal-body {
   padding: var(--sp-4);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
 }
 .modal-body p { margin: 0 0 var(--sp-3); }
@@ -2026,7 +2050,7 @@ label {
   padding: var(--sp-7) var(--sp-3);
   text-align: center;
   color: var(--cream);
-  font-family: 'VT323', monospace;
+  font-family: 'Pixelify Sans', 'VT323', system-ui, sans-serif;
   font-size: var(--fs-body-lg);
 }
 .loading-doubloon {
@@ -2049,28 +2073,108 @@ label {
    Responsive
    ============================================================ */
 
+@media (max-width: 900px) {
+  main { padding: var(--sp-4) var(--sp-3) var(--sp-6); }
+  .team-header { gap: var(--sp-2); flex-wrap: wrap; }
+  .invite-actions { flex-wrap: wrap; }
+}
+
 @media (max-width: 720px) {
   .actions { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
-  .balances { grid-template-columns: 1fr; }
-  .bounty {
-    grid-template-columns: 32px 1fr;
-    grid-template-rows: auto auto auto;
-  }
-  .bounty-price, .bounty > button, .bounty .own-tag {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    text-align: left;
-  }
-  .bounty-price { flex-direction: row; gap: var(--sp-2); align-items: baseline; }
+  .balances { grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
+  .bucket { padding: var(--sp-2); }
+  .bucket strong { font-size: 20px; }
+  .bucket small { font-size: 11px; }
+  .preview-row { flex-direction: column; align-items: stretch; }
+  .preview-row .btn { width: 100%; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .tab { flex-shrink: 0; }
+  .filter-row { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .filter-chip { flex-shrink: 0; }
+  #header { padding: 0.5rem 0.8rem; height: 52px; gap: 6px; }
+  .brand-name { display: none; }
 }
+
 @media (max-width: 540px) {
+  :root {
+    --fs-h1: 14px;
+    --fs-body-lg: 16px;
+    --fs-body: 15px;
+  }
   .who { display: none; }
-  main { padding: var(--sp-4) var(--sp-3) var(--sp-6); }
+  main { padding: 12px 10px 32px; }
   .login-title { font-size: 22px; letter-spacing: 2px; }
-  .login-tagline { font-size: var(--fs-body); }
+  .login-tagline { font-size: 14px; }
   .panel-title { margin-left: calc(-1 * var(--sp-3)); margin-right: calc(-1 * var(--sp-3)); }
+  .panel { padding: var(--sp-3); }
+  .hero h1 { font-size: 13px; line-height: 1.4; }
+  .hero p { font-size: var(--fs-body); }
+  .team-header h1 { font-size: 13px; }
+  .team-card { padding: 10px 12px; gap: 8px; }
+  .team-id-chip { display: none; }
+  .stan-scene { grid-template-columns: 1fr; text-align: center; }
+  .stan-portrait { margin: 0 auto; }
+  .stan-speech::before { display: none; }
+  .stan-speech { padding: var(--sp-3); min-height: auto; }
+  .modal { max-height: 90vh; overflow-y: auto; }
+  .modal.wide { max-height: 90vh; }
+  .avatar-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .avatar-tile { padding: 6px; }
+  .avatar-tile-art { width: 48px; height: 48px; }
+  .wof-podium { grid-template-columns: 1fr; gap: var(--sp-2); }
+  .podium-place { flex-direction: row; text-align: left; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); align-items: center; }
+  .podium-emoji { font-size: 22px; }
+  .podium-avatar, .podium-avatar-fallback { width: 36px; height: 36px; }
+  .form-grid { gap: var(--sp-2); }
+  .form-grid input, .form-grid select, .form-grid textarea { padding: 8px 10px; }
+  .check-group { grid-template-columns: 1fr; }
+  .btn-large { padding: 12px 16px; font-size: 11px; }
+  #toast { top: 56px; left: 8px; right: 8px; transform: none; }
+  .toast { padding: 8px 10px; font-size: var(--fs-body); }
+  .login-content { padding: 0 var(--sp-3); }
+  .login-card { gap: var(--sp-2); }
+  .scroll { padding: var(--sp-3); }
+  .scroll-head { font-size: var(--fs-meta); }
+  .invite-actions .btn-ghost { padding: 6px 8px; font-size: 8px; }
+  .bounty {
+    grid-template-areas:
+      "status doubloons"
+      "requester doubloons"
+      "window window"
+      "scope scope"
+      "chips chips"
+      "sla sla"
+      "action action";
+    grid-template-columns: 1fr auto;
+    padding: 12px;
+    gap: 6px;
+  }
+  .bounty-action, .own-tag, .taken-by { justify-self: stretch; }
+  .bounty-action .btn { width: 100%; }
+  .rank-hero { padding: var(--sp-3); grid-template-columns: 56px 1fr; gap: var(--sp-3); }
+  .rank-emblem { width: 56px; height: 56px; font-size: 28px; }
+  .rank-name { font-size: 11px; }
+  .actions { gap: var(--sp-3); }
 }
+
+@media (max-width: 380px) {
+  :root {
+    --fs-body: 14px;
+    --fs-meta: 12px;
+  }
+  .bounty { padding: 10px; gap: 6px; }
+  .bounty-window strong { font-size: 14px; }
+  .bounty-doubloons strong { font-size: 20px; }
+  .empty-mascot { width: 64px; height: 64px; }
+  .login-title { font-size: 18px; }
+  .coin-pill { padding: 3px 8px; font-size: 16px; }
+  .rank-chip { display: none; }
+}
+
+/* Modal scroll on small screens */
+.modal { max-height: min(86vh, 720px); overflow-y: auto; }
+.modal-scrim { padding: var(--sp-3); }
 
 /* ============================================================
    Reduced motion
