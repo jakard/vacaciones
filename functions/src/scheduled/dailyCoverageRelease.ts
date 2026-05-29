@@ -36,8 +36,11 @@ export const dailyCoverageRelease = onSchedule(
       if (!teamId) continue;
       const requestId = docSnap.id;
       const data = docSnap.data();
-      const covererUid = data['covererUid'] as string | null | undefined;
-      if (!covererUid) continue;
+      const fallbackCovererUid = data['covererUid'] as string | null | undefined;
+      const dayCoverers =
+        (data['dayCoverers'] as Record<string, { uid: string }> | undefined) ?? {};
+      const hasAnyCoverer = !!fallbackCovererUid || Object.keys(dayCoverers).length > 0;
+      if (!hasAnyCoverer) continue;
 
       const windowStart = startOfDayUtc(
         (data['windowStart'] as Timestamp).toDate(),
@@ -53,14 +56,18 @@ export const dailyCoverageRelease = onSchedule(
           db,
           teamId,
           requestId,
-          covererUid,
+          fallbackCovererUid ?? null,
+          dayCoverers,
           windowStart,
           windowEnd,
           today,
           selectedDayKeys,
         );
         if (today.getTime() > windowEnd.getTime()) {
-          await completeRequest(db, teamId, requestId, covererUid);
+          // For crew bounties, pick someone (anyone) for the fee burn.
+          // Default to the requester so no single coverer eats it twice.
+          const feeBurnUid = fallbackCovererUid ?? (data['requesterUid'] as string);
+          await completeRequest(db, teamId, requestId, feeBurnUid);
         }
       } catch (err) {
         logger.error('Failed to process coverage request', {
@@ -77,7 +84,8 @@ async function releaseDaysUpTo(
   db: Firestore,
   teamId: string,
   requestId: string,
-  covererUid: string,
+  fallbackCovererUid: string | null,
+  dayCoverers: Record<string, { uid: string }>,
   windowStart: Date,
   windowEnd: Date,
   today: Date,
@@ -96,30 +104,35 @@ async function releaseDaysUpTo(
     // Skip days that the requester explicitly removed from coverage.
     const billable = !selectedSet || selectedSet.has(dayKey);
     if (billable) {
-      const amount = dailyReleaseAmount(day);
-      await db.runTransaction(async (tx) => {
-        const result = await recordLedgerEntry({
-          tx,
-          db,
-          teamId,
-          uid: covererUid,
-          type: 'coverageRelease',
-          amountSigned: amount,
-          balanceBucket: 'earned',
-          relatedRequestId: requestId,
-          idempotencyKey: `${requestId}_release_${dayKey}`,
-        });
-        if (result.applied) {
-          const requestRef = db.doc(
-            `teams/${teamId}/coverageRequests/${requestId}`,
-          );
-          tx.update(requestRef, {
-            coinsReleased: FieldValue.increment(amount),
-            status: 'active',
-            updatedAt: FieldValue.serverTimestamp(),
+      // Crew mode: pay whoever claimed this specific day.
+      // Single mode: fall back to top-level covererUid.
+      const dayUid = dayCoverers[dayKey]?.uid ?? fallbackCovererUid;
+      if (dayUid) {
+        const amount = dailyReleaseAmount(day);
+        await db.runTransaction(async (tx) => {
+          const result = await recordLedgerEntry({
+            tx,
+            db,
+            teamId,
+            uid: dayUid,
+            type: 'coverageRelease',
+            amountSigned: amount,
+            balanceBucket: 'earned',
+            relatedRequestId: requestId,
+            idempotencyKey: `${requestId}_release_${dayKey}`,
           });
-        }
-      });
+          if (result.applied) {
+            const requestRef = db.doc(
+              `teams/${teamId}/coverageRequests/${requestId}`,
+            );
+            tx.update(requestRef, {
+              coinsReleased: FieldValue.increment(amount),
+              status: 'active',
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
+        });
+      }
     }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }

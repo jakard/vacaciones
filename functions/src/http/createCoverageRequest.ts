@@ -37,6 +37,8 @@ const MeetingSchema = z.object({
     .optional(),
 });
 
+const COVERAGE_MODE = ['single', 'crew'] as const;
+
 const CreateCoverageRequestSchema = z.object({
   teamId: z.string().trim().min(1),
   windowStartIso: z.string().datetime(),
@@ -45,6 +47,9 @@ const CreateCoverageRequestSchema = z.object({
   // YYYY-MM-DD keys for the specific days the coverer needs to be on the
   // hook. Optional — if omitted, falls back to every day in the window.
   selectedDayKeys: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(366).optional(),
+  // 'single' = one coverer takes all days. 'crew' = multiple coverers
+  // can each claim a subset of days. Default 'single' for back-compat.
+  coverageMode: z.enum(COVERAGE_MODE).optional(),
   reachability: z.array(z.enum(REACHABILITY)).min(1).max(REACHABILITY.length),
   coverageKinds: z.array(z.enum(COVERAGE_KIND)).max(COVERAGE_KIND.length).optional(),
   coverageScope: z.string().trim().max(500).nullable().optional(),
@@ -108,8 +113,10 @@ export const createCoverageRequest = onCall<
     emergencyDef,
     meetings,
     selectedDayKeys,
+    coverageMode,
   } = parsed.data;
   const token = request.auth.token;
+  const mode = coverageMode ?? 'single';
 
   const start = new Date(windowStartIso);
   const end = new Date(windowEndIso);
@@ -182,7 +189,10 @@ export const createCoverageRequest = onCall<
       reachability,
       coverageKinds: coverageKinds ?? [],
       coverageScope: coverageScope?.trim() ? coverageScope.trim() : null,
+      coverageMode: mode,
       selectedDayKeys: billableKeys,
+      dayCoverers: {},
+      coverers: [],
       meetings: meetings ?? [],
       sla,
       emergencyDef: emergencyDef ?? null,
