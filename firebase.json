@@ -24,6 +24,11 @@
       { "source": "/api/reactToScroll", "function": { "functionId": "reactToScroll", "region": "us-central1" } },
       { "source": "/api/updateBountyDetails", "function": { "functionId": "updateBountyDetails", "region": "us-central1" } },
       { "source": "/api/generateBriefing", "function": { "functionId": "generateBriefing", "region": "us-central1" } },
+      { "source": "/api/updateMemberRole", "function": { "functionId": "updateMemberRole", "region": "us-central1" } },
+      { "source": "/api/removeMember", "function": { "functionId": "removeMember", "region": "us-central1" } },
+      { "source": "/api/grantBonusDoubloons", "function": { "functionId": "grantBonusDoubloons", "region": "us-central1" } },
+      { "source": "/api/forceCompleteBounty", "function": { "functionId": "forceCompleteBounty", "region": "us-central1" } },
+      { "source": "/api/getAuditLog", "function": { "functionId": "getAuditLog", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [

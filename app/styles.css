@@ -2019,6 +2019,41 @@ label {
 }
 
 /* ============================================================
+   Member kebab (manager admin entry point)
+   ============================================================ */
+.kebab {
+  background: transparent;
+  border: 0;
+  color: var(--ink-faded);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0 4px;
+  align-self: center;
+}
+.kebab:hover { color: var(--ink-pure); }
+
+/* ============================================================
+   Audit log
+   ============================================================ */
+.audit-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 360px; overflow-y: auto;
+}
+.audit-entry {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--parchment-bright);
+  border: 1px solid var(--wood-dark);
+}
+.audit-icon { font-size: 16px; line-height: 1.3; }
+.audit-body { display: flex; flex-direction: column; gap: 2px; }
+.audit-body small { font-size: 12px; }
+.audit-time { color: var(--ink-faded); }
+
+/* ============================================================
    Scroll reactions
    ============================================================ */
 .react-bar {

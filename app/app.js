@@ -148,6 +148,11 @@ const callGetCrewMembers = httpsCallableFromURL(functions, callableURL('getCrewM
 const callReactToScroll = httpsCallableFromURL(functions, callableURL('reactToScroll'));
 const callUpdateBountyDetails = httpsCallableFromURL(functions, callableURL('updateBountyDetails'));
 const callGenerateBriefing = httpsCallableFromURL(functions, callableURL('generateBriefing'));
+const callUpdateMemberRole = httpsCallableFromURL(functions, callableURL('updateMemberRole'));
+const callRemoveMember = httpsCallableFromURL(functions, callableURL('removeMember'));
+const callGrantBonusDoubloons = httpsCallableFromURL(functions, callableURL('grantBonusDoubloons'));
+const callForceCompleteBounty = httpsCallableFromURL(functions, callableURL('forceCompleteBounty'));
+const callGetAuditLog = httpsCallableFromURL(functions, callableURL('getAuditLog'));
 
 /* ============================================================
    Sound module (Web Audio chiptune SFX)
@@ -250,6 +255,8 @@ const state = {
   crewMembersLoading: false,
   bountyFilterText: '',
   briefingLoading: false,
+  auditLog: [],
+  auditLogLoading: false,
   calendarEvents: [],
   calendarLoading: false,
   calendarError: null,
@@ -789,6 +796,8 @@ function applyRoute() {
   if (state.view === 'team' && state.teamTab === 'settings') refreshCrewSettings();
   // Lazy load crew members when members tab opens
   if (state.view === 'team' && state.teamTab === 'members') refreshCrewMembers();
+  // Lazy load audit log on settings open (manager only)
+  if (state.view === 'team' && state.teamTab === 'settings' && state.myRole === 'manager') refreshAuditLog();
 
   render();
 }
@@ -1539,6 +1548,10 @@ function showEditBountyModal(bountyId) {
   });
 }
 
+function showSendBonus(targetUid, displayName) {
+  showGrantBonusModal(targetUid, displayName);
+}
+
 function showSendScrollModal(toUid, toName, bountyId) {
   if (!toUid || toUid === state.user?.uid) {
     showToast('You cannot send a scroll to yourself.', 'error');
@@ -1602,6 +1615,108 @@ async function refreshCrewSettings() {
     console.error('crew settings fetch failed', err);
     showToast(`Could not load settings: ${err.message}`, 'error', 5000);
   } finally { state.crewSettingsLoading = false; render(); }
+}
+
+async function refreshAuditLog() {
+  if (!state.teamId || state.auditLogLoading || state.myRole !== 'manager') return;
+  state.auditLogLoading = true; render();
+  try {
+    const result = await callGetAuditLog({ teamId: state.teamId, limit: 50 });
+    state.auditLog = result.data.entries;
+  } catch (err) {
+    console.error('audit log fetch failed', err);
+    showToast(`Could not load audit log: ${err.message}`, 'error', 5000);
+  } finally { state.auditLogLoading = false; render(); }
+}
+
+async function changeMemberRole(targetUid, role, displayName) {
+  try {
+    await callUpdateMemberRole({ teamId: state.teamId, targetUid, role });
+    showToast(`${displayName} is now a ${role === 'manager' ? 'captain' : 'crewmate'}.`, 'success');
+    audio.coin();
+    refreshCrewMembers();
+  } catch (err) { showToast(err.message, 'error', 6000); }
+}
+
+async function removeMemberAction(targetUid, displayName) {
+  try {
+    await callRemoveMember({ teamId: state.teamId, targetUid });
+    showToast(`${displayName} was removed from the crew.`, 'success');
+    refreshCrewMembers();
+  } catch (err) { showToast(err.message, 'error', 6000); }
+}
+
+async function grantBonusAction(targetUid, amount, reason, displayName) {
+  try {
+    const result = await callGrantBonusDoubloons({ teamId: state.teamId, targetUid, amount, reason });
+    showToast(`Sent ${result.data.amount} doubloons to ${displayName}.`, 'success');
+    audio.coin();
+    refreshCrewMembers();
+  } catch (err) { showToast(err.message, 'error', 6000); }
+}
+
+async function forceCompleteAction(requestId) {
+  try {
+    await callForceCompleteBounty({ teamId: state.teamId, requestId });
+    showToast('Bounty force-completed.', 'success');
+    audio.rank();
+  } catch (err) { showToast(err.message, 'error', 6000); }
+}
+
+function showGrantBonusModal(targetUid, displayName) {
+  const amountId = 'bonus-amt-' + Math.random().toString(36).slice(2, 8);
+  const reasonId = 'bonus-rsn-' + Math.random().toString(36).slice(2, 8);
+  showModal({
+    title: `GRANT BONUS TO ${esc((displayName || 'CREWMATE').toUpperCase())}`,
+    body: `
+      <div class="form-grid">
+        <label class="wide">
+          <span style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Amount (1–500)</span>
+          <input id="${amountId}" type="number" min="1" max="500" value="20" />
+        </label>
+        <label class="wide">
+          <span style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Reason (visible in audit log)</span>
+          <textarea id="${reasonId}" rows="2" placeholder="e.g. Covered the Acme P1 escalation over the weekend."></textarea>
+        </label>
+      </div>
+    `,
+    wide: true,
+    primaryLabel: 'Send doubloons',
+    secondaryLabel: 'Cancel',
+    onPrimary: () => {
+      const amount = Number(document.getElementById(amountId)?.value || 0);
+      const reason = (document.getElementById(reasonId)?.value || '').trim();
+      if (!amount || amount < 1 || amount > 500) {
+        showToast('Pick an amount between 1 and 500.', 'error'); return false;
+      }
+      if (reason.length < 3) {
+        showToast('Add a short reason (audit trail).', 'error'); return false;
+      }
+      grantBonusAction(targetUid, amount, reason, displayName);
+    },
+  });
+}
+
+function showMemberAdminModal(member) {
+  const isOwner = state.myTeams.find((t) => t.id === state.teamId)?.ownerUid === member.uid;
+  const isMe = member.uid === state.user?.uid;
+  const targetRole = member.role;
+  showModal({
+    title: `MANAGE ${esc((member.displayName || 'CREWMATE').toUpperCase())}`,
+    body: `
+      <p style="margin: 0 0 12px;">Pick an admin action for <strong>${esc(member.displayName || 'this crewmate')}</strong>.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        ${isMe ? `<p class="muted" style="font-size: var(--fs-meta);">Some actions disabled — that's you.</p>` : ''}
+        <button class="btn btn-secondary" data-action="adm-bonus" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">💰 Grant bonus doubloons</button>
+        ${targetRole === 'member'
+          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">⬆ Promote to captain</button>`
+          : `<button class="btn btn-secondary" data-action="adm-demote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${isOwner ? 'disabled title="Owner cannot be demoted"' : ''}>⬇ Demote to crewmate</button>`
+        }
+        <button class="btn btn-danger" data-action="adm-remove" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${(isOwner || isMe) ? 'disabled title="Cannot remove owner / yourself"' : ''}>🗑 Remove from crew</button>
+      </div>
+    `,
+    primaryLabel: 'Close',
+  });
 }
 
 async function refreshCrewMembers() {
@@ -1963,9 +2078,16 @@ function showBountyDetail(bountyId) {
     const canCancel = (mine || state.myRole === 'manager')
       && status !== 'cancelled'
       && status !== 'completed';
+    const canForceComplete = state.myRole === 'manager'
+      && (status === 'accepted' || status === 'active');
+    // Append force-complete button into body for managers
+    let bodyWithAdmin = body;
+    if (canForceComplete) {
+      bodyWithAdmin += `<div style="margin-top: 12px;"><button class="btn btn-danger" data-action="force-complete" data-bounty-id="${esc(bountyId)}">🏁 Force complete</button></div>`;
+    }
     showModal({
       title: 'BOUNTY DETAIL',
-      body,
+      body: bodyWithAdmin,
       wide: true,
       primaryLabel: 'Close',
       secondaryLabel: canCancel ? '🗑 Cancel bounty' : undefined,
@@ -2836,6 +2958,7 @@ function renderMembersTab() {
                 <span class="member-stat">${SVG.doubloon}<strong>${m.earnedLast90d}</strong></span>
                 <small>90d earned</small>
               </div>
+              ${state.myRole === 'manager' ? `<button class="kebab" data-action="member-admin" data-uid="${esc(m.uid)}" title="Admin actions">⋯</button>` : ''}
             </li>
           `;
         }).join('')}
@@ -2912,6 +3035,53 @@ function renderSettingsTab() {
         The starter chest used to be 20 doubloons; it's now 125 (covers 25 business days). Top up any existing crewmate who got the old grant so everyone starts on the new floor.
       </p>
       <button class="btn btn-secondary" data-action="topup-grant">💰 Top up to 125</button>
+    </div>
+
+    <div class="panel" style="margin-top: var(--sp-4);">
+      <div class="panel-title">Audit log · last 50 actions</div>
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+        <button class="btn-ghost" data-action="refresh-audit">${state.auditLogLoading ? 'Refreshing…' : '↻ Refresh'}</button>
+      </div>
+      ${state.auditLog.length === 0 ? `
+        <p class="muted" style="font-size: var(--fs-meta);">No admin actions recorded yet.</p>
+      ` : `
+        <ul class="audit-list">
+          ${state.auditLog.map((a) => {
+            const icon = ({
+              cancelBounty: '🗑',
+              updateTeam: '✏',
+              updateCrewSettings: '⚙',
+              topUpOnboardingGrant: '💰',
+              updateBountyDetails: '✏',
+              updateMemberRole: '👑',
+              removeMember: '⛔',
+              grantBonusDoubloons: '💸',
+              forceCompleteBounty: '🏁',
+            })[a.action] || '📜';
+            const text = ({
+              cancelBounty: 'cancelled a bounty',
+              updateTeam: 'updated crew name / photo',
+              updateCrewSettings: 'changed crew settings',
+              topUpOnboardingGrant: 'topped up the onboarding grant',
+              updateBountyDetails: 'edited a bounty',
+              updateMemberRole: `made ${a.targetName || 'crewmate'} a ${a.details?.to || 'role'}`,
+              removeMember: `removed ${a.targetName || 'crewmate'}`,
+              grantBonusDoubloons: `granted ${a.details?.amount || ''} doubloons to ${a.targetName || 'crewmate'}`,
+              forceCompleteBounty: 'force-completed a bounty',
+            })[a.action] || a.action;
+            const reason = a.details?.reason ? ` · "${esc(a.details.reason)}"` : '';
+            return `
+              <li class="audit-entry">
+                <span class="audit-icon">${icon}</span>
+                <div class="audit-body">
+                  <span><strong>${esc(shortName(a.actorName))}</strong> ${esc(text)}${reason}</span>
+                  <small class="audit-time">${esc(timeAgo(new Date(a.createdAtMs)))}</small>
+                </div>
+              </li>
+            `;
+          }).join('')}
+        </ul>
+      `}
     </div>
   `;
 }
@@ -3103,6 +3273,52 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'topup-grant') {
     e.preventDefault();
     topUpGrantAction();
+  } else if (action === 'refresh-audit') {
+    e.preventDefault();
+    refreshAuditLog();
+  } else if (action === 'member-admin') {
+    e.preventDefault();
+    const m = state.crewMembers.find((x) => x.uid === t.dataset.uid);
+    if (m) showMemberAdminModal(m);
+  } else if (action === 'adm-bonus') {
+    e.preventDefault();
+    showSendBonus(t.dataset.uid, t.dataset.name);
+  } else if (action === 'adm-promote') {
+    e.preventDefault();
+    showModal({
+      title: 'PROMOTE TO CAPTAIN?',
+      body: `<p>This will give <strong>${esc(t.dataset.name)}</strong> manager rights — they'll be able to edit the crew, cancel bounties, grant bonuses, change roles.</p>`,
+      primaryLabel: 'Aye, promote',
+      secondaryLabel: 'Cancel',
+      onPrimary: () => changeMemberRole(t.dataset.uid, 'manager', t.dataset.name),
+    });
+  } else if (action === 'adm-demote') {
+    e.preventDefault();
+    showModal({
+      title: 'DEMOTE TO CREWMATE?',
+      body: `<p>This will remove manager rights from <strong>${esc(t.dataset.name)}</strong>.</p>`,
+      primaryLabel: 'Aye, demote',
+      secondaryLabel: 'Cancel',
+      onPrimary: () => changeMemberRole(t.dataset.uid, 'member', t.dataset.name),
+    });
+  } else if (action === 'adm-remove') {
+    e.preventDefault();
+    showModal({
+      title: 'REMOVE FROM CREW?',
+      body: `<p>This will boot <strong>${esc(t.dataset.name)}</strong> from the crew. They can be re-invited but their wallet for this crew is sealed.</p>`,
+      primaryLabel: 'Aye, remove',
+      secondaryLabel: 'Cancel',
+      onPrimary: () => removeMemberAction(t.dataset.uid, t.dataset.name),
+    });
+  } else if (action === 'force-complete') {
+    e.preventDefault();
+    showModal({
+      title: 'FORCE COMPLETE BOUNTY?',
+      body: `<p>This marks the bounty as completed immediately and burns the harbour fee. Use only when the regular daily release won't finish (coverer disappeared, etc.).</p>`,
+      primaryLabel: 'Aye, complete it',
+      secondaryLabel: 'Cancel',
+      onPrimary: () => forceCompleteAction(t.dataset.bountyId),
+    });
   } else if (action === 'export-csv') {
     e.preventDefault();
     exportLedgerCsv();
