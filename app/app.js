@@ -35,7 +35,7 @@ const firebaseConfig = {
 };
 
 const ECONOMY = {
-  ONBOARDING_GRANT: 20,
+  ONBOARDING_GRANT: 125,
   MONTHLY_STIPEND: 11,
   COVERAGE_PRICE_PER_DAY: 5,
   WEEKEND_MULTIPLIER: 2,
@@ -83,7 +83,8 @@ const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 
 const STAN_SCENES = [
   { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand, are ye? Let me show ye the ropes." },
   { speech: "Doubloons are how we trade coverage. 5 buy ye one day of shore leave. Weekend? Twice as dear — the Crown insists." },
-  { speech: "Every month the Crown drops 11 stipend coins in yer purse — enough for 25 business days of leave a year. Spend 'em or watch 'em vanish at month's end. Don't be a hoarder." },
+  { speech: "Yer starter chest holds 125 doubloons — 25 business days of leave from the jump. Spend wisely." },
+  { speech: "Every month the Crown drops 11 more stipend coins in yer purse — that's the year-after-year budget. Use 'em or watch 'em vanish at month's end." },
   { speech: "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time." },
   { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now hoist a crew and post yer first bounty!" },
 ];
@@ -941,7 +942,7 @@ async function createTeam(name) {
   state.busy.createTeam = true; render();
   try {
     const result = await callCreateTeam({ name });
-    showToast(`Crew "${name}" formed. 20 doubloons in your chest.`, 'success');
+    showToast(`Crew "${name}" formed. 125 doubloons in your chest.`, 'success');
     audio.coin();
     const input = document.getElementById('new-team-name');
     if (input) input.value = '';
@@ -956,7 +957,7 @@ async function joinTeam(teamId) {
   try {
     const result = await callJoinTeam({ teamId });
     if (result.data.alreadyMember) showToast('You’re already aboard that crew.', 'info');
-    else { showToast('Signed aboard! 20 doubloons in your chest.', 'success'); audio.coin(); }
+    else { showToast('Signed aboard! 125 doubloons in your chest.', 'success'); audio.coin(); }
     const input = document.getElementById('join-team-id');
     if (input) input.value = '';
     navigate('team', result.data.teamId);
@@ -1968,7 +1969,7 @@ function renderHome() {
     <section class="actions">
       <div class="panel">
         <div class="panel-title">Form a crew</div>
-        <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Crewmates each get 20 doubloons to start.</p>
+        <p class="muted" style="font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.</p>
         <div class="row">
           <input id="new-team-name" type="text" placeholder="Crew name" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
           <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Forming…' : 'Hoist'}</button>

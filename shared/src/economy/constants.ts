@@ -1,5 +1,8 @@
 export const ECONOMY = {
-  ONBOARDING_GRANT: 20,
+  // 25 business days × 5 doubloons/day = 125 — covers a typical year of
+  // PTO out of the chest right at sign-up. Monthly stipend on top is the
+  // recurring budget that keeps the year-after-year math working.
+  ONBOARDING_GRANT: 125,
   // 12 * 11 = 132 doubloons/year — covers 25 business days at 5/day
   // (125 doubloons) with margin for one or two weekend covers.
   MONTHLY_STIPEND: 11,
