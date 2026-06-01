@@ -164,7 +164,7 @@ const SKIN_OPTIONS = [
   { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Inter. Pirate vibe, regular legible font.' },
   { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
   { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
-  { id: 'dark-knight', label: 'Dark Knight', desc: 'Claude Code dark theme. Warm black background, Anthropic orange, Geist + Geist Mono fonts. Ultra legible.' },
+  { id: 'dark-knight', label: 'Dark Knight', desc: 'Warm dark theme with amber accents and Geist + Geist Mono fonts. Ultra legible.' },
 ];
 
 const skin = {

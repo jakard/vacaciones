@@ -1785,7 +1785,10 @@ label {
   box-shadow: inset 1px 1px 0 var(--parchment-dim), 0 0 0 2px var(--wood-dark);
 }
 .mode-option input { margin-top: 4px; }
-.mode-option.selected {
+/* `.selected` is set at render time; `:has(input:checked)` keeps the
+   highlight live when the user clicks without a full re-render. */
+.mode-option.selected,
+.mode-option:has(input:checked) {
   background: var(--brass);
   box-shadow: inset 1px 1px 0 var(--brass-bright), inset -1px -1px 0 var(--brass-deep), 0 0 0 2px var(--shadow-deep);
 }
@@ -3405,12 +3408,12 @@ label {
   font-weight: 700;
 }
 
-/* === Dark Knight skin (Claude Code) ========================
-   Warm-dark background + Anthropic orange + Geist / Geist Mono.
+/* === Dark Knight skin =======================================
+   Warm-dark background + amber accent + Geist / Geist Mono.
    Goal: ultra legibility, calm dev-tool aesthetic.
    ============================================================ */
 [data-skin="dark-knight"] {
-  /* Palette — Claude Code's warm-dark + Anthropic orange */
+  /* Palette — warm-dark + amber accent */
   --color-bg: #1F1E1D;
   --color-surface: #28272409;   /* unused — kept for compatibility */
   --color-surface-elev: #34322E;
@@ -4048,7 +4051,8 @@ label {
   color: var(--color-text);
 }
 [data-skin="dark-knight"] .mode-option:hover { border-color: var(--color-border-strong); }
-[data-skin="dark-knight"] .mode-option.selected {
+[data-skin="dark-knight"] .mode-option.selected,
+[data-skin="dark-knight"] .mode-option:has(input:checked) {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
 }
