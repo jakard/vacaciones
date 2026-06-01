@@ -457,6 +457,7 @@ label {
   align-items: center;
   justify-content: center;
   padding: var(--sp-5);
+  background: linear-gradient(180deg, #1A0E40 0%, #5B3A8C 25%, #C8362D 55%, #E0A93B 80%, #FFCB47 100%);
 }
 
 .login-bg {
@@ -466,18 +467,37 @@ label {
   height: 100%;
   pointer-events: none;
   z-index: 0;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Soft vignette so the sign-in card stays readable against the hero. */
+.login-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 0%, transparent 30%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .login-content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
   text-align: center;
-  max-width: 420px;
+  max-width: 440px;
   width: 100%;
+  padding: var(--sp-5) var(--sp-4);
+  background: rgba(15, 26, 46, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 2px solid rgba(224, 169, 59, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .login-title {
@@ -486,9 +506,10 @@ label {
   color: var(--brass-bright);
   text-shadow:
     2px 2px 0 var(--shadow-deep),
-    4px 4px 0 rgba(0, 0, 0, 0.5);
-  letter-spacing: 4px;
+    4px 4px 0 rgba(0, 0, 0, 0.6);
+  letter-spacing: 6px;
   margin: 0;
+  font-weight: 900;
 }
 
 .login-tagline {
@@ -498,6 +519,7 @@ label {
   letter-spacing: 2px;
   margin: 0;
   text-transform: uppercase;
+  text-shadow: 1px 1px 0 var(--shadow-deep);
 }
 
 .login-card {
@@ -540,7 +562,7 @@ label {
   flex-direction: column;
   align-items: center;
   gap: var(--sp-2);
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
 }
 

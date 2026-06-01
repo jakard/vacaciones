@@ -1321,7 +1321,7 @@ async function addCoverageMarker(bountyId, requesterName, windowStartMs, windowE
   const endDate = new Date(new Date(endDateInclusive).getTime() + 86400000).toISOString().slice(0, 10);
   const body = {
     summary: `🏴‍☠️ Covering for ${requesterName}`,
-    description: `You're covering ${requesterName}'s shore leave through Vacaciones.\n\nBounty: ${location.origin}/#/team/${encodeURIComponent(state.teamId || '')}`,
+    description: `You're covering ${requesterName}'s shore leave through Time Off.\n\nBounty: ${location.origin}/#/team/${encodeURIComponent(state.teamId || '')}`,
     start: { date: startDate },
     end: { date: endDate },
     transparency: 'transparent',
@@ -1417,7 +1417,7 @@ function showSkinPicker() {
     <div class="skin-picker-grid">
       ${SKIN_OPTIONS.map((s) => `
         <button class="skin-card ${s.id === current ? 'selected' : ''}" data-action="pick-skin" data-id="${esc(s.id)}">
-          <div class="skin-preview skin-preview-${s.id}">${s.id === 'pirate' ? 'VACACIONES' : (s.id === 'basic' ? 'Vacaciones' : 'VACACIONES')}</div>
+          <div class="skin-preview skin-preview-${s.id}">${s.id === 'pirate' ? 'TIME OFF' : (s.id === 'basic' ? 'Time Off' : 'TIME OFF')}</div>
           <div class="skin-card-meta">
             <strong>${esc(s.label)}</strong>
             <small>${esc(s.desc)}</small>
@@ -2363,7 +2363,7 @@ function renderHelp() {
       <a href="#/">Crews</a><span class="sep">/</span><span class="current">Help</span>
     </nav>
     <header class="team-header">
-      <div><h1>HOW VACACIONES WORKS</h1></div>
+      <div><h1>HOW TIME OFF WORKS</h1></div>
     </header>
     <div class="panel">
       <div class="panel-title">The doubloon economy</div>
@@ -2397,7 +2397,7 @@ function renderLogin() {
     <div class="login-screen">
       ${renderHarborBg()}
       <div class="login-content">
-        <h1 class="login-title">VACACIONES</h1>
+        <h1 class="login-title">TIME OFF</h1>
         <p class="login-tagline">Tales of Monkey Coverage</p>
         <div class="login-card">
           <button class="btn btn-google" data-action="sign-in" ${busy ? 'disabled' : ''}>
@@ -2421,71 +2421,227 @@ function renderLogin() {
 
 function renderHarborBg() {
   return `<svg class="login-bg" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <rect width="320" height="130" fill="#0F1A2E"/>
-    <rect x="20" y="20" width="1" height="1" fill="#F7E7C2"/><rect x="48" y="34" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="80" y="18" width="1" height="1" fill="#F7E7C2"/><rect x="140" y="40" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="180" y="22" width="1" height="1" fill="#F7E7C2"/><rect x="220" y="38" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="260" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="298" y="44" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="60" y="60" width="1" height="1" fill="#A6C2E8"/><rect x="115" y="70" width="1" height="1" fill="#A6C2E8"/>
-    <rect x="200" y="80" width="1" height="1" fill="#A6C2E8"/>
-    <circle cx="80" cy="55" r="20" fill="#F7E7C2"/>
-    <circle cx="74" cy="50" r="3" fill="#C4A86B" opacity="0.6"/>
-    <circle cx="86" cy="60" r="2" fill="#C4A86B" opacity="0.6"/>
-    <rect x="56" y="40" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
-    <rect x="100" y="40" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
-    <rect x="58" y="70" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
-    <rect x="102" y="68" width="2" height="2" fill="#F7E7C2" opacity="0.4"/>
-    <rect x="0" y="130" width="320" height="70" fill="#1E2D4A"/>
-    <rect x="0" y="130" width="320" height="2" fill="#5BC9D1"/>
-    <rect x="20" y="138" width="6" height="1" fill="#A6C2E8" opacity="0.5"/>
-    <rect x="70" y="142" width="8" height="1" fill="#A6C2E8" opacity="0.5"/>
-    <rect x="140" y="148" width="10" height="1" fill="#A6C2E8" opacity="0.5"/>
-    <rect x="210" y="155" width="12" height="1" fill="#A6C2E8" opacity="0.5"/>
-    <rect x="280" y="162" width="10" height="1" fill="#A6C2E8" opacity="0.5"/>
-    <rect x="74" y="134" width="12" height="1" fill="#F7E7C2" opacity="0.7"/>
-    <rect x="76" y="140" width="8" height="1" fill="#F7E7C2" opacity="0.4"/>
-    <rect x="78" y="146" width="4" height="1" fill="#F7E7C2" opacity="0.3"/>
-    <rect x="220" y="115" width="60" height="15" fill="#0A1320"/>
-    <rect x="230" y="105" width="40" height="10" fill="#0A1320"/>
-    <rect x="240" y="100" width="20" height="5" fill="#0A1320"/>
-    <rect x="180" y="110" width="40" height="20" fill="#2A1810"/>
-    <rect x="178" y="112" width="44" height="16" fill="#3D2418"/>
-    <rect x="175" y="120" width="50" height="8" fill="#3D2418"/>
-    <rect x="186" y="116" width="2" height="2" fill="#FFCB47"/>
-    <rect x="194" y="116" width="2" height="2" fill="#FFCB47"/>
-    <rect x="202" y="116" width="2" height="2" fill="#FFCB47"/>
-    <rect x="210" y="116" width="2" height="2" fill="#FFCB47"/>
-    <rect x="195" y="70" width="1" height="40" fill="#1A0E08"/>
-    <rect x="205" y="60" width="1" height="50" fill="#1A0E08"/>
-    <rect x="215" y="75" width="1" height="35" fill="#1A0E08"/>
-    <rect x="188" y="78" width="15" height="20" fill="#E8D7A8" opacity="0.85"/>
-    <rect x="200" y="68" width="12" height="32" fill="#E8D7A8" opacity="0.85"/>
-    <rect x="211" y="82" width="8" height="20" fill="#E8D7A8" opacity="0.85"/>
-    <rect x="205" y="56" width="8" height="5" fill="#1A0E08"/>
-    <rect x="207" y="57" width="2" height="2" fill="#F7E7C2"/>
-    <rect x="210" y="57" width="2" height="2" fill="#F7E7C2"/>
-    <rect x="0" y="148" width="60" height="6" fill="#5A3A1F"/>
-    <rect x="0" y="154" width="60" height="2" fill="#3D2418"/>
-    <rect x="14" y="120" width="2" height="34" fill="#5A3A1F"/>
-    <rect x="11" y="120" width="8" height="6" fill="#1A0E08"/>
-    <rect x="12" y="121" width="6" height="4" fill="#FFCB47"/>
-    <rect x="13" y="122" width="4" height="2" fill="#FFD86B"/>
-    <rect x="9" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
-    <rect x="20" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
-    <rect x="14" y="126" width="2" height="2" fill="#E0A93B" opacity="0.4"/>
-    <rect x="34" y="120" width="2" height="34" fill="#5A3A1F"/>
-    <rect x="31" y="120" width="8" height="6" fill="#1A0E08"/>
-    <rect x="32" y="121" width="6" height="4" fill="#FFCB47"/>
-    <rect x="33" y="122" width="4" height="2" fill="#FFD86B"/>
-    <rect x="29" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
-    <rect x="40" y="119" width="2" height="2" fill="#FFCB47" opacity="0.3"/>
-    <rect x="50" y="130" width="3" height="18" fill="#5A3A1F"/>
-    <rect x="44" y="126" width="6" height="2" fill="#2A6A1E"/>
-    <rect x="40" y="128" width="8" height="2" fill="#2A6A1E"/>
-    <rect x="53" y="126" width="6" height="2" fill="#2A6A1E"/>
-    <rect x="55" y="128" width="8" height="2" fill="#2A6A1E"/>
-    <rect x="44" y="124" width="2" height="2" fill="#1F4D14"/>
-    <rect x="58" y="124" width="2" height="2" fill="#1F4D14"/>
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1A0E40"/>
+        <stop offset="30%" stop-color="#5B3A8C"/>
+        <stop offset="55%" stop-color="#C8362D"/>
+        <stop offset="75%" stop-color="#E0A93B"/>
+        <stop offset="100%" stop-color="#FFCB47"/>
+      </linearGradient>
+      <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#5BC9D1"/>
+        <stop offset="50%" stop-color="#1E5A6B"/>
+        <stop offset="100%" stop-color="#0F2A38"/>
+      </linearGradient>
+      <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#F7E7C2"/>
+        <stop offset="60%" stop-color="#E0A93B"/>
+        <stop offset="100%" stop-color="#8C6418"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Sky -->
+    <rect width="320" height="125" fill="url(#sky)"/>
+    <!-- Stars (top of sky) -->
+    <rect x="20" y="10" width="1" height="1" fill="#F7E7C2"/>
+    <rect x="48" y="22" width="1" height="1" fill="#F7E7C2"/>
+    <rect x="80" y="8" width="1" height="1" fill="#F7E7C2"/>
+    <rect x="140" y="18" width="1" height="1" fill="#F7E7C2" opacity="0.8"/>
+    <rect x="260" y="6" width="1" height="1" fill="#F7E7C2"/>
+    <rect x="298" y="24" width="1" height="1" fill="#F7E7C2" opacity="0.7"/>
+    <rect x="225" y="14" width="1" height="1" fill="#F7E7C2" opacity="0.6"/>
+
+    <!-- Sun setting -->
+    <circle cx="160" cy="90" r="22" fill="#FFD86B"/>
+    <circle cx="160" cy="90" r="18" fill="#FFCB47"/>
+    <circle cx="160" cy="90" r="10" fill="#FFE7A0"/>
+    <!-- Sun beams reflecting on water -->
+    <rect x="158" y="115" width="4" height="40" fill="#FFCB47" opacity="0.35"/>
+    <rect x="155" y="118" width="10" height="2" fill="#FFCB47" opacity="0.25"/>
+    <rect x="152" y="125" width="16" height="2" fill="#FFCB47" opacity="0.2"/>
+    <rect x="149" y="135" width="22" height="2" fill="#FFCB47" opacity="0.15"/>
+
+    <!-- Distant pirate ship -->
+    <rect x="240" y="108" width="28" height="6" fill="#1A0E08"/>
+    <rect x="244" y="106" width="20" height="2" fill="#3D2418"/>
+    <rect x="252" y="92" width="1" height="14" fill="#1A0E08"/>
+    <rect x="247" y="94" width="11" height="10" fill="#E8D7A8" opacity="0.9"/>
+    <rect x="248" y="98" width="9" height="4" fill="#C8362D" opacity="0.7"/>
+    <rect x="252" y="90" width="1" height="3" fill="#1A0E08"/>
+    <rect x="249" y="89" width="6" height="2" fill="#C8362D"/>
+
+    <!-- Ocean -->
+    <rect x="0" y="125" width="320" height="35" fill="url(#ocean)"/>
+    <!-- Ocean waves -->
+    <rect x="0" y="125" width="320" height="1" fill="#A6C2E8" opacity="0.6"/>
+    <rect x="10" y="130" width="8" height="1" fill="#A6C2E8" opacity="0.6"/>
+    <rect x="40" y="134" width="14" height="1" fill="#A6C2E8" opacity="0.5"/>
+    <rect x="90" y="132" width="10" height="1" fill="#A6C2E8" opacity="0.55"/>
+    <rect x="115" y="138" width="20" height="1" fill="#A6C2E8" opacity="0.45"/>
+    <rect x="200" y="135" width="18" height="1" fill="#A6C2E8" opacity="0.4"/>
+    <rect x="240" y="140" width="22" height="1" fill="#A6C2E8" opacity="0.4"/>
+    <rect x="280" y="143" width="14" height="1" fill="#A6C2E8" opacity="0.35"/>
+    <rect x="20" y="146" width="30" height="1" fill="#A6C2E8" opacity="0.3"/>
+
+    <!-- Beach -->
+    <rect x="0" y="160" width="320" height="40" fill="url(#sand)"/>
+    <!-- Sand sparkles -->
+    <rect x="30" y="170" width="1" height="1" fill="#FFFFFF" opacity="0.6"/>
+    <rect x="80" y="175" width="1" height="1" fill="#FFFFFF" opacity="0.5"/>
+    <rect x="160" y="172" width="1" height="1" fill="#FFFFFF" opacity="0.6"/>
+    <rect x="220" y="178" width="1" height="1" fill="#FFFFFF" opacity="0.5"/>
+    <rect x="280" y="174" width="1" height="1" fill="#FFFFFF" opacity="0.6"/>
+
+    <!-- Left palm tree (big) -->
+    <rect x="22" y="78" width="3" height="82" fill="#3D2418"/>
+    <rect x="20" y="85" width="1" height="20" fill="#5A3A1F"/>
+    <rect x="26" y="90" width="1" height="30" fill="#5A3A1F"/>
+    <!-- Palm fronds -->
+    <rect x="6" y="74" width="18" height="2" fill="#3A6B2C"/>
+    <rect x="4" y="76" width="20" height="2" fill="#4A8A38"/>
+    <rect x="2" y="78" width="20" height="2" fill="#3A6B2C"/>
+    <rect x="25" y="74" width="18" height="2" fill="#3A6B2C"/>
+    <rect x="25" y="76" width="22" height="2" fill="#4A8A38"/>
+    <rect x="25" y="78" width="24" height="2" fill="#3A6B2C"/>
+    <rect x="12" y="68" width="2" height="8" fill="#3A6B2C"/>
+    <rect x="14" y="66" width="2" height="8" fill="#4A8A38"/>
+    <rect x="32" y="68" width="2" height="8" fill="#3A6B2C"/>
+    <rect x="34" y="66" width="2" height="8" fill="#4A8A38"/>
+    <!-- Coconuts -->
+    <rect x="20" y="80" width="3" height="3" fill="#3D2418"/>
+    <rect x="26" y="82" width="3" height="3" fill="#3D2418"/>
+
+    <!-- Right palm tree (big) -->
+    <rect x="290" y="72" width="3" height="88" fill="#3D2418"/>
+    <rect x="288" y="80" width="1" height="22" fill="#5A3A1F"/>
+    <rect x="294" y="84" width="1" height="28" fill="#5A3A1F"/>
+    <rect x="272" y="68" width="20" height="2" fill="#3A6B2C"/>
+    <rect x="270" y="70" width="22" height="2" fill="#4A8A38"/>
+    <rect x="268" y="72" width="22" height="2" fill="#3A6B2C"/>
+    <rect x="293" y="68" width="20" height="2" fill="#3A6B2C"/>
+    <rect x="293" y="70" width="22" height="2" fill="#4A8A38"/>
+    <rect x="293" y="72" width="24" height="2" fill="#3A6B2C"/>
+    <rect x="280" y="62" width="2" height="8" fill="#3A6B2C"/>
+    <rect x="282" y="60" width="2" height="8" fill="#4A8A38"/>
+    <rect x="300" y="62" width="2" height="8" fill="#3A6B2C"/>
+    <rect x="302" y="60" width="2" height="8" fill="#4A8A38"/>
+    <rect x="288" y="74" width="3" height="3" fill="#3D2418"/>
+    <rect x="294" y="76" width="3" height="3" fill="#3D2418"/>
+
+    <!-- Parrot on right palm -->
+    <rect x="304" y="78" width="5" height="3" fill="#C8362D"/>
+    <rect x="303" y="79" width="1" height="2" fill="#C8362D"/>
+    <rect x="305" y="76" width="3" height="2" fill="#3A6B2C"/>
+    <rect x="306" y="75" width="2" height="1" fill="#FFCB47"/>
+    <rect x="308" y="78" width="1" height="1" fill="#1A0E08"/>
+    <rect x="304" y="81" width="2" height="2" fill="#5B3A8C"/>
+
+    <!-- Beach umbrella (between palms, mid-left) -->
+    <rect x="78" y="148" width="1" height="20" fill="#1A0E08"/>
+    <rect x="68" y="140" width="22" height="2" fill="#C8362D"/>
+    <rect x="64" y="142" width="30" height="2" fill="#FFCB47"/>
+    <rect x="60" y="144" width="38" height="2" fill="#C8362D"/>
+    <rect x="58" y="146" width="42" height="2" fill="#FFCB47"/>
+    <rect x="56" y="148" width="46" height="2" fill="#C8362D"/>
+    <rect x="76" y="138" width="3" height="2" fill="#FFCB47"/>
+
+    <!-- Beach chair under umbrella with pirate + laptop -->
+    <!-- Chair frame -->
+    <rect x="62" y="156" width="34" height="2" fill="#3D2418"/>
+    <rect x="62" y="158" width="2" height="6" fill="#3D2418"/>
+    <rect x="94" y="158" width="2" height="6" fill="#3D2418"/>
+    <rect x="92" y="148" width="2" height="10" fill="#3D2418"/>
+    <rect x="64" y="150" width="30" height="6" fill="#5BC9D1"/>
+    <rect x="64" y="150" width="30" height="1" fill="#A6E5E8"/>
+
+    <!-- Pirate body on chair -->
+    <rect x="70" y="146" width="14" height="10" fill="#1A0E08"/>
+    <rect x="72" y="148" width="10" height="2" fill="#FFCB47"/>
+    <rect x="72" y="151" width="10" height="5" fill="#1A0E08"/>
+    <!-- Pirate head -->
+    <rect x="72" y="138" width="10" height="8" fill="#E0A93B"/>
+    <rect x="73" y="140" width="2" height="1" fill="#1A0E08"/>
+    <rect x="79" y="140" width="2" height="1" fill="#1A0E08"/>
+    <!-- Eyepatch -->
+    <rect x="78" y="139" width="4" height="3" fill="#1A0E08"/>
+    <rect x="76" y="140" width="2" height="1" fill="#1A0E08"/>
+    <!-- Mouth/beard -->
+    <rect x="74" y="143" width="6" height="1" fill="#1A0E08"/>
+    <rect x="74" y="144" width="2" height="2" fill="#F7E7C2"/>
+    <rect x="78" y="144" width="2" height="2" fill="#F7E7C2"/>
+    <!-- Pirate hat (tricorn) -->
+    <rect x="68" y="134" width="18" height="3" fill="#1A0E08"/>
+    <rect x="70" y="131" width="14" height="3" fill="#1A0E08"/>
+    <rect x="74" y="129" width="6" height="2" fill="#1A0E08"/>
+    <rect x="76" y="132" width="2" height="2" fill="#F7E7C2"/>
+    <rect x="78" y="132" width="2" height="2" fill="#1A0E08"/>
+    <rect x="76" y="133" width="2" height="1" fill="#F7E7C2"/>
+    <rect x="80" y="132" width="1" height="1" fill="#F7E7C2"/>
+
+    <!-- Pirate's laptop -->
+    <rect x="68" y="153" width="12" height="1" fill="#3D2418"/>
+    <rect x="68" y="146" width="12" height="7" fill="#1A0E08"/>
+    <rect x="69" y="147" width="10" height="5" fill="#5BC9D1"/>
+    <rect x="71" y="148" width="2" height="1" fill="#FFCB47"/>
+    <rect x="74" y="148" width="4" height="1" fill="#F7E7C2"/>
+    <rect x="71" y="150" width="6" height="1" fill="#F7E7C2"/>
+
+    <!-- Second pirate further right with laptop -->
+    <!-- Towel -->
+    <rect x="180" y="170" width="40" height="4" fill="#C8362D"/>
+    <rect x="180" y="171" width="40" height="1" fill="#E25347"/>
+    <rect x="184" y="170" width="2" height="4" fill="#FFCB47"/>
+    <rect x="200" y="170" width="2" height="4" fill="#FFCB47"/>
+    <rect x="216" y="170" width="2" height="4" fill="#FFCB47"/>
+    <!-- Pirate 2 sitting body -->
+    <rect x="192" y="160" width="14" height="10" fill="#3D2418"/>
+    <rect x="194" y="162" width="10" height="2" fill="#F7E7C2"/>
+    <!-- Pirate 2 head -->
+    <rect x="194" y="152" width="10" height="8" fill="#C4A86B"/>
+    <rect x="195" y="154" width="2" height="1" fill="#1A0E08"/>
+    <rect x="201" y="154" width="2" height="1" fill="#1A0E08"/>
+    <rect x="196" y="157" width="6" height="1" fill="#1A0E08"/>
+    <!-- Bandana -->
+    <rect x="192" y="148" width="14" height="4" fill="#C8362D"/>
+    <rect x="192" y="149" width="14" height="1" fill="#E25347"/>
+    <rect x="190" y="150" width="2" height="3" fill="#C8362D"/>
+    <rect x="206" y="150" width="2" height="3" fill="#C8362D"/>
+    <!-- Pirate 2 laptop -->
+    <rect x="190" y="167" width="14" height="1" fill="#3D2418"/>
+    <rect x="190" y="160" width="14" height="7" fill="#1A0E08"/>
+    <rect x="191" y="161" width="12" height="5" fill="#5BC9D1"/>
+    <rect x="193" y="162" width="3" height="1" fill="#FFCB47"/>
+    <rect x="197" y="162" width="5" height="1" fill="#F7E7C2"/>
+    <rect x="193" y="164" width="8" height="1" fill="#F7E7C2"/>
+
+    <!-- Treasure chest in foreground -->
+    <rect x="120" y="172" width="22" height="14" fill="#3D2418"/>
+    <rect x="120" y="170" width="22" height="2" fill="#5A3A1F"/>
+    <rect x="122" y="174" width="18" height="10" fill="#5A3A1F"/>
+    <rect x="124" y="176" width="2" height="6" fill="#FFCB47"/>
+    <rect x="136" y="176" width="2" height="6" fill="#FFCB47"/>
+    <rect x="130" y="174" width="2" height="3" fill="#1A0E08"/>
+    <rect x="131" y="175" width="1" height="1" fill="#FFCB47"/>
+    <rect x="124" y="184" width="2" height="2" fill="#FFCB47"/>
+    <rect x="138" y="184" width="2" height="2" fill="#FFCB47"/>
+    <!-- Coins spilling out -->
+    <rect x="143" y="184" width="3" height="3" fill="#FFCB47"/>
+    <rect x="147" y="186" width="3" height="3" fill="#FFCB47"/>
+    <rect x="150" y="185" width="2" height="2" fill="#FFD86B"/>
+    <rect x="116" y="186" width="3" height="3" fill="#FFCB47"/>
+    <rect x="113" y="187" width="2" height="2" fill="#FFD86B"/>
+
+    <!-- Small crab on the right beach -->
+    <rect x="252" y="186" width="6" height="3" fill="#C8362D"/>
+    <rect x="251" y="187" width="1" height="1" fill="#C8362D"/>
+    <rect x="258" y="187" width="1" height="1" fill="#C8362D"/>
+    <rect x="253" y="185" width="1" height="1" fill="#1A0E08"/>
+    <rect x="256" y="185" width="1" height="1" fill="#1A0E08"/>
+    <rect x="250" y="186" width="1" height="1" fill="#C8362D"/>
+    <rect x="259" y="186" width="1" height="1" fill="#C8362D"/>
+    <rect x="252" y="189" width="1" height="1" fill="#C8362D"/>
+    <rect x="257" y="189" width="1" height="1" fill="#C8362D"/>
   </svg>`;
 }
 
@@ -2973,7 +3129,7 @@ function renderPostTab() {
               `).join('')}
             </div>
           </label>
-          <div class="wide">
+          <div class="wide" id="day-picker-host">
             <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
             ${renderDayPicker()}
           </div>
@@ -3000,7 +3156,7 @@ function renderPostTab() {
 
           <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
 
-          <div class="wide">
+          <div class="wide" id="meetings-picker-host">
             <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
             ${renderMeetingsPicker()}
           </div>
@@ -3553,8 +3709,9 @@ function syncFormStateFromDom(form) {
   const prevEnd = f.endDate;
   f.startDate = data.get('startDate') || '';
   f.endDate = data.get('endDate') || '';
+  const datesChanged = f.startDate !== prevStart || f.endDate !== prevEnd;
   // When dates change, reset selectedDayKeys so the day picker rebuilds
-  if (f.startDate !== prevStart || f.endDate !== prevEnd) {
+  if (datesChanged) {
     const start = parseLocalDate(f.startDate);
     const end = parseLocalDate(f.endDate);
     f.selectedDayKeys = allDayKeysInRange(start, end);
@@ -3570,9 +3727,23 @@ function syncFormStateFromDom(form) {
   const selectedIds = new Set(data.getAll('meeting'));
   f.meetings = state.calendarEvents.filter((m) => selectedIds.has(m.googleEventId));
   // Auto-fetch when dates change and calendar is connected
-  if ((f.startDate !== prevStart || f.endDate !== prevEnd) && calendar.isConnected() && f.startDate && f.endDate) {
+  if (datesChanged && calendar.isConnected() && f.startDate && f.endDate) {
     clearTimeout(syncFormStateFromDom._calTimer);
     syncFormStateFromDom._calTimer = setTimeout(() => refreshCalendarEvents(), 400);
+  }
+  // Surgical re-render of the day picker + meetings picker on date change —
+  // a full render() would lose date-input focus mid-keystroke on Safari.
+  if (datesChanged) {
+    const dayHost = document.getElementById('day-picker-host');
+    if (dayHost) {
+      const old = dayHost.querySelector('.meetings-picker');
+      if (old) old.outerHTML = renderDayPicker();
+    }
+    const meetingHost = document.getElementById('meetings-picker-host');
+    if (meetingHost) {
+      const old = meetingHost.querySelector('.meetings-picker');
+      if (old) old.outerHTML = renderMeetingsPicker();
+    }
   }
   const previewEl = document.querySelector('.preview');
   if (previewEl) {
