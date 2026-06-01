@@ -164,6 +164,7 @@ const SKIN_OPTIONS = [
   { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Inter. Pirate vibe, regular legible font.' },
   { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
   { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
+  { id: 'dark-knight', label: 'Dark Knight', desc: 'Claude Code dark theme. Warm black background, Anthropic orange, Geist + Geist Mono fonts. Ultra legible.' },
 ];
 
 const skin = {
@@ -1417,7 +1418,7 @@ function showSkinPicker() {
     <div class="skin-picker-grid">
       ${SKIN_OPTIONS.map((s) => `
         <button class="skin-card ${s.id === current ? 'selected' : ''}" data-action="pick-skin" data-id="${esc(s.id)}">
-          <div class="skin-preview skin-preview-${s.id}">${s.id === 'pirate' ? 'TIME OFF' : (s.id === 'basic' ? 'Time Off' : 'TIME OFF')}</div>
+          <div class="skin-preview skin-preview-${s.id}">${s.id === 'basic' ? 'Time Off' : (s.id === 'dark-knight' ? '> Time Off_' : 'TIME OFF')}</div>
           <div class="skin-card-meta">
             <strong>${esc(s.label)}</strong>
             <small>${esc(s.desc)}</small>
