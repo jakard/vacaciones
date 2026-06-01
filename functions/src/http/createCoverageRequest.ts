@@ -126,6 +126,12 @@ export const createCoverageRequest = onCall<
       'windowEnd must be after windowStart.',
     );
   }
+  // Validate IANA timezone — Intl throws on unknown zones.
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
+  } catch {
+    throw new HttpsError('invalid-argument', `Invalid timezone: ${timezone}`);
+  }
 
   // Determine which days are billable. Default = every day in the window.
   const allKeys = allDaysInWindow(start, end);

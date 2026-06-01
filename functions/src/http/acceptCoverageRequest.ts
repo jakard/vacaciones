@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { CALLABLE_OPTS } from '../options';
 import { recordLedgerEntry } from '../services/wallet';
+import { queueMail, wrapTemplate, BRAND_URL } from '../services/mail';
 
 const AcceptSchema = z.object({
   teamId: z.string().trim().min(1),
@@ -307,9 +308,68 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
         coinsEscrowed: claimCost,
         claimedDayKeys: dayKeysToTake,
         allClaimed,
+        requesterUid: req.requesterUid,
+        windowStart: (req as { windowStart?: { toDate: () => Date } }).windowStart?.toDate?.()?.toISOString() ?? null,
+        windowEnd: (req as { windowEnd?: { toDate: () => Date } }).windowEnd?.toDate?.()?.toISOString() ?? null,
       };
     });
 
-    return result;
+    // Post-commit: queue an email to the requester so they hear about the
+    // claim outside the app. Errors here must NOT roll back the accept.
+    try {
+      const requesterSnap = await db.doc(`users/${result.requesterUid ?? ''}`).get();
+      const requesterEmail = (requesterSnap.data() as { email?: string })?.email;
+      if (requesterEmail) {
+        const covererName = token.name ?? token.email ?? 'A crewmate';
+        const dayCount = result.claimedDayKeys.length;
+        const subject = result.allClaimed
+          ? `${covererName} is covering your time off`
+          : `${covererName} claimed ${dayCount} day${dayCount === 1 ? '' : 's'} of your bounty`;
+        const html = wrapTemplate({
+          preheader: `${dayCount} day${dayCount === 1 ? '' : 's'} claimed.`,
+          title: subject,
+          bodyHtml: `
+            <p style="margin:0 0 12px;">Good news — <strong>${esc(covererName)}</strong> just claimed
+            ${dayCount} day${dayCount === 1 ? '' : 's'} of your time-off bounty.</p>
+            <p style="margin:0 0 12px;">${result.allClaimed
+              ? 'Your bounty is fully covered. You can pack a bag.'
+              : 'Some days still need a coverer. Want to nudge the crew?'}</p>
+            <p style="margin:0;color:#7E7B73;font-size:13px;">${esc(formatWindow(result.windowStart, result.windowEnd))} · ${result.coinsEscrowed} doubloons</p>`,
+          ctaLabel: 'View bounty',
+          ctaUrl: `${BRAND_URL}/#/team/${encodeURIComponent(teamId)}`,
+        });
+        await queueMail(db, {
+          to: requesterEmail,
+          subject,
+          html,
+          idempotencyKey: `${requestId}_accepted_${uid}_${result.claimedDayKeys[0] ?? 'all'}`,
+          category: 'bounty-accepted',
+        });
+      }
+    } catch (err) {
+      // Don't bubble — accept already succeeded.
+      console.error('Failed to queue accepted-bounty mail', err);
+    }
+
+    return {
+      accepted: result.accepted,
+      coinsEscrowed: result.coinsEscrowed,
+      claimedDayKeys: result.claimedDayKeys,
+      allClaimed: result.allClaimed,
+    };
   },
 );
+
+function esc(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function formatWindow(startIso: string | null | undefined, endIso: string | null | undefined): string {
+  if (!startIso || !endIso) return '';
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`;
+}

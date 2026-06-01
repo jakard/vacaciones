@@ -34,6 +34,8 @@ export const initUser = onCall<unknown, Promise<InitUserResult>>(
         displayName: token.name ?? token.email ?? '',
         photoURL: token.picture ?? null,
         googleUserId: googleProviderUid ?? '',
+        // Daily email digest on by default — users can opt out from settings.
+        digestEnabled: true,
         createdAt: FieldValue.serverTimestamp(),
       });
       return true;

@@ -46,3 +46,4 @@ export { forceCompleteBounty } from './http/forceCompleteBounty';
 export { getAuditLog } from './http/getAuditLog';
 export { dailyCoverageRelease } from './scheduled/dailyCoverageRelease';
 export { monthlyStipendMint } from './scheduled/monthlyStipendMint';
+export { dailyDigest } from './scheduled/dailyDigest';

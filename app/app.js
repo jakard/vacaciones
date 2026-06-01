@@ -168,14 +168,37 @@ const SKIN_OPTIONS = [
 ];
 
 const skin = {
-  current() { return localStorage.getItem('vacaciones.skin') || 'pirate'; },
+  current() {
+    const stored = localStorage.getItem('vacaciones.skin');
+    if (stored && SKIN_OPTIONS.some((s) => s.id === stored)) return stored;
+    // First visit (no localStorage): follow OS preference.
+    // Dark OS → Dark Knight, Light OS → Basic. Pirate is opt-in.
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark-knight';
+      }
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'basic';
+      }
+    } catch (_) { /* no matchMedia */ }
+    return 'dark-knight';
+  },
   set(id) {
     if (!SKIN_OPTIONS.some((s) => s.id === id)) return;
     localStorage.setItem('vacaciones.skin', id);
     document.documentElement.dataset.skin = id;
   },
 };
-skin.set(skin.current());
+document.documentElement.dataset.skin = skin.current();
+// Live-update if user changes OS theme while the app is open and they haven't
+// explicitly picked a skin yet.
+try {
+  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (ev) => {
+    if (!localStorage.getItem('vacaciones.skin')) {
+      document.documentElement.dataset.skin = ev.matches ? 'dark-knight' : 'basic';
+    }
+  });
+} catch (_) { /* older browsers, ignore */ }
 
 const audio = {
   ctx: null,
@@ -1239,10 +1262,19 @@ function showCrewClaimModal() {
 async function setAvatar(avatarId) {
   try {
     await callSetProfile({ avatarId });
-    showToast('Pirate avatar set.', 'success');
+    showToast('Avatar updated.', 'success');
     audio.coin();
   } catch (err) {
     showToast(`Could not set avatar: ${err.message}`, 'error', 5000);
+  }
+}
+
+async function setDigestEnabled(enabled) {
+  try {
+    await callSetProfile({ digestEnabled: !!enabled });
+    showToast(enabled ? 'Daily digest on.' : 'Daily digest off.', 'success');
+  } catch (err) {
+    showToast(`Could not update notification preference: ${err.message}`, 'error', 5000);
   }
 }
 
@@ -1437,6 +1469,7 @@ function showSkinPicker() {
 
 function showAvatarPicker() {
   const current = state.userDoc?.avatarId ?? null;
+  const digestEnabled = state.userDoc?.digestEnabled !== false; // default true
   const grid = AVATAR_LIST.map((id) => {
     const isMale = id.startsWith('m');
     const isSelected = id === current;
@@ -1446,15 +1479,24 @@ function showAvatarPicker() {
     </button>`;
   }).join('');
   const body = `
-    <p style="margin: 0 0 12px;">Pick a pirate to wear as yer face. Ye can change it any time.</p>
+    <p style="margin: 0 0 12px;">Pick a pirate to wear as your face. You can change it any time.</p>
     <div class="avatar-grid">${grid}</div>
-    ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">USE GOOGLE PHOTO</button></p>` : ''}
+    ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">Use Google photo</button></p>` : ''}
+    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--wood-dark);">
+      <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+        <input type="checkbox" data-action="toggle-digest" ${digestEnabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
+        <span>
+          <strong style="display: block;">Daily email digest</strong>
+          <small class="muted">A morning summary of open bounties, doubloons earned, and new scrolls. Transactional emails (acceptance, cancellations) stay on.</small>
+        </span>
+      </label>
+    </div>
   `;
   showModal({
-    title: 'CHOOSE YOUR PIRATE',
+    title: 'Profile',
     body,
     wide: true,
-    primaryLabel: 'Close',
+    primaryLabel: 'Done',
   });
 }
 
@@ -3555,6 +3597,9 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     setAvatar(null);
     document.querySelectorAll('.avatar-tile').forEach((el) => el.classList.remove('selected'));
+  } else if (action === 'toggle-digest') {
+    // Don't preventDefault — the checkbox should toggle visually.
+    setDigestEnabled(t.checked);
   } else if (action === 'manage-crew') {
     e.preventDefault();
     const team = state.myTeams.find((t) => t.id === state.teamId);

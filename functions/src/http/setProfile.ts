@@ -7,11 +7,12 @@ import { CALLABLE_OPTS } from '../options';
 const AVATAR_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'f1', 'f2', 'f3', 'f4', 'f5'] as const;
 
 const Schema = z.object({
-  avatarId: z.enum(AVATAR_IDS).nullable(),
+  avatarId: z.enum(AVATAR_IDS).nullable().optional(),
+  digestEnabled: z.boolean().optional(),
 });
 
 interface SetProfileResult {
-  avatarId: string | null;
+  ok: boolean;
 }
 
 export const setProfile = onCall<unknown, Promise<SetProfileResult>>(
@@ -26,9 +27,11 @@ export const setProfile = onCall<unknown, Promise<SetProfileResult>>(
     }
     const uid = request.auth.uid;
     const db = getFirestore();
-    await db
-      .doc(`users/${uid}`)
-      .set({ avatarId: parsed.data.avatarId }, { merge: true });
-    return { avatarId: parsed.data.avatarId };
+    const patch: Record<string, unknown> = {};
+    if ('avatarId' in parsed.data) patch.avatarId = parsed.data.avatarId;
+    if ('digestEnabled' in parsed.data) patch.digestEnabled = parsed.data.digestEnabled;
+    if (Object.keys(patch).length === 0) return { ok: true };
+    await db.doc(`users/${uid}`).set(patch, { merge: true });
+    return { ok: true };
   },
 );
