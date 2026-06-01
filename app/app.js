@@ -3138,14 +3138,14 @@ function renderPostTab() {
           <div class="wide">
             <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
             <div class="mode-toggle">
-              <label class="mode-option ${(f.coverageMode || 'single') === 'single' ? 'selected' : ''}">
+              <label class="mode-option">
                 <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
                 <div>
                   <strong>👤 Single coverer</strong>
                   <small>One crewmate takes the whole window. Some clients want only one person on the rotation.</small>
                 </div>
               </label>
-              <label class="mode-option ${f.coverageMode === 'crew' ? 'selected' : ''}">
+              <label class="mode-option">
                 <input type="radio" name="coverageMode" value="crew" ${f.coverageMode === 'crew' ? 'checked' : ''} />
                 <div>
                   <strong>🏴‍☠️ Crew coverage</strong>
