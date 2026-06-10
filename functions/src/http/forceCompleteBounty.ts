@@ -4,6 +4,10 @@ import { z } from 'zod';
 
 import { CALLABLE_OPTS } from '../options';
 import { recordLedgerEntry } from '../services/wallet';
+import {
+  dailyReleaseAmountForKey,
+  enumerateDayKeysInTz,
+} from '../services/release';
 import { ECONOMY } from '../_shared';
 
 const Schema = z.object({
@@ -15,26 +19,6 @@ interface ForceCompleteResult {
   completed: boolean;
   daysReleased: number;
   coinsReleased: number;
-}
-
-function startOfDayUtc(d: Date): Date {
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-  );
-}
-
-function formatDateKey(d: Date): string {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function dailyReleaseAmount(date: Date): number {
-  const dow = date.getUTCDay();
-  return dow === 0 || dow === 6
-    ? ECONOMY.COVERAGE_PRICE_PER_DAY * ECONOMY.WEEKEND_MULTIPLIER
-    : ECONOMY.COVERAGE_PRICE_PER_DAY;
 }
 
 export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>(
@@ -68,6 +52,7 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         status: string;
         covererUid?: string | null;
         requesterUid: string;
+        timezone?: string;
         windowStart?: Timestamp;
         windowEnd?: Timestamp;
         selectedDayKeys?: string[];
@@ -89,26 +74,25 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
       const dayCoverers = req.dayCoverers ?? {};
       const billableSet = req.selectedDayKeys ? new Set(req.selectedDayKeys) : null;
 
-      const releases: Array<{ uid: string; amount: number; dayKey: string; date: Date }> = [];
+      const releases: Array<{ uid: string; amount: number; dayKey: string }> = [];
       if (req.windowStart && req.windowEnd) {
-        const start = startOfDayUtc(req.windowStart.toDate());
-        const end = startOfDayUtc(req.windowEnd.toDate());
-        const cursor = new Date(start);
-        while (cursor.getTime() <= end.getTime()) {
-          const dayKey = formatDateKey(cursor);
+        // Enumerate day keys in the bounty's own timezone so they line up
+        // with selectedDayKeys / dayCoverers exactly like the daily cron.
+        const tz = req.timezone || 'UTC';
+        for (const dayKey of enumerateDayKeysInTz(
+          req.windowStart.toDate(),
+          req.windowEnd.toDate(),
+          tz,
+        )) {
           const billable = !billableSet || billableSet.has(dayKey);
-          if (billable) {
-            const dayUid = dayCoverers[dayKey]?.uid ?? fallbackCovererUid;
-            if (dayUid) {
-              releases.push({
-                uid: dayUid,
-                amount: dailyReleaseAmount(cursor),
-                dayKey,
-                date: new Date(cursor),
-              });
-            }
-          }
-          cursor.setUTCDate(cursor.getUTCDate() + 1);
+          if (!billable) continue;
+          const dayUid = dayCoverers[dayKey]?.uid ?? fallbackCovererUid;
+          if (!dayUid) continue;
+          releases.push({
+            uid: dayUid,
+            amount: dailyReleaseAmountForKey(dayKey),
+            dayKey,
+          });
         }
       }
 

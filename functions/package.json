@@ -10,6 +10,8 @@
   "scripts": {
     "prebuild": "node scripts/copy-shared.js",
     "build": "tsc",
+    "pretest": "node scripts/copy-shared.js",
+    "test": "vitest run",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -23,7 +25,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@types/node": "^22.7.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.8"
   }
 }

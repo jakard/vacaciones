@@ -13,6 +13,7 @@
     "build:functions": "npm run build --workspace=functions",
     "build": "npm run build:shared && npm run build:functions",
     "test": "npm test --workspace=functions",
+    "test:all": "firebase emulators:exec --only firestore \"npm test --workspace=functions\"",
     "deploy": "firebase deploy",
     "deploy:web": "firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",

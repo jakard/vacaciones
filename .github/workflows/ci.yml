@@ -1,0 +1,71 @@
+# CI for Time Off — typecheck + economy test suite on every PR/push.
+#
+# The deploy job is opt-in: it only runs when the repository variable
+# ENABLE_DEPLOY is set to 'true' AND a FIREBASE_TOKEN secret exists
+# (create one with `firebase login:ci`). Until then, CI is test-only,
+# so a fresh GitHub repo works with zero setup.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The Firestore emulator needs a JRE.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Typecheck + compile functions
+        run: npm run build:functions
+
+      - name: Economy test suite (unit + emulator integration)
+        run: >
+          npx --yes firebase-tools emulators:exec
+          --only firestore --project demo-ci
+          "npm test --workspace=functions"
+
+      - name: Frontend syntax check
+        run: >
+          node -e "import('./app/app.js').catch(e => {
+            const m = String(e);
+            if (m.includes('ERR_UNSUPPORTED_ESM_URL_SCHEME')) {
+              console.log('app.js parses OK');
+            } else { console.error(m); process.exit(1); }
+          })"
+
+  deploy-dev:
+    # Opt-in: set repo variable ENABLE_DEPLOY=true + secret FIREBASE_TOKEN.
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_DEPLOY == 'true'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:shared && npm run build:functions
+      - name: Deploy hosting + functions (dev project)
+        run: npx --yes firebase-tools deploy --only hosting,functions --project vacaciones-dev-b3158 --force
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

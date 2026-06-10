@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "vacaciones-dev-b3158"
+    "default": "vacaciones-dev-b3158",
+    "dev": "vacaciones-dev-b3158",
+    "prod": "timeoff-prod-rs"
   }
 }
