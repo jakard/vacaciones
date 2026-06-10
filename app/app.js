@@ -949,6 +949,7 @@ async function signIn() {
 }
 
 async function handleSignOut() {
+  closeAllModals();
   try { await signOut(auth); }
   catch (err) { showToast(err.message, 'error', 5000); }
 }
@@ -1123,7 +1124,7 @@ async function postBounty() {
       emergencyDef: f.emergencyDef || null,
       meetings: f.meetings,
     });
-    showToast(`Bounty posted for ${result.data.coinsOffered} doubloons. Anchors aweigh!`, 'success');
+    showToast(`Bounty posted for ${result.data.coinsOffered} doubloons.`, 'success');
     state.formState = {
       startDate: '', endDate: '', timezone: state.formState.timezone,
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: '',
@@ -1436,7 +1437,7 @@ async function copyInviteLink(teamId) {
 async function sendScrollAction(teamId, toUid, message, bountyId) {
   try {
     await callSendScroll({ teamId, toUid, message, bountyId: bountyId ?? null });
-    showToast('🪶 Thank-you scroll sent. The tavern echoes.', 'success');
+    showToast('Thank-you scroll sent.', 'success');
     audio.rank();
   } catch (err) {
     showToast(`Could not send the scroll: ${err.message}`, 'error', 5000);
@@ -1460,7 +1461,7 @@ function showSkinPicker() {
     </div>
   `;
   showModal({
-    title: 'CHOOSE A SKIN',
+    title: 'Choose a skin',
     body,
     wide: true,
     primaryLabel: 'Close',
@@ -1468,8 +1469,14 @@ function showSkinPicker() {
 }
 
 function showAvatarPicker() {
+  const u = state.user || {};
   const current = state.userDoc?.avatarId ?? null;
   const digestEnabled = state.userDoc?.digestEnabled !== false; // default true
+  const team = state.teamId ? state.myTeams.find((t) => t.id === state.teamId) : null;
+  const wallet = state.walletDoc;
+  const totalBalance = wallet ? (wallet.earnedBalance ?? 0) + (wallet.stipendBalance ?? 0) : null;
+  const stats = state.teamId ? computeStats() : null;
+  const rank = stats ? computeRank(stats) : null;
   const grid = AVATAR_LIST.map((id) => {
     const isMale = id.startsWith('m');
     const isSelected = id === current;
@@ -1479,17 +1486,51 @@ function showAvatarPicker() {
     </button>`;
   }).join('');
   const body = `
-    <p style="margin: 0 0 12px;">Pick a pirate to wear as your face. You can change it any time.</p>
-    <div class="avatar-grid">${grid}</div>
-    ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">Use Google photo</button></p>` : ''}
-    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--wood-dark);">
-      <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-        <input type="checkbox" data-action="toggle-digest" ${digestEnabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
+    <div class="profile-head">
+      ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 48, klass: 'avatar-img' })}
+      <div class="profile-id">
+        <strong>${esc(u.displayName ?? '')}</strong>
+        <small class="muted">${esc(u.email ?? '')}</small>
+        ${rank && team ? `<small class="profile-rank"><span aria-hidden="true">${rank.icon}</span> ${esc(rank.name)} · ${stats.lifetimeEarned} doubloons earned lifetime</small>` : ''}
+      </div>
+      ${team && totalBalance !== null ? `
+        <span class="coin-pill" title="Total doubloons in this crew">
+          ${SVG.doubloon}<span>${totalBalance}</span>
+        </span>` : ''}
+    </div>
+
+    <div class="profile-section">
+      <p style="margin: 0 0 12px;">Pick a pirate to wear as your face. You can change it any time.</p>
+      <div class="avatar-grid">${grid}</div>
+      ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">Use Google photo</button></p>` : ''}
+    </div>
+
+    <div class="profile-section">
+      <div class="profile-row">
+        <span>
+          <strong style="display: block;">Theme</strong>
+          <small class="muted">Pirate, Basic, High Contrast, or Dark Knight.</small>
+        </span>
+        <button class="btn btn-secondary" data-action="open-skin-picker" type="button">🎨 Choose a skin</button>
+      </div>
+      <label class="profile-row" style="cursor: pointer;">
+        <span>
+          <strong style="display: block;">Sound effects</strong>
+          <small class="muted">Clicks, coins, and toast chimes.</small>
+        </span>
+        <input type="checkbox" data-action="sound" ${audio.enabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
+      </label>
+      <label class="profile-row" style="cursor: pointer;">
         <span>
           <strong style="display: block;">Daily email digest</strong>
           <small class="muted">A morning summary of open bounties, doubloons earned, and new scrolls. Transactional emails (acceptance, cancellations) stay on.</small>
         </span>
+        <input type="checkbox" data-action="toggle-digest" ${digestEnabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
       </label>
+    </div>
+
+    <div class="profile-section profile-signout">
+      <button class="btn btn-secondary" data-action="sign-out" type="button">Sign out</button>
     </div>
   `;
   showModal({
@@ -1517,7 +1558,7 @@ function showManageCrewModal(team) {
     <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">Paste a square image URL. Leave blank to use the default flag.</p>
   `;
   showModal({
-    title: 'MANAGE CREW',
+    title: 'Manage crew',
     body,
     wide: true,
     primaryLabel: 'Save',
@@ -1544,7 +1585,7 @@ function confirmCancelBounty(bountyId) {
     ? `Cancel this bounty? <strong>${remaining} doubloons</strong> will be refunded to the requester.`
     : 'Cancel this bounty? Nothing to refund.';
   showModal({
-    title: 'CANCEL BOUNTY?',
+    title: 'Cancel bounty?',
     body: `<p>${message}</p>`,
     primaryLabel: 'Cancel bounty',
     secondaryLabel: 'Nevermind',
@@ -1653,7 +1694,7 @@ function showEditBountyModal(bountyId) {
     <p class="muted" style="font-size: var(--fs-meta); margin: 8px 0 0;">Dates + selected days are locked to keep the escrow contract intact.</p>
   `;
   showModal({
-    title: 'EDIT BOUNTY',
+    title: 'Edit bounty',
     body,
     wide: true,
     primaryLabel: 'Save',
@@ -1773,7 +1814,7 @@ async function refreshAuditLog() {
 async function changeMemberRole(targetUid, role, displayName) {
   try {
     await callUpdateMemberRole({ teamId: state.teamId, targetUid, role });
-    showToast(`${displayName} is now a ${role === 'manager' ? 'captain' : 'crewmate'}.`, 'success');
+    showToast(`${displayName} is now a ${role === 'manager' ? 'manager' : 'member'}.`, 'success');
     audio.coin();
     refreshCrewMembers();
   } catch (err) { showToast(err.message, 'error', 6000); }
@@ -1813,7 +1854,7 @@ function showGrantBonusModal(targetUid, displayName) {
   const amountId = 'bonus-amt-' + Math.random().toString(36).slice(2, 8);
   const reasonId = 'bonus-rsn-' + Math.random().toString(36).slice(2, 8);
   showModal({
-    title: `GRANT BONUS TO ${esc((displayName || 'CREWMATE').toUpperCase())}`,
+    title: `Grant bonus to ${esc(displayName || 'crewmate')}`,
     body: `
       <div class="form-grid">
         <label class="wide">
@@ -1848,14 +1889,14 @@ function showMemberAdminModal(member) {
   const isMe = member.uid === state.user?.uid;
   const targetRole = member.role;
   showModal({
-    title: `MANAGE ${esc((member.displayName || 'CREWMATE').toUpperCase())}`,
+    title: `Manage ${esc(member.displayName || 'crewmate')}`,
     body: `
       <p style="margin: 0 0 12px;">Pick an admin action for <strong>${esc(member.displayName || 'this crewmate')}</strong>.</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         ${isMe ? `<p class="muted" style="font-size: var(--fs-meta);">Some actions disabled — that's you.</p>` : ''}
         <button class="btn btn-secondary" data-action="adm-bonus" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">💰 Grant bonus doubloons</button>
         ${targetRole === 'member'
-          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">⬆ Promote to captain</button>`
+          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">⬆ Promote to manager</button>`
           : `<button class="btn btn-secondary" data-action="adm-demote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${isOwner ? 'disabled title="Owner cannot be demoted"' : ''}>⬇ Demote to crewmate</button>`
         }
         <button class="btn btn-danger" data-action="adm-remove" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${(isOwner || isMe) ? 'disabled title="Cannot remove owner / yourself"' : ''}>🗑 Remove from crew</button>
@@ -1879,7 +1920,7 @@ async function refreshCrewMembers() {
 
 async function topUpGrantAction() {
   showModal({
-    title: 'TOP UP STARTER CHEST?',
+    title: 'Top up starter chest?',
     body: `<p>This will credit each crewmate who received the old 20-doubloon grant with the missing <strong>105 doubloons</strong> so everyone hits the new 125 starting balance. It runs once per crewmate (idempotent).</p>`,
     primaryLabel: 'Top up the grant',
     secondaryLabel: 'Cancel',
@@ -2059,6 +2100,7 @@ function showModal({ title, body, primaryLabel = 'OK', secondaryLabel, onPrimary
 
   root.appendChild(wrap);
   __modalStack.push(wrap);
+  wrap.__close = close;
 
   // Focus the primary action by default (or first focusable if no primary).
   requestAnimationFrame(() => {
@@ -2068,6 +2110,12 @@ function showModal({ title, body, primaryLabel = 'OK', secondaryLabel, onPrimary
   });
 
   return { close };
+}
+
+// Close every open modal, top-of-stack first (used on sign-out so no
+// stale sheet survives the auth flip).
+function closeAllModals() {
+  [...__modalStack].reverse().forEach((w) => w.__close?.());
 }
 
 function showWelcomeModal() {
@@ -2089,7 +2137,7 @@ function renderStanScene() {
     </div>
   `;
   showModal({
-    title: 'STAN, HARBORMASTER',
+    title: 'Stan, Harbormaster',
     body,
     primaryLabel: isLast ? 'Set sail' : 'Next',
     secondaryLabel: idx === 0 ? 'Skip' : 'Back',
@@ -2267,7 +2315,7 @@ function showBountyDetail(bountyId) {
   const remainingDays = allDayKeys.filter((k) => !dayCoverers[k]).length;
   if (status === 'open' && !mine && isCrew && remainingDays > 0) {
     showModal({
-      title: 'BOUNTY DETAIL',
+      title: 'Bounty detail',
       body,
       wide: true,
       primaryLabel: `Claim days (${remainingDays} left)`,
@@ -2276,17 +2324,17 @@ function showBountyDetail(bountyId) {
     });
   } else if (status === 'open' && !mine) {
     showModal({
-      title: 'BOUNTY DETAIL',
+      title: 'Bounty detail',
       body,
       wide: true,
-      primaryLabel: 'Take voyage',
+      primaryLabel: 'Cover this bounty',
       secondaryLabel: 'Back',
       onPrimary: () => acceptRequest(bountyId),
     });
   } else if (status === 'completed' && mine && b.covererUid) {
     // Requester whose bounty was completed — invite them to send a scroll
     showModal({
-      title: 'BOUNTY DETAIL',
+      title: 'Bounty detail',
       body,
       wide: true,
       primaryLabel: '🪶 Send Thank-You Scroll',
@@ -2306,7 +2354,7 @@ function showBountyDetail(bountyId) {
       bodyWithAdmin += `<div style="margin-top: 12px;"><button class="btn btn-danger" data-action="force-complete" data-bounty-id="${esc(bountyId)}">🏁 Force complete</button></div>`;
     }
     showModal({
-      title: 'BOUNTY DETAIL',
+      title: 'Bounty detail',
       body: bodyWithAdmin,
       wide: true,
       primaryLabel: 'Close',
@@ -2326,35 +2374,18 @@ function renderUserInfo() {
   const target = document.getElementById('user-info');
   if (!state.user) { target.innerHTML = ''; return; }
   const u = state.user;
-  const team = state.teamId ? state.myTeams.find((t) => t.id === state.teamId) : null;
-  const wallet = state.walletDoc;
-  const totalBalance = wallet ? (wallet.earnedBalance ?? 0) + (wallet.stipendBalance ?? 0) : null;
-  const stats = state.teamId ? computeStats() : null;
-  const rank = stats ? computeRank(stats) : null;
   const notifs = state.user ? computeNotifications() : [];
   const unread = notifs.filter((n) => n.time.getTime() > state.notifLastSeen).length;
 
+  // Launch-gate item 11: the header carries bell + avatar only. Balance,
+  // rank, theme, sound, identity and sign-out live in the Profile sheet.
   target.innerHTML = `
-    ${totalBalance !== null && team ? `
-      <span class="coin-pill" title="Total doubloons in this crew">
-        ${SVG.doubloon}<span>${totalBalance}</span>
-      </span>` : ''}
-    ${rank && team ? `<span class="rank-chip" title="${esc(rank.name)} (${rank.icon})"><span class="rank-icon">${rank.icon}</span>${esc(rank.name)}</span>` : ''}
     <button class="bell" data-action="bell" title="Notifications" aria-label="${unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
       <span aria-hidden="true">🔔</span>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
     </button>
-    <button class="sound-toggle" data-action="open-skin-picker" title="Theme" aria-label="Choose theme"><span aria-hidden="true">🎨</span></button>
-    <button class="sound-toggle ${audio.enabled ? 'on' : ''}" data-action="sound" title="Sound effects" aria-label="${audio.enabled ? 'Mute sound effects' : 'Unmute sound effects'}" aria-pressed="${audio.enabled ? 'true' : 'false'}">
-      <span aria-hidden="true">${audio.enabled ? '🔊' : '🔇'}</span>
-    </button>
-    <button class="avatar-slot" data-action="pick-avatar-open" title="Choose your pirate" aria-label="Choose your avatar">
+    <button class="avatar-slot" data-action="pick-avatar-open" title="Profile" aria-label="Open profile" aria-haspopup="dialog">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 32, klass: 'avatar-img' })}
     </button>
-    <div class="who">
-      <span class="name">${esc(u.displayName ?? '')}</span>
-      <span class="email">${esc(u.email ?? '')}</span>
-    </div>
-    <button class="btn-secondary" data-action="sign-out" style="padding: 6px 10px; font-size: 11px;">SIGN OUT</button>
     ${state.bellOpen ? renderBellDropdown(notifs) : ''}
   `;
 }
@@ -2696,7 +2727,7 @@ function renderHome() {
   const teams = state.myTeams;
   return `
     <section class="hero">
-      <h1>WELCOME ABOARD, ${esc(firstName(state.user?.displayName)).toUpperCase()}</h1>
+      <h1>Welcome aboard, ${esc(firstName(state.user?.displayName))}</h1>
       <p>Pick a crew to manage bounties, or raise your own colours.</p>
     </section>
     <section>
@@ -2733,7 +2764,7 @@ function renderHome() {
         <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.</p>
         <div class="row">
           <input id="new-team-name" type="text" placeholder="Crew name" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
-          <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Forming…' : 'Hoist'}</button>
+          <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Creating…' : 'Create crew'}</button>
         </div>
       </div>
       <div class="panel">
@@ -2741,7 +2772,7 @@ function renderHome() {
         <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
         <div class="row">
           <input id="join-team-id" type="text" placeholder="Crew ID or link" ${state.busy.joinTeam ? 'disabled' : ''} />
-          <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Boarding…' : 'Aye'}</button>
+          <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Joining…' : 'Join'}</button>
         </div>
       </div>
     </section>
@@ -2784,7 +2815,7 @@ function renderTeam() {
           ? `<img src="${esc(team.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 48px; height: 48px; box-shadow: 0 0 0 2px var(--wood-dark); image-rendering: pixelated;" />`
           : `<span style="width: 48px; height: 48px; display: inline-block;">${SVG.flag}</span>`}
         <div>
-          <h1>${esc(team.name).toUpperCase()}</h1>
+          <h1>${esc(team.name)}</h1>
           <small>${team.memberUids?.length || 0} crewmate${team.memberUids?.length === 1 ? '' : 's'} · ID: <code>${esc(team.id)}</code></small>
         </div>
       </div>
@@ -2895,7 +2926,7 @@ function renderBountyCard(b) {
   } else if (isCrew && status === 'open') {
     actionHtml = `<div class="bounty-action"><button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : `Claim days (${remainingCount} left)`}</button></div>`;
   } else if (status === 'open') {
-    actionHtml = `<div class="bounty-action"><button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Take voyage'}</button></div>`;
+    actionHtml = `<div class="bounty-action"><button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Cover'}</button></div>`;
   } else if (isCrew && coverers.length > 0) {
     actionHtml = `<div class="taken-by crew-coverers">
       <span class="taken-by-label">Crew</span>
@@ -3354,7 +3385,7 @@ function renderSettingsTab() {
     `;
   }
   if (state.crewSettingsLoading && !state.crewSettings) {
-    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Loading the captain's ledger&hellip;</div>`;
+    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Loading crew settings&hellip;</div>`;
   }
   const s = state.crewSettings || { hasGeminiKey: false, geminiKeyLast4: null, geminiKeySetAtMs: null };
   const inputId = 'gemini-key-' + Math.random().toString(36).slice(2, 8);
@@ -3567,9 +3598,9 @@ document.addEventListener('click', async (e) => {
     }
     renderUserInfo();
   } else if (action === 'sound') {
-    e.preventDefault();
+    // No preventDefault — the Profile sheet renders this as a checkbox and
+    // the click must keep its native toggle.
     audio.toggle();
-    renderUserInfo();
   } else if (action === 'refresh-wof') {
     e.preventDefault();
     refreshLeaderboard();
@@ -3667,7 +3698,7 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'adm-promote') {
     e.preventDefault();
     showModal({
-      title: 'PROMOTE TO CAPTAIN?',
+      title: 'Promote to manager?',
       body: `<p>This will give <strong>${esc(t.dataset.name)}</strong> manager rights — they'll be able to edit the crew, cancel bounties, grant bonuses, change roles.</p>`,
       primaryLabel: 'Promote to manager',
       secondaryLabel: 'Cancel',
@@ -3676,7 +3707,7 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'adm-demote') {
     e.preventDefault();
     showModal({
-      title: 'DEMOTE TO CREWMATE?',
+      title: 'Demote to member?',
       body: `<p>This will remove manager rights from <strong>${esc(t.dataset.name)}</strong>.</p>`,
       primaryLabel: 'Demote to crewmate',
       secondaryLabel: 'Cancel',
@@ -3685,7 +3716,7 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'adm-remove') {
     e.preventDefault();
     showModal({
-      title: 'REMOVE FROM CREW?',
+      title: 'Remove from crew?',
       body: `<p>This will boot <strong>${esc(t.dataset.name)}</strong> from the crew. They can be re-invited but their wallet for this crew is sealed.</p>`,
       primaryLabel: 'Remove from crew',
       secondaryLabel: 'Cancel',
@@ -3694,7 +3725,7 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'force-complete') {
     e.preventDefault();
     showModal({
-      title: 'FORCE COMPLETE BOUNTY?',
+      title: 'Force complete bounty?',
       body: `<p>This marks the bounty as completed immediately. Any unreleased doubloons for the covered days are paid out to the coverer(s) right now, then the harbour fee is burned. Use when the regular daily release can't finish on its own.</p>`,
       primaryLabel: 'Force complete',
       secondaryLabel: 'Cancel',
@@ -3717,7 +3748,7 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'clear-gemini') {
     e.preventDefault();
     showModal({
-      title: 'CLEAR GEMINI KEY?',
+      title: 'Clear Gemini key?',
       body: '<p>The crew will lose access to AI-powered features until you set a new key.</p>',
       primaryLabel: 'Clear log',
       secondaryLabel: 'Nevermind',

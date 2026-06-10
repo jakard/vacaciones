@@ -2,18 +2,17 @@
   "name": "vacaciones",
   "version": "0.0.1",
   "private": true,
-  "description": "Vacation coverage app for Google TAMs with virtual-currency economy",
+  "description": "Time Off — vacation coverage marketplace for Google TAMs with a doubloon economy",
   "workspaces": [
     "shared",
-    "functions",
-    "web"
+    "functions"
   ],
   "scripts": {
     "dev": "firebase emulators:start",
     "build:shared": "npm run build --workspace=shared",
     "build:functions": "npm run build --workspace=functions",
-    "build:web": "npm run build --workspace=web",
-    "build": "npm run build:shared && npm run build:functions && npm run build:web",
+    "build": "npm run build:shared && npm run build:functions",
+    "test": "npm test --workspace=functions",
     "deploy": "firebase deploy",
     "deploy:web": "firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",

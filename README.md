@@ -1,90 +1,73 @@
-# Vacaciones
+# Time Off
 
-Vacation coverage app for Google Technical Account Managers with a virtual-currency economy.
+A vacation-coverage **marketplace** for Google TAMs with a virtual
+doubloon economy. When you go OOO you post a *bounty*; crewmates claim
+your days (all of them, or a split in crew mode), the doubloons you
+escrowed release to them day by day, and the context — SLA,
+reachability, scope, meetings, an AI briefing — travels with the claim.
+Earned doubloons never expire; the monthly stipend does. Top coverers
+over a rolling 90 days get the Wall of Fame.
 
-When a TAM goes OOO, they post a coverage request and pay virtual coins to whichever colleague accepts to cover them. The coverer earns those coins, which they can later spend when they themselves want to go on vacation. The top earners in a rolling 90-day window get recognition.
+**Live:** https://vacaciones-dev-b3158.web.app
+*(internally codenamed "Vacaciones"; user-facing name is Time Off)*
 
-The app is single-domain (Google Workspace SSO restricted by domain), data lives in Firestore, and the briefing for each coverage request can auto-populate from Gmail / Calendar / Drive / Sheets via incremental OAuth consent.
+## Architecture (actual)
 
-## Architecture
-
-- **Frontend**: Angular 21+ with AngularFire, Angular Material, Tailwind (Vitest as test runner)
-- **Backend**: Cloud Functions for Firebase v2 (Node 22 + TypeScript)
-- **Database**: Firestore (region `nam5`)
-- **Auth**: Firebase Auth with Google provider, restricted by `hd=`
-- **Workspace integration**: `googleapis` + incremental OAuth, refresh tokens encrypted via Cloud KMS, accessed only from Functions
-- **Hosting**: Firebase Hosting (web) + Cloud Functions (backend)
-
-See `docs/` for the design history:
-
-- [`01-research-existing-solutions.md`](docs/01-research-existing-solutions.md) — competitive landscape & gap analysis
-- [`02-economy-design.md`](docs/02-economy-design.md) — coin economy (grant, stipend, pricing, anti-gaming, recognition)
-- [`03-handover-briefing.md`](docs/03-handover-briefing.md) — TAM briefing information model + Workspace auto-population
-- [`04-tech-plan-phase1.md`](docs/04-tech-plan-phase1.md) — technical plan and decisions
-
-## Repo layout
+The product is a **vanilla ES-module SPA** + **Firebase**. There is no
+frontend framework and no build step (yet — see the plan in
+[docs/17](docs/17-master-improvement-plan.md), which migrates this to
+Vite + TypeScript incrementally).
 
 ```
-.
-├── web/             # Angular app (Firebase Hosting)
-├── functions/       # Cloud Functions (Firebase)
-├── shared/          # Shared TypeScript types between web and functions
-├── docs/            # Design docs
-├── firebase.json    # Firebase project config
-├── firestore.rules  # Firestore Security Rules
-├── firestore.indexes.json
-└── package.json     # npm workspaces root
+app/                  ← the deployed frontend (Firebase Hosting)
+  index.html          ← 60 lines; loads Firebase SDK from gstatic CDN
+  app.js              ← single-file SPA: state, hash router, renderers
+  styles.css          ← design system + 4 skins via [data-skin=...]
+functions/src/
+  http/               ← 22 onCall callables (zod-validated, Admin SDK)
+  scheduled/          ← dailyCoverageRelease, monthlyStipendMint, dailyDigest
+  services/           ← wallet.ts (ledger engine), mail.ts (outbound email)
+  _shared/            ← build-time copy of shared/ (scripts/copy-shared.js)
+shared/               ← TS source of truth for economy constants + types
+firestore.rules       ← deny-by-default; money writes only via callables
+firebase.json         ← hosting rewrites /api/* → callables, headers, emulators
+docs/                 ← 17 design/audit/plan documents (read 16 + 17 first)
 ```
 
-## Local development
+- **Auth**: Firebase Auth, Google provider.
+- **Money**: append-only `ledgerEntries` with deterministic idempotency
+  keys; wallets are projections; all mutations inside Firestore
+  transactions (`functions/src/services/wallet.ts`).
+- **Email**: callables/schedulers queue docs into `mail/`; the Firebase
+  "Trigger Email" extension delivers them (see `functions/MAIL_SETUP.md`).
+- **AI briefing**: per-crew Gemini API key stored server-side
+  (`teams/{id}/private/settings`), called from `generateBriefing`.
+- **Skins**: pirate · basic · high-contrast · dark-knight (default
+  follows OS `prefers-color-scheme`).
 
-### Prerequisites
-
-- Node 22+
-- npm 11+
-- Firebase CLI (`npm i -g firebase-tools`)
-- A Firebase project (free Spark tier is enough for dev)
-- Java 11+ (required by Firestore emulator)
-
-### Setup
+## Develop
 
 ```bash
-# 1. Install dependencies for all workspaces
-npm install
-
-# 2. Build shared types (web and functions both import from here)
-npm run build:shared
-
-# 3. Configure Firebase project
-# Edit .firebaserc to point to your Firebase project IDs:
-#   - default: dev project
-#   - staging: staging project
-#   - production: production project
-firebase use default
-
-# 4. Run the emulators (Auth + Firestore + Functions + Hosting)
-npm run dev
+npm --prefix functions run build     # typecheck + compile functions
+npm --prefix functions test          # economy test suite (needs Java for emulator)
+firebase emulators:start             # needs Java (e.g. winget install Microsoft.OpenJDK.21)
+firebase deploy --only hosting       # frontend
+firebase deploy --only functions     # backend
 ```
 
-The emulator UI is at http://localhost:4000.
+There is currently **one** Firebase project (`vacaciones-dev-b3158`)
+serving as both dev and prod — splitting them is Sprint-1 work in
+[docs/17](docs/17-master-improvement-plan.md) §4.
 
-### Building & deploying
+## Where to read next
 
-```bash
-# Build everything
-npm run build
+- [docs/17 — Master improvement plan](docs/17-master-improvement-plan.md)
+  (competitive landscape, architecture decisions, roadmap)
+- [docs/16 — Product excellence synthesis](docs/16-product-excellence-synthesis.md)
+  (the 12-item launch gate)
+- [docs/02 — Economy design](docs/02-economy-design.md) (why the numbers
+  are what they are)
 
-# Deploy everything
-npm run deploy
-
-# Deploy individual pieces
-npm run deploy:web
-npm run deploy:functions
-npm run deploy:rules
-```
-
-## Status
-
-Phase 0 (research + design) complete as of 2026-05-28. Phase 1 scaffolding in progress.
-
-See [`docs/04-tech-plan-phase1.md`](docs/04-tech-plan-phase1.md) section "Primer milestone" for the next-up scope.
+Historical note: the repo originally scaffolded an Angular frontend
+(`web/`, removed 2026-06-10 — see git history). The vanilla `app/`
+shipped instead and is the only frontend.

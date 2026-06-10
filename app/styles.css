@@ -1213,53 +1213,10 @@ label {
   display: grid;
   gap: var(--sp-3);
 }
-.bounty {
-  display: grid;
-  grid-template-columns: 32px 1fr auto auto;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--parchment);
-  box-shadow:
-    0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
-}
-.bounty-flag { width: 32px; height: 32px; }
-.bounty-meta strong {
-  font-family: var(--font-body);
-  font-size: var(--fs-body-lg);
-  display: block;
-  color: var(--ink-pure);
-  line-height: 1.1;
-}
-.bounty-meta small {
-  font-family: var(--font-body);
-  font-size: var(--fs-meta);
-  color: var(--ink-faded);
-}
-.bounty-price {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-.bounty-price strong {
-  font-family: 'Silkscreen', monospace;
-  font-size: 24px;
-  color: var(--ink-pure);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.bounty-price small {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--ink-faded);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
+/* (A second `.bounty` definition used to live here — a leftover from the
+   pre-Mêlée-Night list-row layout. It silently overrode the canonical
+   grid-template-areas card above on desktop. Removed 2026-06-10 along
+   with its orphaned .bounty-flag/.bounty-meta/.bounty-price children.) */
 
 .own-tag {
   font-family: var(--font-display);
@@ -2307,6 +2264,97 @@ label {
 
 @media (max-width: 540px) {
   .avatar-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ============================================================
+   Profile sheet (identity + preferences + sign-out)
+   ============================================================ */
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--wood-dark);
+  margin-bottom: var(--sp-3);
+}
+.profile-head .avatar-img { width: 48px; height: 48px; flex-shrink: 0; }
+.profile-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.profile-id strong {
+  font-family: var(--font-body);
+  font-size: var(--fs-body-lg);
+  color: var(--ink-pure);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-id small {
+  font-size: var(--fs-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-rank { color: var(--ink-faded); }
+.profile-section {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--wood-dark);
+}
+.profile-section:last-child { border-bottom: 0; padding-bottom: 0; }
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+.profile-row > span { min-width: 0; flex: 1; }
+.profile-signout { display: flex; justify-content: flex-end; }
+
+[data-skin="dark-knight"] .profile-head,
+[data-skin="dark-knight"] .profile-section { border-color: var(--color-border); }
+[data-skin="basic"] .profile-head,
+[data-skin="basic"] .profile-section { border-color: var(--color-border); }
+[data-skin="hc"] .profile-head,
+[data-skin="hc"] .profile-section { border-color: #000; }
+
+/* ============================================================
+   Touch targets — launch-gate item 12: every interactive control
+   reaches 44×44 on coarse pointers / small screens.
+   ============================================================ */
+
+@media (max-width: 720px) {
+  .bell,
+  .sound-toggle,
+  .avatar-slot,
+  .kebab {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .react-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+  .filter-chip {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+  }
+  .tab { min-height: 44px; }
+  .btn-ghost { min-height: 44px; display: inline-flex; align-items: center; }
+  .day-card { min-height: 64px; }
+  .check-pixel { min-height: 44px; }
+  .mode-option { min-height: 44px; }
+  .profile-row input[type="checkbox"] { width: 24px; height: 24px; }
 }
 
 /* ============================================================
