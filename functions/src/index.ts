@@ -44,6 +44,8 @@ export { removeMember } from './http/removeMember';
 export { grantBonusDoubloons } from './http/grantBonusDoubloons';
 export { forceCompleteBounty } from './http/forceCompleteBounty';
 export { getAuditLog } from './http/getAuditLog';
+export { createInviteToken } from './http/inviteTokens';
+export { exportMyData, deleteMyAccount, disbandCrew } from './http/gdpr';
 export { dailyCoverageRelease } from './scheduled/dailyCoverageRelease';
 export { monthlyStipendMint } from './scheduled/monthlyStipendMint';
 export { dailyDigest } from './scheduled/dailyDigest';

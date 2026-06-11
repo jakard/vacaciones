@@ -29,6 +29,10 @@
       { "source": "/api/grantBonusDoubloons", "function": { "functionId": "grantBonusDoubloons", "region": "us-central1" } },
       { "source": "/api/forceCompleteBounty", "function": { "functionId": "forceCompleteBounty", "region": "us-central1" } },
       { "source": "/api/getAuditLog", "function": { "functionId": "getAuditLog", "region": "us-central1" } },
+      { "source": "/api/createInviteToken", "function": { "functionId": "createInviteToken", "region": "us-central1" } },
+      { "source": "/api/exportMyData", "function": { "functionId": "exportMyData", "region": "us-central1" } },
+      { "source": "/api/deleteMyAccount", "function": { "functionId": "deleteMyAccount", "region": "us-central1" } },
+      { "source": "/api/disbandCrew", "function": { "functionId": "disbandCrew", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [

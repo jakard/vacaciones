@@ -45,21 +45,28 @@ const ECONOMY = {
   DEFAULT_ANNUAL_PTO_DAYS: 25,
 };
 
+// `sprite` keys into SVG.icons — hand-drawn 16×16 pixel art replaces OS
+// emoji on structural UI (launch-gate item 10).
 const REACHABILITY_OPTIONS = [
-  { value: 'unreachable', short: 'Unreachable', label: 'Unreachable — true shore leave', icon: '🌴' },
-  { value: 'email-only-emergencies', short: 'Email', label: 'Email only, emergencies', icon: '📧' },
-  { value: 'phone-emergencies', short: 'Phone', label: 'Phone for P1 emergencies', icon: '📞' },
-  { value: 'daily-check-in', short: 'Daily check-in', label: 'Daily check-in', icon: '📅' },
+  { value: 'unreachable', short: 'Unreachable', label: 'Unreachable — true shore leave', sprite: 'unreachable' },
+  { value: 'email-only-emergencies', short: 'Email', label: 'Email only, emergencies', sprite: 'email-only' },
+  { value: 'phone-emergencies', short: 'Phone', label: 'Phone for P1 emergencies', sprite: 'phone' },
+  { value: 'daily-check-in', short: 'Daily check-in', label: 'Daily check-in', sprite: 'daily-check-in' },
 ];
 
 const COVERAGE_KIND_OPTIONS = [
-  { value: 'inbox', label: 'Inbox / email', icon: '📬' },
-  { value: 'meetings', label: 'Standing meetings', icon: '📅' },
-  { value: 'escalations', label: 'Open escalations', icon: '🔥' },
-  { value: 'one-on-ones', label: 'Customer 1:1s', icon: '🤝' },
-  { value: 'chat', label: 'Slack / Chat', icon: '💬' },
-  { value: 'on-call', label: 'On-call rotation', icon: '📟' },
+  { value: 'inbox', label: 'Inbox / email', sprite: 'inbox' },
+  { value: 'meetings', label: 'Standing meetings', sprite: 'meetings' },
+  { value: 'escalations', label: 'Open escalations', sprite: 'escalations' },
+  { value: 'one-on-ones', label: 'Customer 1:1s', sprite: 'one-on-ones' },
+  { value: 'chat', label: 'Slack / Chat', sprite: 'chat' },
+  { value: 'on-call', label: 'On-call rotation', sprite: 'on-call' },
 ];
+
+// Inline sprite renderer for the option arrays + ranks.
+function spriteIcon(id) {
+  return `<span class="icon-16">${SVG.icons[id] ?? ''}</span>`;
+}
 
 const LEDGER_TYPE_LABELS = {
   grant: 'Welcome chest',
@@ -101,14 +108,14 @@ const MASCOT_LINES = [
 
 // Voyage rank ladder, by lifetime earned doubloons
 const RANKS = [
-  { min: 0,    name: 'Cabin Boy',     icon: '🧒' },
-  { min: 10,   name: 'Deckhand',      icon: '⚓' },
-  { min: 25,   name: 'Mate',          icon: '🪢' },
-  { min: 50,   name: 'Bosun',         icon: '🎺' },
-  { min: 100,  name: 'Quartermaster', icon: '📜' },
-  { min: 200,  name: 'First Mate',    icon: '🪙' },
-  { min: 400,  name: 'Captain',       icon: '👑' },
-  { min: 800,  name: 'Commodore',     icon: '⚔️' },
+  { min: 0,    name: 'Cabin Boy',     sprite: 'cabin-boy' },
+  { min: 10,   name: 'Deckhand',      sprite: 'deckhand' },
+  { min: 25,   name: 'Mate',          sprite: 'mate' },
+  { min: 50,   name: 'Bosun',         sprite: 'bosun' },
+  { min: 100,  name: 'Quartermaster', sprite: 'quartermaster' },
+  { min: 200,  name: 'First Mate',    sprite: 'first-mate' },
+  { min: 400,  name: 'Captain',       sprite: 'captain' },
+  { min: 800,  name: 'Commodore',     sprite: 'commodore' },
 ];
 
 // Achievement definitions (tested against derived stats)
@@ -155,6 +162,10 @@ const callRemoveMember = httpsCallableFromURL(functions, callableURL('removeMemb
 const callGrantBonusDoubloons = httpsCallableFromURL(functions, callableURL('grantBonusDoubloons'));
 const callForceCompleteBounty = httpsCallableFromURL(functions, callableURL('forceCompleteBounty'));
 const callGetAuditLog = httpsCallableFromURL(functions, callableURL('getAuditLog'));
+const callCreateInviteToken = httpsCallableFromURL(functions, callableURL('createInviteToken'));
+const callExportMyData = httpsCallableFromURL(functions, callableURL('exportMyData'));
+const callDeleteMyAccount = httpsCallableFromURL(functions, callableURL('deleteMyAccount'));
+const callDisbandCrew = httpsCallableFromURL(functions, callableURL('disbandCrew'));
 
 /* ============================================================
    Sound module (Web Audio chiptune SFX)
@@ -280,6 +291,8 @@ const state = {
   crewMembers: [],
   crewMembersLoading: false,
   bountyFilterText: '',
+  // 'comfortable' | 'compact' — bounty board row density (gate item 7).
+  density: localStorage.getItem('vacaciones.density') || 'comfortable',
   briefingLoading: false,
   auditLog: [],
   auditLogLoading: false,
@@ -724,6 +737,35 @@ function computeNotifications() {
    ============================================================ */
 
 const SVG = {
+  // ----------------------------------------------------------------
+  // Hand-drawn 16×16 pixel sprites (launch-gate item 10). Same four-tone
+  // discipline as the doubloon: gold #FFCB47 / brass #E0A93B / deep
+  // #8C6418 / wood #5A3A1F / ink #1A0E08, with red/cyan/green accents.
+  // OS emoji stay only on celebratory copy, never structural UI.
+  // ----------------------------------------------------------------
+  icons: {
+    // — Ranks —
+    'cabin-boy': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="2" width="8" height="1" fill="#8C6418"/><rect x="3" y="3" width="1" height="2" fill="#8C6418"/><rect x="12" y="3" width="1" height="2" fill="#8C6418"/><rect x="4" y="5" width="8" height="8" fill="#5A3A1F"/><rect x="5" y="5" width="6" height="1" fill="#8C6418"/><rect x="5" y="6" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="8" width="8" height="1" fill="#8C6418"/><rect x="5" y="13" width="6" height="1" fill="#1A0E08"/></svg>`,
+    'deckhand': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="1" width="2" height="1" fill="#E0A93B"/><rect x="6" y="2" width="1" height="2" fill="#E0A93B"/><rect x="9" y="2" width="1" height="2" fill="#E0A93B"/><rect x="7" y="4" width="2" height="1" fill="#E0A93B"/><rect x="7" y="5" width="2" height="7" fill="#E0A93B"/><rect x="4" y="6" width="8" height="1" fill="#8C6418"/><rect x="3" y="10" width="1" height="2" fill="#E0A93B"/><rect x="12" y="10" width="1" height="2" fill="#E0A93B"/><rect x="4" y="12" width="3" height="1" fill="#E0A93B"/><rect x="9" y="12" width="3" height="1" fill="#E0A93B"/><rect x="6" y="13" width="4" height="1" fill="#8C6418"/></svg>`,
+    'mate': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3" width="4" height="1" fill="#E0A93B"/><rect x="3" y="4" width="1" height="4" fill="#E0A93B"/><rect x="8" y="4" width="1" height="4" fill="#E0A93B"/><rect x="4" y="8" width="4" height="1" fill="#E0A93B"/><rect x="8" y="7" width="4" height="1" fill="#FFCB47"/><rect x="7" y="8" width="1" height="4" fill="#FFCB47"/><rect x="12" y="8" width="1" height="4" fill="#FFCB47"/><rect x="8" y="12" width="4" height="1" fill="#FFCB47"/><rect x="8" y="8" width="1" height="1" fill="#E0A93B"/></svg>`,
+    'bosun': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="8" width="2" height="2" fill="#8C6418"/><rect x="4" y="7" width="6" height="1" fill="#FFD86B"/><rect x="4" y="8" width="6" height="2" fill="#E0A93B"/><rect x="10" y="6" width="2" height="6" fill="#E0A93B"/><rect x="12" y="5" width="2" height="8" fill="#FFCB47"/><rect x="14" y="4" width="1" height="10" fill="#FFD86B"/></svg>`,
+    'quartermaster': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="1" height="2" fill="#8C6418"/><rect x="3" y="2" width="10" height="2" fill="#5A3A1F"/><rect x="13" y="2" width="1" height="2" fill="#8C6418"/><rect x="4" y="4" width="8" height="8" fill="#F7E7C2"/><rect x="5" y="6" width="6" height="1" fill="#C4A86B"/><rect x="5" y="8" width="6" height="1" fill="#C4A86B"/><rect x="5" y="10" width="4" height="1" fill="#C4A86B"/><rect x="2" y="12" width="1" height="2" fill="#8C6418"/><rect x="3" y="12" width="10" height="2" fill="#5A3A1F"/><rect x="13" y="12" width="1" height="2" fill="#8C6418"/></svg>`,
+    'first-mate': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="5" width="8" height="2" fill="#FFD86B"/><rect x="5" y="5" width="3" height="1" fill="#F7E7C2"/><rect x="4" y="7" width="8" height="1" fill="#E0A93B"/><rect x="4" y="8" width="8" height="2" fill="#FFCB47"/><rect x="4" y="10" width="8" height="1" fill="#8C6418"/><rect x="4" y="11" width="8" height="2" fill="#E0A93B"/><rect x="4" y="13" width="8" height="1" fill="#8C6418"/></svg>`,
+    'captain': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="5" width="4" height="3" fill="#1A0E08"/><rect x="2" y="6" width="2" height="2" fill="#1A0E08"/><rect x="12" y="6" width="2" height="2" fill="#1A0E08"/><rect x="2" y="8" width="12" height="2" fill="#1A0E08"/><rect x="3" y="9" width="10" height="1" fill="#E0A93B"/><rect x="7" y="6" width="2" height="1" fill="#FFCB47"/></svg>`,
+    'commodore': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="2" height="2" fill="#F7E7C2"/><rect x="4" y="4" width="2" height="2" fill="#F7E7C2"/><rect x="6" y="6" width="2" height="2" fill="#F7E7C2"/><rect x="8" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="12" y="2" width="2" height="2" fill="#F7E7C2"/><rect x="10" y="4" width="2" height="2" fill="#F7E7C2"/><rect x="8" y="6" width="2" height="2" fill="#F7E7C2"/><rect x="6" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="4" y="10" width="3" height="1" fill="#FFCB47"/><rect x="5" y="9" width="1" height="3" fill="#FFCB47"/><rect x="9" y="10" width="3" height="1" fill="#FFCB47"/><rect x="10" y="9" width="1" height="3" fill="#FFCB47"/><rect x="3" y="11" width="2" height="2" fill="#5A3A1F"/><rect x="11" y="11" width="2" height="2" fill="#5A3A1F"/></svg>`,
+    // — Coverage kinds —
+    'inbox': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4" width="12" height="8" fill="#F7E7C2"/><rect x="2" y="4" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="11" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="4" width="1" height="8" fill="#5A3A1F"/><rect x="13" y="4" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="5" width="1" height="1" fill="#8C6418"/><rect x="4" y="6" width="1" height="1" fill="#8C6418"/><rect x="5" y="7" width="1" height="1" fill="#8C6418"/><rect x="6" y="8" width="2" height="1" fill="#8C6418"/><rect x="12" y="5" width="1" height="1" fill="#8C6418"/><rect x="11" y="6" width="1" height="1" fill="#8C6418"/><rect x="10" y="7" width="1" height="1" fill="#8C6418"/><rect x="8" y="8" width="2" height="1" fill="#8C6418"/></svg>`,
+    'meetings': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="8" width="1" height="1" fill="#8C6418"/><rect x="7" y="8" width="1" height="1" fill="#8C6418"/><rect x="9" y="8" width="1" height="1" fill="#8C6418"/><rect x="5" y="10" width="1" height="1" fill="#8C6418"/><rect x="7" y="10" width="1" height="1" fill="#8C6418"/><rect x="9" y="10" width="1" height="1" fill="#8C6418"/></svg>`,
+    'escalations': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="2" width="2" height="2" fill="#C8362D"/><rect x="6" y="4" width="4" height="2" fill="#C8362D"/><rect x="5" y="6" width="6" height="3" fill="#C8362D"/><rect x="4" y="9" width="8" height="4" fill="#C8362D"/><rect x="5" y="13" width="6" height="1" fill="#E25347"/><rect x="7" y="8" width="2" height="2" fill="#FFCB47"/><rect x="6" y="10" width="4" height="3" fill="#FFCB47"/><rect x="7" y="11" width="2" height="2" fill="#F7E7C2"/></svg>`,
+    'one-on-ones': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="4" width="4" height="4" fill="#E0A93B"/><rect x="2" y="9" width="6" height="4" fill="#8C6418"/><rect x="9" y="4" width="4" height="4" fill="#5BC9D1"/><rect x="8" y="9" width="6" height="4" fill="#1E5A6B"/></svg>`,
+    'chat': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="8" fill="#F7E7C2"/><rect x="2" y="3" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="3" width="1" height="8" fill="#5A3A1F"/><rect x="13" y="3" width="1" height="8" fill="#5A3A1F"/><rect x="2" y="10" width="12" height="1" fill="#5A3A1F"/><rect x="4" y="11" width="2" height="1" fill="#5A3A1F"/><rect x="4" y="12" width="1" height="1" fill="#5A3A1F"/><rect x="5" y="6" width="1" height="2" fill="#1A0E08"/><rect x="8" y="6" width="1" height="2" fill="#1A0E08"/><rect x="11" y="6" width="1" height="2" fill="#1A0E08"/></svg>`,
+    'on-call': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="2" width="2" height="1" fill="#8C6418"/><rect x="6" y="3" width="4" height="2" fill="#FFCB47"/><rect x="5" y="5" width="6" height="3" fill="#FFCB47"/><rect x="4" y="8" width="8" height="2" fill="#FFCB47"/><rect x="10" y="5" width="1" height="5" fill="#E0A93B"/><rect x="3" y="10" width="10" height="1" fill="#8C6418"/><rect x="7" y="11" width="2" height="2" fill="#1A0E08"/></svg>`,
+    // — Reachability —
+    'unreachable': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="12" width="10" height="2" fill="#E0A93B"/><rect x="4" y="11" width="8" height="1" fill="#FFD86B"/><rect x="8" y="6" width="1" height="6" fill="#8C6418"/><rect x="9" y="5" width="1" height="2" fill="#8C6418"/><rect x="7" y="3" width="2" height="1" fill="#4A8A38"/><rect x="5" y="4" width="3" height="1" fill="#4A8A38"/><rect x="4" y="5" width="2" height="1" fill="#3A6B2C"/><rect x="9" y="3" width="3" height="1" fill="#4A8A38"/><rect x="12" y="4" width="2" height="1" fill="#3A6B2C"/><rect x="10" y="5" width="2" height="1" fill="#4A8A38"/><rect x="8" y="5" width="1" height="1" fill="#5A3A1F"/></svg>`,
+    'email-only': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="5" width="10" height="7" fill="#F7E7C2"/><rect x="2" y="5" width="10" height="1" fill="#5A3A1F"/><rect x="2" y="11" width="10" height="1" fill="#5A3A1F"/><rect x="2" y="5" width="1" height="7" fill="#5A3A1F"/><rect x="11" y="5" width="1" height="7" fill="#5A3A1F"/><rect x="3" y="6" width="1" height="1" fill="#8C6418"/><rect x="4" y="7" width="1" height="1" fill="#8C6418"/><rect x="5" y="8" width="2" height="1" fill="#8C6418"/><rect x="10" y="6" width="1" height="1" fill="#8C6418"/><rect x="9" y="7" width="1" height="1" fill="#8C6418"/><rect x="7" y="8" width="2" height="1" fill="#8C6418"/><rect x="11" y="2" width="4" height="4" fill="#C8362D"/><rect x="11" y="2" width="4" height="1" fill="#E25347"/><rect x="12" y="3" width="1" height="2" fill="#F7E7C2"/></svg>`,
+    'phone': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="4" height="3" fill="#1A0E08"/><rect x="3" y="4" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="5" width="2" height="2" fill="#1A0E08"/><rect x="6" y="7" width="2" height="2" fill="#1A0E08"/><rect x="8" y="9" width="2" height="2" fill="#1A0E08"/><rect x="10" y="10" width="4" height="3" fill="#1A0E08"/><rect x="11" y="11" width="2" height="1" fill="#5BC9D1"/></svg>`,
+    'daily-check-in': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="9" width="1" height="2" fill="#3A6B2C"/><rect x="6" y="10" width="1" height="2" fill="#3A6B2C"/><rect x="7" y="9" width="1" height="2" fill="#4A8A38"/><rect x="8" y="8" width="1" height="2" fill="#4A8A38"/><rect x="9" y="7" width="1" height="2" fill="#4A8A38"/></svg>`,
+  },
   doubloon: `<svg viewBox="0 0 16 16" aria-hidden="true">
     <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
     <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
@@ -1081,17 +1123,19 @@ async function createTeam(name) {
   finally { state.busy.createTeam = false; render(); }
 }
 
-async function joinTeam(teamId) {
-  if (state.busy.joinTeam || !teamId) return;
+async function joinTeam(tokenOrLegacyId) {
+  if (state.busy.joinTeam || !tokenOrLegacyId) return;
   state.busy.joinTeam = true; render();
   try {
-    const result = await callJoinTeam({ teamId });
+    // The server resolves invite tokens (tk_…); legacy raw crew IDs get a
+    // clear "ask a manager for a fresh link" rejection.
+    const result = await callJoinTeam({ token: tokenOrLegacyId });
     if (result.data.alreadyMember) showToast('You’re already aboard that crew.', 'info');
     else { showToast('Signed aboard! 125 doubloons in your chest.', 'success'); audio.coin(); }
     const input = document.getElementById('join-team-id');
     if (input) input.value = '';
     navigate('team', result.data.teamId);
-  } catch (err) { showToast(err.message, 'error', 5000); }
+  } catch (err) { showToast(err.message, 'error', 6000); }
   finally { state.busy.joinTeam = false; render(); }
 }
 
@@ -1427,11 +1471,23 @@ async function addAllBountyMeetings(bountyId) {
 }
 
 async function copyInviteLink(teamId) {
-  const link = `${location.origin}/#/join/${encodeURIComponent(teamId)}`;
+  // Managers mint a fresh rotating token (14 days, 25 uses; revokes prior
+  // links). The crew doc-id is no longer a join credential.
+  if (state.myRole !== 'manager') {
+    showToast('Ask a crew manager to share an invite link.', 'info', 5000);
+    return;
+  }
+  showToast('Creating invite link…', 'info', 2000);
   try {
-    await navigator.clipboard.writeText(link);
-    showToast('Invite link copied. Hand it to a crewmate.', 'success');
-  } catch { showToast(`Invite link: ${link}`, 'info', 8000); }
+    const result = await callCreateInviteToken({ teamId });
+    const link = `${location.origin}/#/join/${encodeURIComponent(result.data.token)}`;
+    const expires = new Date(result.data.expiresAtMs);
+    const expiresLabel = expires.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast(`Invite link copied — valid until ${expiresLabel} or ${result.data.maxUses} joins. Sharing a new one revokes this link.`, 'success', 7000);
+    } catch { showToast(`Invite link: ${link}`, 'info', 10000); }
+  } catch (err) { showToast(err.message, 'error', 6000); }
 }
 
 async function sendScrollAction(teamId, toUid, message, bountyId) {
@@ -1491,7 +1547,7 @@ function showAvatarPicker() {
       <div class="profile-id">
         <strong>${esc(u.displayName ?? '')}</strong>
         <small class="muted">${esc(u.email ?? '')}</small>
-        ${rank && team ? `<small class="profile-rank"><span aria-hidden="true">${rank.icon}</span> ${esc(rank.name)} · ${stats.lifetimeEarned} doubloons earned lifetime</small>` : ''}
+        ${rank && team ? `<small class="profile-rank">${spriteIcon(rank.sprite)} ${esc(rank.name)} · ${stats.lifetimeEarned} doubloons earned lifetime</small>` : ''}
       </div>
       ${team && totalBalance !== null ? `
         <span class="coin-pill" title="Total doubloons in this crew">
@@ -1529,6 +1585,23 @@ function showAvatarPicker() {
       </label>
     </div>
 
+    <div class="profile-section">
+      <div class="profile-row">
+        <span>
+          <strong style="display: block;">Your data</strong>
+          <small class="muted">Download everything Time Off stores about you, as JSON.</small>
+        </span>
+        <button class="btn btn-secondary" data-action="export-data" type="button">Export my data</button>
+      </div>
+      <div class="profile-row">
+        <span>
+          <strong style="display: block;">Delete account</strong>
+          <small class="muted">Leaves all crews and erases your profile. Crew financial records keep an anonymous ID.</small>
+        </span>
+        <button class="btn btn-danger" data-action="delete-account" type="button">Delete…</button>
+      </div>
+    </div>
+
     <div class="profile-section profile-signout">
       <button class="btn btn-secondary" data-action="sign-out" type="button">Sign out</button>
     </div>
@@ -1538,6 +1611,84 @@ function showAvatarPicker() {
     body,
     wide: true,
     primaryLabel: 'Done',
+  });
+}
+
+async function exportMyDataAction() {
+  showToast('Preparing your export…', 'info', 3000);
+  try {
+    const result = await callExportMyData({});
+    const blob = new Blob([JSON.stringify(result.data.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `timeoff-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    showToast('Export downloaded.', 'success');
+  } catch (err) { showToast(err.message, 'error', 6000); }
+}
+
+function showDeleteAccountModal() {
+  const inputId = 'del-confirm-' + Math.random().toString(36).slice(2, 8);
+  showModal({
+    title: 'Delete your account?',
+    body: `
+      <p>This permanently removes you from every crew, erases your profile, and deletes your sign-in. It cannot be undone.</p>
+      <p class="muted" style="font-size: var(--fs-meta);">Blocked while you have open or active bounties, or while you are the last manager of a crew with other members.</p>
+      <label style="display:block; margin-top: 12px;">
+        <span style="display:block; margin-bottom: 4px;">Type <code>DELETE</code> to confirm</span>
+        <input id="${inputId}" type="text" autocomplete="off" placeholder="DELETE" />
+      </label>`,
+    primaryLabel: 'Delete my account',
+    secondaryLabel: 'Cancel',
+    onPrimary: () => {
+      const val = document.getElementById(inputId)?.value.trim();
+      if (val !== 'DELETE') {
+        showToast('Type DELETE (in capitals) to confirm.', 'error');
+        return false;
+      }
+      (async () => {
+        try {
+          await callDeleteMyAccount({ confirm: 'DELETE' });
+          showToast('Account deleted. Fair winds.', 'success', 4000);
+          closeAllModals();
+          await signOut(auth);
+        } catch (err) { showToast(err.message, 'error', 8000); }
+      })();
+    },
+  });
+}
+
+function showDisbandCrewModal(team) {
+  const inputId = 'disband-' + Math.random().toString(36).slice(2, 8);
+  showModal({
+    title: 'Disband this crew?',
+    body: `
+      <p>This permanently deletes <strong>${esc(team.name)}</strong> — every bounty record, wallet, ledger entry, scroll, and the audit log. It cannot be undone.</p>
+      <p class="muted" style="font-size: var(--fs-meta);">Blocked while open or active bounties exist. Consider exporting data first (Profile → Export my data).</p>
+      <label style="display:block; margin-top: 12px;">
+        <span style="display:block; margin-bottom: 4px;">Type the crew name to confirm</span>
+        <input id="${inputId}" type="text" autocomplete="off" placeholder="${esc(team.name)}" />
+      </label>`,
+    primaryLabel: 'Disband crew',
+    secondaryLabel: 'Cancel',
+    onPrimary: () => {
+      const val = document.getElementById(inputId)?.value ?? '';
+      if (val.trim() !== team.name.trim()) {
+        showToast('Crew name does not match.', 'error');
+        return false;
+      }
+      (async () => {
+        try {
+          await callDisbandCrew({ teamId: team.id, confirmName: val });
+          showToast('Crew disbanded.', 'success', 4000);
+          closeAllModals();
+          location.hash = '#/';
+        } catch (err) { showToast(err.message, 'error', 8000); }
+      })();
+    },
   });
 }
 
@@ -1666,7 +1817,7 @@ function showEditBountyModal(bountyId) {
     return `<label class="check-pixel">
       <input type="checkbox" name="r-${r.value}" value="${r.value}" ${checked ? 'checked' : ''}/>
       <span class="check-box"></span>
-      <span class="check-label">${r.icon} ${esc(r.short)}</span>
+      <span class="check-label">${spriteIcon(r.sprite)} ${esc(r.short)}</span>
     </label>`;
   }).join('');
   const kindChecks = COVERAGE_KIND_OPTIONS.map((k) => {
@@ -1674,7 +1825,7 @@ function showEditBountyModal(bountyId) {
     return `<label class="check-pixel">
       <input type="checkbox" name="k-${k.value}" value="${k.value}" ${checked ? 'checked' : ''}/>
       <span class="check-box"></span>
-      <span class="check-label">${k.icon} ${esc(k.label)}</span>
+      <span class="check-label">${spriteIcon(k.sprite)} ${esc(k.label)}</span>
     </label>`;
   }).join('');
   const body = `
@@ -2244,13 +2395,13 @@ function showBountyDetail(bountyId) {
     ${reaches.length > 0 ? `
       <div class="bd-section">
         <h4>Reachability</h4>
-        <div class="chips">${reaches.map((r) => `<span class="chip chip-cream">${r.icon} ${esc(r.label)}</span>`).join('')}</div>
+        <div class="chips">${reaches.map((r) => `<span class="chip chip-cream">${spriteIcon(r.sprite)} ${esc(r.label)}</span>`).join('')}</div>
       </div>` : ''}
 
     ${kinds.length > 0 ? `
       <div class="bd-section">
         <h4>What you'd be covering</h4>
-        <div class="chips">${kinds.map((k) => `<span class="chip chip-cyan">${k.icon} ${esc(k.label)}</span>`).join('')}</div>
+        <div class="chips">${kinds.map((k) => `<span class="chip chip-cyan">${spriteIcon(k.sprite)} ${esc(k.label)}</span>`).join('')}</div>
       </div>` : ''}
 
     ${b.emergencyDef ? `
@@ -2750,7 +2901,7 @@ function renderHome() {
                   <strong>${esc(t.name)}</strong>
                   <small>${(t.memberUids?.length || 0)} crewmate${(t.memberUids?.length === 1 ? '' : 's')}</small>
                 </div>
-                <code class="team-id-chip" title="Crew ID — share to invite">${esc(t.id)}</code>
+                <code class="team-id-chip" title="Crew ID (internal reference — invites use manager-shared links)">${esc(t.id)}</code>
                 <span class="arrow">▶</span>
               </a>
             </li>
@@ -2769,9 +2920,9 @@ function renderHome() {
       </div>
       <div class="panel">
         <div class="panel-title">Sign on with a crew</div>
-        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the crew ID (or invite link) a teammate shared.</p>
+        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the invite link a crew manager shared.</p>
         <div class="row">
-          <input id="join-team-id" type="text" placeholder="Crew ID or link" ${state.busy.joinTeam ? 'disabled' : ''} />
+          <input id="join-team-id" type="text" placeholder="Invite link" ${state.busy.joinTeam ? 'disabled' : ''} />
           <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Joining…' : 'Join'}</button>
         </div>
       </div>
@@ -2820,8 +2971,8 @@ function renderTeam() {
         </div>
       </div>
       <div class="invite-actions">
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">✏ MANAGE</button>` : ''}
-        <button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 SHARE INVITE</button>
+        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">✏ Manage</button>` : ''}
+        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 Share invite</button>` : ''}
       </div>
     </header>
     <nav class="tabs" aria-label="Crew navigation">
@@ -2879,8 +3030,9 @@ function renderBountyBoardTab() {
         ${renderFilter('mine', `Mine · ${counts.mine}`)}
       </div>
       <div class="search-row">
-        <input id="bounty-search" type="text" placeholder="🔍 Search requester, scope, SLA…" value="${esc(state.bountyFilterText)}" />
+        <input id="bounty-search" type="text" placeholder="Search requester, scope, SLA…" value="${esc(state.bountyFilterText)}" />
         ${state.bountyFilterText ? `<button class="btn-ghost" data-action="clear-search">Clear</button>` : ''}
+        <button class="btn-ghost density-toggle" data-action="toggle-density" title="${state.density === 'compact' ? 'Switch to comfortable rows' : 'Switch to compact rows'}" aria-pressed="${state.density === 'compact' ? 'true' : 'false'}" aria-label="${state.density === 'compact' ? 'Switch to comfortable rows' : 'Switch to compact rows'}">${state.density === 'compact' ? 'Comfortable' : 'Compact'}</button>
       </div>
       ${list.length === 0 ? `
         <div class="empty-card">
@@ -2889,7 +3041,7 @@ function renderBountyBoardTab() {
           <p class="muted">${filter === 'all' ? 'Post one yourself — your crewmates earn doubloons by covering you.' : 'Switch the filter above to see other bounties.'}</p>
           ${filter === 'all' ? `<p style="margin-top: 16px;"><a href="#/team/${esc(state.teamId)}/post">▶ Post a bounty</a></p>` : ''}
         </div>
-      ` : `<ul class="bounties">${list.map(renderBountyCard).join('')}</ul>`}
+      ` : `<ul class="bounties" data-density="${esc(state.density)}">${list.map(renderBountyCard).join('')}</ul>`}
     </section>
   `;
 }
@@ -2905,8 +3057,6 @@ function renderBountyCard(b) {
   const mine = b.requesterUid === state.user?.uid;
   const accepting = state.busy.acceptId === b.id;
   const days = Math.max(1, Math.round(((b.windowEnd?.toDate?.() ?? new Date()) - (b.windowStart?.toDate?.() ?? new Date())) / 86400000) + 1);
-  const reaches = arr(b.reachability).map((r) => REACHABILITY_OPTIONS.find((o) => o.value === r)).filter(Boolean);
-  const kinds = arr(b.coverageKinds).map((k) => COVERAGE_KIND_OPTIONS.find((o) => o.value === k)).filter(Boolean);
   const reqName = b.requesterDisplayName || (mine ? 'You' : 'A crewmate');
   const reqPhoto = b.requesterPhotoURL;
   const mode = b.coverageMode || 'single';
@@ -2922,57 +3072,47 @@ function renderBountyCard(b) {
 
   let actionHtml = '';
   if (mine) {
-    actionHtml = `<span class="own-tag bounty-action">Your bounty</span>`;
+    actionHtml = `<span class="own-tag">Your bounty</span>`;
   } else if (isCrew && status === 'open') {
-    actionHtml = `<div class="bounty-action"><button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : `Claim days (${remainingCount} left)`}</button></div>`;
+    actionHtml = `<button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : `Claim days (${remainingCount} left)`}</button>`;
   } else if (status === 'open') {
-    actionHtml = `<div class="bounty-action"><button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Cover'}</button></div>`;
-  } else if (isCrew && coverers.length > 0) {
-    actionHtml = `<div class="taken-by crew-coverers">
-      <span class="taken-by-label">Crew</span>
-      <div class="coverer-stack">${coverers.slice(0, 4).map((c) => c.photoURL ? `<img class="avatar-mini" src="${esc(c.photoURL)}" alt="" referrerpolicy="no-referrer" title="${esc(c.displayName ?? '')}"/>` : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;" title="${esc(c.displayName ?? '')}"></span>`).join('')}${coverers.length > 4 ? `<span class="more">+${coverers.length - 4}</span>` : ''}</div>
-    </div>`;
-  } else if (b.covererDisplayName || youCover) {
-    const covererName = b.covererDisplayName || 'You';
-    const covererPhoto = b.covererPhotoURL;
-    actionHtml = `<div class="taken-by">
-      <span class="taken-by-label">Covered by</span>
-      ${covererPhoto ? `<img class="avatar-mini" src="${esc(covererPhoto)}" alt="" referrerpolicy="no-referrer"/>` : ''}
-      <span>${esc(shortName(covererName))}</span>
-    </div>`;
-  } else {
-    actionHtml = `<div class="bounty-action"><span class="own-tag">${esc(statusLabel)}</span></div>`;
+    actionHtml = `<button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Cover'}</button>`;
   }
+  // Taken states need no action slot — the status badge (row 1) and the
+  // "covered by" note (row 2) carry it.
+
+  // Launch-gate item 7 — the card is three lines. Scope, SLA, chips and
+  // meetings live in the detail modal (click anywhere on the card).
+  // Line 2 carries who-covers when the bounty is taken.
+  const covererNote = (() => {
+    if (status === 'open') return '';
+    if (isCrew && coverers.length > 0) {
+      const names = coverers.slice(0, 2).map((c) => shortName(c.displayName ?? '')).join(', ');
+      return ` · covered by ${names}${coverers.length > 2 ? ` +${coverers.length - 2}` : ''}`;
+    }
+    if (b.covererDisplayName || youCover) {
+      return ` · covered by ${shortName(b.covererDisplayName || 'you')}`;
+    }
+    return '';
+  })();
 
   return `
-    <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" role="button" tabindex="0" aria-label="Bounty from ${esc(b.requesterDisplayName ?? 'crewmate')}, ${esc(statusLabel)}" style="cursor: pointer;">
-      <div class="bounty-status-area">
+    <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" role="button" tabindex="0" aria-label="Bounty from ${esc(b.requesterDisplayName ?? 'crewmate')}, ${esc(statusLabel)}, ${b.totalCoinsOffered ?? 0} doubloons" style="cursor: pointer;">
+      <div class="b-row1">
+        ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar-mini avatar-mini-blank"></span>`}
+        <strong class="b-name" title="${esc(b.requesterDisplayName ?? '')}">${esc(shortName(reqName))}</strong>
         <span class="status-badge status-${status}">${esc(statusLabel)}</span>
-        ${isCrew ? `<span class="mode-pill" title="${claimedCount}/${allDays.length} days claimed">🏴‍☠️ CREW · ${claimedCount}/${allDays.length}</span>` : ''}
-        ${youHaveDays && isCrew ? `<span class="mine-pill">YOU</span>` : ''}
+        ${isCrew ? `<span class="mode-pill" title="${claimedCount}/${allDays.length} days claimed">Crew ${claimedCount}/${allDays.length}</span>` : ''}
+        ${(youHaveDays || youCover) ? `<span class="mine-pill">You</span>` : ''}
       </div>
-      <div class="bounty-requester" title="${esc(b.requesterDisplayName ?? '')}">
-        ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;"></span>`}
-        <span class="requester-chip"><span class="who-name">${esc(shortName(reqName))}</span></span>
+      <div class="b-row2">
+        ${esc(formatDate(b.windowStart?.toDate()))} – ${esc(formatDate(b.windowEnd?.toDate()))}
+        · ${days} day${days === 1 ? '' : 's'}${b.timezone ? ` · ${esc(b.timezone)}` : ''}${esc(covererNote)}
       </div>
-      <div class="bounty-window">
-        <strong>${esc(formatDate(b.windowStart?.toDate()))} → ${esc(formatDate(b.windowEnd?.toDate()))}</strong>
-        <small>${days} day${days === 1 ? '' : 's'} · ${esc(b.timezone || '')}</small>
+      <div class="b-row3">
+        <span class="b-price">${SVG.doubloon}<strong>${b.totalCoinsOffered ?? 0}</strong></span>
+        ${actionHtml}
       </div>
-      <div class="bounty-doubloons">
-        <strong>${SVG.doubloon}${b.totalCoinsOffered ?? 0}</strong>
-        <small>doubloons</small>
-      </div>
-      ${b.coverageScope ? `<div class="bounty-scope"><strong>Scope:</strong>${esc(b.coverageScope)}</div>` : ''}
-      ${(reaches.length > 0 || kinds.length > 0) ? `
-        <div class="bounty-chips">
-          <div class="chips">
-            ${reaches.map((r) => `<span class="chip chip-cream" title="${esc(r.label)}">${r.icon} ${esc(r.short)}</span>`).join('')}
-            ${kinds.map((k) => `<span class="chip chip-cyan" title="${esc(k.label)}">${k.icon} ${esc(k.label)}</span>`).join('')}
-          </div>
-        </div>` : ''}
-      ${b.sla ? `<div class="bounty-sla"><strong>SLA:</strong> ${esc(b.sla)}</div>` : ''}
-      ${actionHtml}
     </li>
   `;
 }
@@ -2985,7 +3125,7 @@ function renderChestTab() {
   const achievements = computeAchievements(stats);
   return `
     <div class="rank-hero">
-      <div class="rank-emblem">${rank.icon}</div>
+      <div class="rank-emblem">${SVG.icons[rank.sprite] ?? ''}</div>
       <div class="rank-info">
         <div class="rank-name">${esc(rank.name)}</div>
         <div class="rank-progress">
@@ -3186,7 +3326,7 @@ function renderPostTab() {
                 <label class="check-pixel">
                   <input type="checkbox" name="coverageKinds" value="${esc(k.value)}" ${f.coverageKinds.includes(k.value) ? 'checked' : ''}/>
                   <span class="check-box"></span>
-                  <span class="check-label">${k.icon} ${esc(k.label)}</span>
+                  <span class="check-label">${spriteIcon(k.sprite)} ${esc(k.label)}</span>
                 </label>
               `).join('')}
             </div>
@@ -3198,7 +3338,7 @@ function renderPostTab() {
                 <label class="check-pixel">
                   <input type="checkbox" name="reachability" value="${esc(r.value)}" ${f.reachability.includes(r.value) ? 'checked' : ''}/>
                   <span class="check-box"></span>
-                  <span class="check-label">${r.icon} ${esc(r.label)}</span>
+                  <span class="check-label">${spriteIcon(r.sprite)} ${esc(r.label)}</span>
                 </label>
               `).join('')}
             </div>
@@ -3358,7 +3498,7 @@ function renderMembersTab() {
               ${avatarHtml}
               <div class="member-main">
                 <strong>${esc(m.displayName)}${isMe ? ' (you)' : ''}</strong>
-                <small>${rank.icon} ${esc(rank.name)} · ${m.voyages} voyage${m.voyages === 1 ? '' : 's'}</small>
+                <small>${spriteIcon(rank.sprite)} ${esc(rank.name)} · ${m.voyages} voyage${m.voyages === 1 ? '' : 's'}</small>
               </div>
               ${m.role === 'manager' ? `<span class="role-badge manager">CAPTAIN</span>` : `<span class="role-badge member">CREW</span>`}
               <div class="member-stats">
@@ -3477,6 +3617,8 @@ function renderSettingsTab() {
               forceCompleteBounty: a.details?.coinsReleased
                 ? `force-completed a bounty (released ${a.details.coinsReleased} doubloons over ${a.details.daysReleased} day${a.details.daysReleased === 1 ? '' : 's'})`
                 : 'force-completed a bounty',
+              createInviteToken: 'created a fresh invite link',
+              memberLeftViaAccountDeletion: 'left the crew (account deletion)',
             })[a.action] || a.action;
             const reason = a.details?.reason ? ` · "${esc(a.details.reason)}"` : '';
             return `
@@ -3491,6 +3633,20 @@ function renderSettingsTab() {
           }).join('')}
         </ul>
       `}
+    </div>
+
+    <div class="panel danger-zone" style="margin-top: var(--sp-4);">
+      <div class="panel-title">Danger zone</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <strong>Disband crew</strong>
+          <p class="muted" style="margin: 4px 0 0; font-size: var(--fs-meta);">
+            Permanently deletes this crew and everything in it — bounties, wallets,
+            ledger, scrolls, audit log. Blocked while bounties are open or active.
+          </p>
+        </div>
+        <button class="btn btn-danger" data-action="disband-crew">Disband…</button>
+      </div>
     </div>
   `;
 }
@@ -3679,6 +3835,21 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     state.bountyFilterText = '';
     render();
+  } else if (action === 'toggle-density') {
+    e.preventDefault();
+    state.density = state.density === 'compact' ? 'comfortable' : 'compact';
+    localStorage.setItem('vacaciones.density', state.density);
+    render();
+  } else if (action === 'export-data') {
+    e.preventDefault();
+    exportMyDataAction();
+  } else if (action === 'delete-account') {
+    e.preventDefault();
+    showDeleteAccountModal();
+  } else if (action === 'disband-crew') {
+    e.preventDefault();
+    const team = state.myTeams.find((t) => t.id === state.teamId);
+    if (team) showDisbandCrewModal(team);
   } else if (action === 'refresh-members') {
     e.preventDefault();
     refreshCrewMembers();

@@ -47,6 +47,16 @@
   --btn-radius: 0;
   --shadow-style: pixel;
 
+  /* Elevation — launch-gate item 9. Four depth tiers replace the old
+     universal 4-layer bevel stack. Surfaces compose them with a ring:
+     box-shadow: 0 0 0 2px var(--wood-dark), var(--elev-N);
+     elev-1 list rows + cards · elev-2 hover/raised · elev-3 dropdowns
+     · elev-4 modals. Buttons keep their tactile bevel (affordance). */
+  --elev-1: 0 2px 6px rgba(6, 8, 15, 0.35);
+  --elev-2: 0 6px 16px rgba(6, 8, 15, 0.4);
+  --elev-3: 0 10px 28px rgba(6, 8, 15, 0.45);
+  --elev-4: 0 20px 56px rgba(6, 8, 15, 0.6);
+
   /* Spacing — 8px grid */
   --sp-1: 4px;
   --sp-2: 8px;
@@ -236,9 +246,7 @@ h3 {
   position: relative;
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    6px 6px 0 0 var(--shadow-deep);
+    var(--elev-1);
 }
 
 .panel + .panel { margin-top: var(--sp-5); }
@@ -631,26 +639,21 @@ label {
   color: var(--ink-pure);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
 }
 .team-card:hover {
   text-decoration: none;
   background: var(--parchment-bright);
-  transform: translate(-2px, -2px);
+  transform: translateY(-1px);
   box-shadow:
     0 0 0 2px var(--brass),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    6px 6px 0 0 var(--shadow-deep);
+    var(--elev-2);
 }
 .team-card:active {
-  transform: translate(2px, 2px);
+  transform: translateY(0);
   box-shadow:
     0 0 0 2px var(--brass),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim);
+    var(--elev-1);
 }
 
 .team-flag {
@@ -704,22 +707,16 @@ label {
    Empty state card
    ============================================================ */
 
+/* Gate item 9: the dashed pirate-stitching border is gone — empty states
+   sit on the same quiet elevation as every other card. */
 .empty-card {
   padding: var(--sp-5);
   background: var(--parchment);
   color: var(--ink-pure);
   text-align: center;
   box-shadow:
-    0 0 0 2px var(--wood-dark) inset,
-    4px 4px 0 0 var(--shadow-deep);
-  border-image:
-    repeating-linear-gradient(
-      45deg,
-      var(--wood-dark) 0 8px,
-      transparent 8px 16px
-    ) 4;
-  border-width: 4px;
-  border-style: solid;
+    0 0 0 2px var(--wood-dark),
+    var(--elev-1);
 }
 .empty-card p { margin: var(--sp-1) 0; }
 .empty-mascot {
@@ -916,132 +913,124 @@ label {
    New rich bounty card
    ============================================================ */
 
+/* Launch-gate item 7 — the bounty card is three lines:
+   row 1  avatar · requester · status (+ crew/you pills)
+   row 2  dates · day count · timezone · covered-by
+   row 3  price · CTA
+   Scope, SLA, chips, meetings live in the detail modal. */
 .bounty {
-  display: grid;
-  grid-template-areas:
-    "status status doubloons"
-    "requester window doubloons"
-    "scope scope scope"
-    "chips chips chips"
-    "sla sla action";
-  grid-template-columns: auto 1fr auto;
-  gap: var(--sp-2) var(--sp-3);
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding: var(--sp-3) var(--sp-4);
   background: var(--parchment);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
   position: relative;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+.bounty:hover {
+  box-shadow:
+    0 0 0 2px var(--brass-deep),
+    var(--elev-2);
 }
 .bounty-open { background: var(--parchment); }
 .bounty-taken,
-.bounty-active { background: #E8E0D0; box-shadow: 0 0 0 2px var(--wood-dark), inset 2px 2px 0 #F0E8D8, inset -2px -2px 0 #B8A878, 4px 4px 0 0 var(--shadow-deep); }
-.bounty-done { background: #D8D0C0; opacity: 0.75; box-shadow: 0 0 0 2px var(--wood-dark), 3px 3px 0 0 var(--shadow-deep); }
+.bounty-active { background: #E8E0D0; }
+.bounty-done { background: #D8D0C0; opacity: 0.8; }
 
-.bounty-status-area { grid-area: status; display: flex; gap: 6px; align-items: center; }
-.bounty-requester {
-  grid-area: requester;
+.b-row1 {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  min-width: 0;
 }
-.bounty-window {
-  grid-area: window;
+.b-name {
   font-family: var(--font-body);
   font-size: var(--fs-body);
+  font-weight: 600;
   color: var(--ink-pure);
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
-.bounty-window strong {
+.b-row2 {
   font-family: var(--font-body);
-  font-size: var(--fs-body-lg);
-  font-weight: 400;
+  font-size: var(--fs-meta);
+  color: var(--ink-faded);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.bounty-window small { color: var(--ink-faded); font-size: 14px; }
-.bounty-doubloons {
-  grid-area: doubloons;
+.b-row3 {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-family: 'Silkscreen', monospace;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
 }
-.bounty-doubloons strong {
-  font-size: 26px;
-  color: var(--ink-pure);
+.b-price {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-}
-.bounty-doubloons small {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--ink-faded);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.bounty-scope {
-  grid-area: scope;
-  font-family: var(--font-body);
-  font-size: var(--fs-meta);
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 20px;
   color: var(--ink-pure);
-  padding: 4px var(--sp-2);
-  background: var(--parchment-bright);
-  border-left: 3px solid var(--brass);
 }
-.bounty-scope strong { color: var(--ink-faded); margin-right: 4px; }
-.bounty-chips { grid-area: chips; }
-.bounty-sla {
-  grid-area: sla;
-  font-family: var(--font-body);
-  font-size: var(--fs-meta);
-  color: var(--ink-faded);
-}
-.bounty-action { grid-area: action; justify-self: end; }
+.b-price svg { width: 18px; height: 18px; }
+.avatar-mini-blank { background: var(--parchment-dim); display: inline-block; }
 
-@media (max-width: 720px) {
-  .bounty {
-    grid-template-areas:
-      "status doubloons"
-      "requester doubloons"
-      "window window"
-      "scope scope"
-      "chips chips"
-      "sla sla"
-      "action action";
-    grid-template-columns: 1fr auto;
-  }
-  .bounty-doubloons { align-items: flex-end; }
-  .bounty-action { justify-self: stretch; }
-  .bounty-action .btn { width: 100%; }
-}
-
-/* ============================================================
-   Coverer chip on taken bounties
-   ============================================================ */
-
-.taken-by {
-  grid-area: action;
-  display: flex;
+/* Compact density — one row, table-like, ~22 per fold. */
+.bounties[data-density="compact"] .bounty {
+  display: grid;
+  grid-template-columns: 20px minmax(80px, 1fr) minmax(0, 2fr) auto auto;
+  grid-template-areas: "avatar name meta price action";
   align-items: center;
   gap: var(--sp-2);
-  font-family: var(--font-body);
-  font-size: var(--fs-meta);
-  color: var(--ink-pure);
-  padding: 4px var(--sp-2);
-  background: var(--moonbeam);
-  border: 1px solid var(--wood-dark);
+  padding: 6px var(--sp-3);
 }
-.taken-by-label {
-  font-family: var(--font-display);
-  font-size: 11px;
-  color: var(--ink-pure);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.bounties[data-density="compact"] .b-row1 { display: contents; }
+.bounties[data-density="compact"] .b-row1 .avatar-mini,
+.bounties[data-density="compact"] .b-row1 .avatar-mini-blank { grid-area: avatar; }
+.bounties[data-density="compact"] .b-name { grid-area: name; }
+.bounties[data-density="compact"] .b-row1 .status-badge,
+.bounties[data-density="compact"] .b-row1 .mode-pill,
+.bounties[data-density="compact"] .b-row1 .mine-pill { display: none; }
+.bounties[data-density="compact"] .b-row2 { grid-area: meta; }
+.bounties[data-density="compact"] .b-row3 { display: contents; }
+.bounties[data-density="compact"] .b-price { grid-area: price; font-size: 16px; }
+.bounties[data-density="compact"] .b-row3 .btn,
+.bounties[data-density="compact"] .b-row3 .own-tag { grid-area: action; }
+.bounties[data-density="compact"] .b-row3 .btn { padding: 6px 12px; font-size: 13px; }
+@media (max-width: 720px) {
+  /* Compact mode collapses to comfortable on phones — a 5-column grid
+     row has no room at 380px. */
+  .bounties[data-density="compact"] .bounty {
+    display: flex;
+    flex-direction: column;
+    padding: var(--sp-3);
+  }
+  .bounties[data-density="compact"] .b-row1,
+  .bounties[data-density="compact"] .b-row3 { display: flex; }
+  .bounties[data-density="compact"] .b-row1 .status-badge,
+  .bounties[data-density="compact"] .b-row1 .mode-pill,
+  .bounties[data-density="compact"] .b-row1 .mine-pill { display: inline-block; }
+}
+
+/* 16×16 sprite icons (gate item 10) */
+.icon-16 {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+.icon-16 svg, svg.px {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  shape-rendering: crispEdges;
 }
 
 /* ============================================================
@@ -1236,9 +1225,7 @@ label {
   color: var(--ink-pure);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    6px 6px 0 0 var(--shadow-deep);
+    var(--elev-1);
 }
 
 .form-grid {
@@ -1326,9 +1313,7 @@ label {
   gap: var(--sp-2);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 1px 1px 0 var(--parchment-bright),
-    inset -1px -1px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-3);
   animation: toast-in 240ms steps(4);
 }
 @keyframes toast-in {
@@ -1400,9 +1385,7 @@ label {
   position: relative;
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 rgba(255,255,255,0.15),
-    inset -2px -2px 0 rgba(0,0,0,0.4),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
   display: grid;
   grid-template-columns: auto 1fr;
   gap: var(--sp-4);
@@ -1421,6 +1404,13 @@ label {
     inset 2px 2px 0 var(--brass-bright),
     inset -2px -2px 0 var(--brass-deep),
     0 0 0 2px var(--ink-pure);
+}
+/* Rank sprites fill ~70% of the emblem frame, pixel-crisp. */
+.rank-emblem svg {
+  width: 72%;
+  height: 72%;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
 }
 .rank-info { display: flex; flex-direction: column; gap: 6px; }
 .rank-name {
@@ -1515,9 +1505,7 @@ label {
   background: var(--parchment);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
   text-align: center;
   gap: 4px;
 }
@@ -1670,9 +1658,7 @@ label {
   color: var(--ink-pure);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
   z-index: 50;
 }
 .bell-dropdown .dropdown-title {
@@ -2016,9 +2002,7 @@ label {
   color: var(--ink-pure);
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
 }
 .member-card.me { background: var(--moonbeam); }
 .member-main { display: flex; flex-direction: column; }
@@ -2458,9 +2442,7 @@ label {
   position: relative;
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    4px 4px 0 0 var(--shadow-deep);
+    var(--elev-1);
 }
 .scroll::before {
   content: '🪶';
@@ -2608,9 +2590,7 @@ label {
   padding: 0;
   box-shadow:
     0 0 0 2px var(--wood-dark),
-    inset 2px 2px 0 var(--parchment-bright),
-    inset -2px -2px 0 var(--parchment-dim),
-    8px 8px 0 0 var(--shadow-deep);
+    var(--elev-4);
 }
 .modal-title {
   background: var(--wood-dark);
