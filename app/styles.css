@@ -4122,6 +4122,199 @@ label {
 [data-skin="dark-knight"] ::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
 
 /* ============================================================
+   Rank-up cinematic — Atari-era full-screen celebration.
+   Deliberately steps()-animated end to end (diegetic retro motion
+   per docs/16 conflict-1 resolution). Identical across skins: the
+   ceremony is its own world.
+   ============================================================ */
+
+.cine {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: #06080F;
+  overflow: hidden;
+  cursor: pointer;
+  animation: cine-in 240ms steps(4);
+  font-family: var(--font-mono);
+}
+.cine-out { opacity: 0; transition: opacity 280ms steps(4); }
+@keyframes cine-in { from { opacity: 0; } to { opacity: 1; } }
+
+.cine-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.32) 0 2px,
+    transparent 2px 4px
+  );
+  mix-blend-mode: multiply;
+}
+
+.cine-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #F7E7C2;
+  animation: cine-blink 1.4s steps(2) infinite;
+}
+@keyframes cine-blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+
+.cine-sun {
+  position: absolute;
+  left: 50%;
+  bottom: 26%;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  background: #FFCB47;
+  box-shadow: 0 0 0 8px rgba(255, 203, 71, 0.25), 0 0 0 20px rgba(255, 203, 71, 0.12);
+  animation: cine-sunrise 1.6s steps(8) both;
+}
+@keyframes cine-sunrise {
+  from { transform: translateY(110px); }
+  to { transform: translateY(0); }
+}
+.cine-gold .cine-sun { background: #FFD86B; }
+
+.cine-sea {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 30%;
+  background: #1E2D4A;
+  border-top: 3px solid #5BC9D1;
+}
+.cine-wave {
+  position: absolute;
+  top: 8px; left: 0; right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #A6C2E8 0 14px, transparent 14px 38px);
+  opacity: 0.5;
+  animation: cine-wave 1.2s steps(6) infinite;
+}
+@keyframes cine-wave { from { transform: translateX(0); } to { transform: translateX(38px); } }
+
+.cine-ship {
+  position: absolute;
+  bottom: calc(30% - 14px);
+  left: -80px;
+  width: 64px;
+  height: 64px;
+  animation: cine-sail 3.2s steps(16) both;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.5));
+}
+.cine-ship svg { width: 100%; height: 100%; image-rendering: pixelated; }
+@keyframes cine-sail {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(100vw + 160px)); }
+}
+
+.cine-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 0 16px;
+}
+.cine-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  animation: cine-burst-in 700ms steps(5) 900ms both;
+}
+.cine-ray {
+  position: absolute;
+  left: -2px;
+  top: -90px;
+  width: 4px;
+  height: 64px;
+  background: linear-gradient(180deg, transparent, #FFCB47);
+  transform-origin: 2px 90px;
+}
+@keyframes cine-burst-in {
+  from { opacity: 0; scale: 0.2; }
+  to { opacity: 0.8; scale: 1; }
+}
+.cine-gold .cine-ray { background: linear-gradient(180deg, transparent, #FFD86B); height: 88px; }
+
+.cine-emblem {
+  width: 112px;
+  height: 112px;
+  background: var(--brass, #E0A93B);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 3px 3px 0 #FFD86B,
+    inset -3px -3px 0 #8C6418,
+    0 0 0 3px #1A0E08,
+    0 12px 0 rgba(0, 0, 0, 0.45);
+  animation: cine-emblem-in 900ms steps(6) 500ms both;
+  position: relative;
+  z-index: 2;
+}
+.cine-emblem svg {
+  width: 72%;
+  height: 72%;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+}
+@keyframes cine-emblem-in {
+  from { transform: scale(0.1) translateY(60px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+.cine-gold .cine-emblem { background: #FFD86B; }
+
+.cine-title {
+  font-size: 18px;
+  letter-spacing: 8px;
+  color: #5BC9D1;
+  animation: cine-text-in 400ms steps(4) 1300ms both;
+  z-index: 2;
+}
+.cine-rank {
+  font-size: clamp(26px, 6vw, 54px);
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #FFCB47;
+  text-shadow: 3px 3px 0 #1A0E08, 6px 6px 0 rgba(0, 0, 0, 0.4);
+  animation: cine-text-in 500ms steps(4) 1650ms both;
+  z-index: 2;
+}
+.cine-flavor {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #F7E7C2;
+  animation: cine-text-in 500ms steps(4) 2100ms both;
+  z-index: 2;
+}
+@keyframes cine-text-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cine-skip {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #A6C2E8;
+  opacity: 0.7;
+  animation: cine-blink 1.6s steps(2) 2.4s infinite;
+}
+
+/* ============================================================
    Skin picker modal
    ============================================================ */
 

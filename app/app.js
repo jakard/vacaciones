@@ -22,6 +22,7 @@ import {
   getFunctions,
   httpsCallableFromURL,
 } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-functions.js';
+import { ES as TRANSLATIONS_ES } from './i18n-es.js';
 
 /* ============================================================
    Config
@@ -79,13 +80,15 @@ const LEDGER_TYPE_LABELS = {
   managerAdvance: 'Captain’s advance',
 };
 
+// Sentence case — the pirate skin uppercases badges via CSS; modern skins
+// show these as written. Translate with t() at render time.
 const STATUS_LABEL = {
-  open: 'OPEN',
-  accepted: 'TAKEN',
-  active: 'ACTIVE',
-  completed: 'COMPLETED',
-  cancelled: 'CANCELLED',
-  draft: 'DRAFT',
+  open: 'Open',
+  accepted: 'Taken',
+  active: 'Active',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  draft: 'Draft',
 };
 const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 4, cancelled: 5 };
 
@@ -178,6 +181,54 @@ const SKIN_OPTIONS = [
   { id: 'dark-knight', label: 'Dark Knight', desc: 'Warm dark theme with amber accents and Geist + Geist Mono fonts. Ultra legible.' },
 ];
 
+/* ============================================================
+   i18n — gettext-style. The key IS the polished English string;
+   other languages map EN → translation in TRANSLATIONS below
+   (defined at the end of this file — it's long). `t()` falls back
+   to the key, so untranslated strings degrade to English, never
+   to a blank. Params interpolate as {name}.
+   ============================================================ */
+
+const LANG_OPTIONS = [
+  { id: 'auto', label: 'Auto (browser)' },
+  { id: 'en', label: 'English' },
+  { id: 'es', label: 'Español' },
+];
+
+const lang = {
+  current() {
+    const stored = localStorage.getItem('vacaciones.lang');
+    if (stored && stored !== 'auto') return stored;
+    const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return nav === 'es' ? 'es' : 'en';
+  },
+  stored() { return localStorage.getItem('vacaciones.lang') || 'auto'; },
+  set(id) {
+    if (!LANG_OPTIONS.some((o) => o.id === id)) return;
+    localStorage.setItem('vacaciones.lang', id);
+    document.documentElement.lang = this.current();
+  },
+  locale() { return this.current() === 'es' ? 'es' : 'en-US'; },
+};
+document.documentElement.lang = lang.current();
+
+function t(text, params) {
+  const l = lang.current();
+  let s = text;
+  if (l !== 'en') s = TRANSLATIONS[l]?.[text] || text;
+  if (params) {
+    for (const k of Object.keys(params)) s = s.split(`{${k}}`).join(String(params[k]));
+  }
+  return s;
+}
+
+// Alias for scopes where `t` is shadowed (the global click handler binds
+// `t` to the closest [data-action] element).
+const tr = t;
+
+// Dictionaries live in their own modules (one per language).
+const TRANSLATIONS = { es: TRANSLATIONS_ES };
+
 const skin = {
   current() {
     const stored = localStorage.getItem('vacaciones.skin');
@@ -240,6 +291,18 @@ const audio = {
   coin() { this.tone(880, 0.05, 'square', 0.07); setTimeout(() => this.tone(1320, 0.10, 'square', 0.06), 45); },
   toast() { this.tone(660, 0.06, 'triangle', 0.04, 990); },
   rank() { this.tone(440, 0.1, 'triangle', 0.06); setTimeout(() => this.tone(660, 0.12, 'triangle', 0.06), 90); setTimeout(() => this.tone(880, 0.20, 'triangle', 0.06), 200); },
+  // Promotion fanfare for the rank-up cinematic — 8-bit I–IV–V arpeggio
+  // capped with a sparkle. ~0.9s total.
+  fanfare() {
+    const seq = [
+      [392, 0, 0.12], [523, 90, 0.12], [659, 180, 0.12], [784, 270, 0.30],
+      [659, 520, 0.10], [784, 620, 0.42],
+    ];
+    for (const [freq, delay, len] of seq) {
+      setTimeout(() => this.tone(freq, len, 'square', 0.06), delay);
+    }
+    setTimeout(() => this.tone(1568, 0.18, 'triangle', 0.05), 700);
+  },
   toggle() {
     this.enabled = !this.enabled;
     localStorage.setItem('vacaciones.sound', this.enabled ? 'on' : 'off');
@@ -444,27 +507,27 @@ function computeCostFromKeys(keys) {
 }
 function formatDate(d) {
   if (!d) return '—';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(lang.locale(), { year: 'numeric', month: 'short', day: 'numeric' });
 }
 function formatDateTime(d) {
   if (!d) return '';
-  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return d.toLocaleString(lang.locale(), { dateStyle: 'medium', timeStyle: 'short' });
 }
 function timeAgo(d) {
   if (!d) return '';
   const ms = Date.now() - d.getTime();
   const s = Math.floor(ms / 1000);
-  if (s < 60) return 'just now';
+  if (s < 60) return t('just now');
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m} min ago`;
+  if (m < 60) return t('{m} min ago', { m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return t('{h}h ago', { h });
   const day = Math.floor(h / 24);
-  if (day < 7) return `${day}d ago`;
-  return d.toLocaleDateString();
+  if (day < 7) return t('{d}d ago', { d: day });
+  return d.toLocaleDateString(lang.locale());
 }
 function firstName(name) {
-  if (!name) return 'sailor';
+  if (!name) return t('sailor');
   return name.split(' ')[0] ?? name;
 }
 function shortName(name) {
@@ -618,9 +681,9 @@ function formatMeetingDate(startMs, endMs) {
   const e = new Date(endMs);
   const sameDay = s.toDateString() === e.toDateString();
   if (sameDay) {
-    return `${s.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${s.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}–${e.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+    return `${s.toLocaleDateString(lang.locale(), { month: 'short', day: 'numeric' })} · ${s.toLocaleTimeString(lang.locale(), { hour: 'numeric', minute: '2-digit' })}–${e.toLocaleTimeString(lang.locale(), { hour: 'numeric', minute: '2-digit' })}`;
   }
-  return `${s.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })} → ${e.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}`;
+  return `${s.toLocaleString(lang.locale(), { dateStyle: 'short', timeStyle: 'short' })} → ${e.toLocaleString(lang.locale(), { dateStyle: 'short', timeStyle: 'short' })}`;
 }
 
 // Renders an avatar for any uid. For the current user, prefer their chosen
@@ -681,7 +744,7 @@ function persistAchievements(unlocked) {
   const newOnes = unlocked.filter((a) => a.unlocked && !state.achievedIds.has(a.id));
   for (const a of newOnes) {
     state.achievedIds.add(a.id);
-    showToast(`${a.icon}  Achievement unlocked: ${a.name}`, 'success', 5000);
+    showToast(`${a.icon}  ${t('Achievement unlocked: {name}', { name: t(a.name) })}`, 'success', 5000);
     audio.rank();
   }
   if (newOnes.length > 0) {
@@ -693,39 +756,39 @@ function computeNotifications() {
   // Derive from ledger + bounties. Each notif has { kind, icon, text, meta, time }
   const notifs = [];
   for (const entry of state.ledger.slice(0, 15)) {
-    const t = entry.createdAt?.toDate?.();
-    if (!t) continue;
+    const when = entry.createdAt?.toDate?.();
+    if (!when) continue;
     if (entry.type === 'coverageRelease') {
-      notifs.push({ kind: 'coin', icon: '🪙', text: `Earned ${entry.amountSigned} doubloons by covering.`, time: t });
+      notifs.push({ kind: 'coin', icon: '🪙', text: t('Earned {n} doubloons by covering.', { n: entry.amountSigned }), time: when });
     } else if (entry.type === 'grant') {
-      notifs.push({ kind: 'grant', icon: '🎁', text: `Welcome chest opened (+${entry.amountSigned} doubloons).`, time: t });
+      notifs.push({ kind: 'grant', icon: '🎁', text: t('Welcome chest opened (+{n} doubloons).', { n: entry.amountSigned }), time: when });
     } else if (entry.type === 'stipendMint') {
-      notifs.push({ kind: 'stipend', icon: '👑', text: `Crown's stipend: +${entry.amountSigned} doubloons (expire monthly).`, time: t });
+      notifs.push({ kind: 'stipend', icon: '👑', text: t("Crown's stipend: +{n} doubloons (expires monthly).", { n: entry.amountSigned }), time: when });
     } else if (entry.type === 'feeBurn') {
-      notifs.push({ kind: 'fee', icon: '🔥', text: `Harbour fee: ${entry.amountSigned} doubloons.`, time: t });
+      notifs.push({ kind: 'fee', icon: '🔥', text: t('Harbour fee: {n} doubloons.', { n: entry.amountSigned }), time: when });
     }
   }
   // Recent open bounties from other crewmates
   for (const b of state.bounties.filter((b) => b.status === 'open' && b.requesterUid !== state.user?.uid).slice(0, 10)) {
-    const t = b.createdAt?.toDate?.();
-    if (!t) continue;
+    const when = b.createdAt?.toDate?.();
+    if (!when) continue;
     notifs.push({
       kind: 'bounty',
       icon: '📜',
-      text: `${shortName(b.requesterDisplayName || 'A crewmate')} posted a ${b.totalCoinsOffered}-doubloon bounty.`,
-      meta: 'Open · take voyage',
-      time: t,
+      text: t('{name} posted a {n}-doubloon bounty.', { name: shortName(b.requesterDisplayName || t('A crewmate')), n: b.totalCoinsOffered }),
+      meta: t('Open'),
+      time: when,
     });
   }
   // Status changes on your own bounties
   for (const b of state.bounties.filter((b) => b.requesterUid === state.user?.uid && b.covererUid)) {
-    const t = b.updatedAt?.toDate?.();
-    if (!t) continue;
+    const when = b.updatedAt?.toDate?.();
+    if (!when) continue;
     notifs.push({
       kind: 'taken',
       icon: '⚓',
-      text: `${shortName(b.covererDisplayName || 'A crewmate')} took your ${b.totalCoinsOffered}-doubloon bounty.`,
-      time: t,
+      text: t('{name} took your {n}-doubloon bounty.', { name: shortName(b.covererDisplayName || t('A crewmate')), n: b.totalCoinsOffered }),
+      time: when,
     });
   }
   notifs.sort((a, b) => b.time.getTime() - a.time.getTime());
@@ -953,7 +1016,7 @@ onAuthStateChanged(auth, async (user) => {
       }
     } catch (err) {
       console.error('initUser failed', err);
-      showToast(`Could not register your sailor card: ${err.message}`, 'error', 5000);
+      showToast(t('Could not register your sailor card: {msg}', { msg: err.message }), 'error', 5000);
     }
     subscribeMyTeams();
     subscribeUserDoc();
@@ -1008,7 +1071,7 @@ function subscribeMyTeams() {
     (snap) => { state.myTeams = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); },
     (err) => {
       console.error('myTeams query failed', err);
-      showToast(`Could not load your crews: ${err.message}`, 'error', 5000);
+      showToast(t('Could not load your crews: {msg}', { msg: err.message }), 'error', 5000);
     },
   );
 }
@@ -1057,6 +1120,7 @@ function subscribeTeam(teamId) {
       // Check achievements + persist
       const stats = computeStats();
       persistAchievements(computeAchievements(stats));
+      maybeShowRankCinematic(stats);
       render();
     },
     (err) => console.error('ledger query failed', err),
@@ -1114,7 +1178,7 @@ async function createTeam(name) {
   state.busy.createTeam = true; render();
   try {
     const result = await callCreateTeam({ name });
-    showToast(`Crew "${name}" formed. 125 doubloons in your chest.`, 'success');
+    showToast(t('Crew "{name}" formed. 125 doubloons in your chest.', { name }), 'success');
     audio.coin();
     const input = document.getElementById('new-team-name');
     if (input) input.value = '';
@@ -1130,8 +1194,8 @@ async function joinTeam(tokenOrLegacyId) {
     // The server resolves invite tokens (tk_…); legacy raw crew IDs get a
     // clear "ask a manager for a fresh link" rejection.
     const result = await callJoinTeam({ token: tokenOrLegacyId });
-    if (result.data.alreadyMember) showToast('You’re already aboard that crew.', 'info');
-    else { showToast('Signed aboard! 125 doubloons in your chest.', 'success'); audio.coin(); }
+    if (result.data.alreadyMember) showToast(t('You’re already aboard that crew.'), 'info');
+    else { showToast(t('Signed aboard! 125 doubloons in your chest.'), 'success'); audio.coin(); }
     const input = document.getElementById('join-team-id');
     if (input) input.value = '';
     navigate('team', result.data.teamId);
@@ -1144,13 +1208,13 @@ async function postBounty() {
   const f = state.formState;
   const start = parseLocalDate(f.startDate);
   const end = parseLocalDate(f.endDate);
-  if (!start || !end || end < start) { showToast('Pick a valid date window.', 'error'); return; }
-  if (f.reachability.length === 0) { showToast('Pick at least one reachability option.', 'error'); return; }
+  if (!start || !end || end < start) { showToast(t('Pick a valid date window.'), 'error'); return; }
+  if (f.reachability.length === 0) { showToast(t('Pick at least one reachability option.'), 'error'); return; }
   state.busy.postRequest = true; render();
   try {
     const selectedDayKeys = f.selectedDayKeys.length > 0 ? f.selectedDayKeys : allDayKeysInRange(start, end);
     if (selectedDayKeys.length === 0) {
-      showToast('Pick at least one day to be covered.', 'error');
+      showToast(t('Pick at least one day to be covered.'), 'error');
       state.busy.postRequest = false; render();
       return;
     }
@@ -1168,7 +1232,7 @@ async function postBounty() {
       emergencyDef: f.emergencyDef || null,
       meetings: f.meetings,
     });
-    showToast(`Bounty posted for ${result.data.coinsOffered} doubloons.`, 'success');
+    showToast(t('Bounty posted for {n} doubloons.', { n: result.data.coinsOffered }), 'success');
     state.formState = {
       startDate: '', endDate: '', timezone: state.formState.timezone,
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: '',
@@ -1217,7 +1281,7 @@ function showCrewClaimModal() {
     const selectedSet = new Set(state.claim.selectedDayKeys);
     const cost = computeCostFromKeys(state.claim.selectedDayKeys);
     return `
-      <p style="margin: 0 0 8px;">Pick the days you can cover. Unclaimed days are tappable.</p>
+      <p style="margin: 0 0 8px;">${esc(t('Pick the days you can cover. Unclaimed days are tappable.'))}</p>
       <ul class="day-list">
         ${allKeys.map((key) => {
           const d = parseDateKey(key);
@@ -1235,22 +1299,22 @@ function showCrewClaimModal() {
                 ? `day-card selected ${isWeekend ? 'weekend' : ''}`
                 : `day-card off ${isWeekend ? 'weekend' : ''}`;
           const inner = claimedByOther
-            ? `<small>Taken</small>${dayCoverer?.displayName ? `<small style="font-size: 10px;">${esc(shortName(dayCoverer.displayName))}</small>` : ''}`
+            ? `<small>${esc(t('Taken'))}</small>${dayCoverer?.displayName ? `<small style="font-size: 10px;">${esc(shortName(dayCoverer.displayName))}</small>` : ''}`
             : claimedByMe
-              ? `<small>Yours</small>`
+              ? `<small>${esc(t('Yours'))}</small>`
               : `<span class="day-cost">${isWeekend ? 10 : 5} <small>${SVG.doubloon}</small></span>`;
           return `
             <li class="${klass}" ${(claimedByOther || claimedByMe) ? '' : `data-action="claim-toggle-day" data-day-key="${esc(key)}"`}>
-              <strong>${WEEKDAY_NAMES[dow]}</strong>
-              <span class="day-date">${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}</span>
+              <strong>${esc(t(WEEKDAY_NAMES[dow]))}</strong>
+              <span class="day-date">${d.getUTCDate()} ${esc(t(MONTH_NAMES[d.getUTCMonth()]))}</span>
               ${inner}
             </li>
           `;
         }).join('')}
       </ul>
       <p style="margin: 12px 0 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;">
-        <strong>${state.claim.selectedDayKeys.length} day${state.claim.selectedDayKeys.length === 1 ? '' : 's'}</strong> ·
-        <strong style="color: var(--brass-deep);">${cost.totalCoins} doubloons</strong>
+        <strong>${esc(t('{n} days', { n: state.claim.selectedDayKeys.length }))}</strong> ·
+        <strong style="color: var(--brass-deep);">${esc(t('{n} doubloons', { n: cost.totalCoins }))}</strong>
       </p>
     `;
   };
@@ -1261,12 +1325,12 @@ function showCrewClaimModal() {
   wrap.className = 'modal-scrim';
   wrap.innerHTML = `
     <div class="modal wide">
-      <div class="modal-title">CLAIM YOUR DAYS</div>
+      <div class="modal-title">${esc(t('Claim your days'))}</div>
       <div class="modal-body" id="crew-claim-body">${renderInner()}</div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" data-action="claim-cancel">Cancel</button>
+        <button class="btn btn-secondary" data-action="claim-cancel">${esc(t('Cancel'))}</button>
         <button class="btn" data-action="claim-submit" ${state.claim.selectedDayKeys.length === 0 ? 'disabled' : ''}>
-          Take ${state.claim.selectedDayKeys.length} day${state.claim.selectedDayKeys.length === 1 ? '' : 's'}
+          ${esc(t('Take {n} days', { n: state.claim.selectedDayKeys.length }))}
         </button>
       </div>
     </div>`;
@@ -1307,10 +1371,10 @@ function showCrewClaimModal() {
 async function setAvatar(avatarId) {
   try {
     await callSetProfile({ avatarId });
-    showToast('Avatar updated.', 'success');
+    showToast(t('Avatar updated.'), 'success');
     audio.coin();
   } catch (err) {
-    showToast(`Could not set avatar: ${err.message}`, 'error', 5000);
+    showToast(t('Could not set avatar: {msg}', { msg: err.message }), 'error', 5000);
   }
 }
 
@@ -1319,7 +1383,7 @@ async function setDigestEnabled(enabled) {
     await callSetProfile({ digestEnabled: !!enabled });
     showToast(enabled ? 'Daily digest on.' : 'Daily digest off.', 'success');
   } catch (err) {
-    showToast(`Could not update notification preference: ${err.message}`, 'error', 5000);
+    showToast(t('Could not update notification preference: {msg}', { msg: err.message }), 'error', 5000);
   }
 }
 
@@ -1327,9 +1391,9 @@ async function cancelBountyAction(requestId) {
   try {
     const result = await callCancelBounty({ teamId: state.teamId, requestId });
     if (result.data.refunded > 0) {
-      showToast(`Bounty cancelled. ${result.data.refunded} doubloons refunded.`, 'success');
+      showToast(t('Bounty cancelled. {n} doubloons refunded.', { n: result.data.refunded }), 'success');
     } else {
-      showToast('Bounty cancelled.', 'success');
+      showToast(t('Bounty cancelled.'), 'success');
     }
   } catch (err) {
     showToast(err.message, 'error', 6000);
@@ -1342,7 +1406,7 @@ async function updateTeamAction(teamId, name, photoURL) {
     if (name !== undefined) data.name = name;
     if (photoURL !== undefined) data.photoURL = photoURL;
     await callUpdateTeam({ teamId, ...data });
-    showToast('Crew updated.', 'success');
+    showToast(t('Crew updated.'), 'success');
   } catch (err) {
     showToast(err.message, 'error', 6000);
   }
@@ -1370,7 +1434,7 @@ async function refreshCalendarEvents() {
   } catch (err) {
     state.calendarError = err.message;
     state.calendarEvents = [];
-    showToast(`Calendar: ${err.message}`, 'error', 6000);
+    showToast(t('Calendar: {msg}', { msg: err.message }), 'error', 6000);
   } finally {
     state.calendarLoading = false;
     render();
@@ -1380,11 +1444,11 @@ async function refreshCalendarEvents() {
 async function connectCalendarAction() {
   try {
     await calendar.connect();
-    showToast('Calendar connected.', 'success');
+    showToast(t('Calendar connected.'), 'success');
     audio.coin();
     refreshCalendarEvents();
   } catch (err) {
-    showToast(`Could not connect calendar: ${err.message}`, 'error', 6000);
+    showToast(t('Could not connect calendar: {msg}', { msg: err.message }), 'error', 6000);
   }
 }
 
@@ -1428,14 +1492,14 @@ async function addAllBountyMeetings(bountyId) {
   if (!b) return;
   if (!calendar.isConnected()) {
     try { await calendar.connect(); }
-    catch (err) { showToast(`Calendar connect failed: ${err.message}`, 'error'); return; }
+    catch (err) { showToast(t('Calendar connect failed: {msg}', { msg: err.message }), 'error'); return; }
   }
   const meetingsAlready = getAddedMeetingIds(bountyId);
   const meetingsToAdd = arr(b.meetings).filter((m) => !meetingsAlready.has(m.googleEventId));
   const markerKey = `vacaciones.addedMarker.${bountyId}`;
   const markerAlready = localStorage.getItem(markerKey) === '1';
   if (meetingsToAdd.length === 0 && markerAlready) {
-    showToast('Everything already on your calendar.', 'info');
+    showToast(t('Everything already on your calendar.'), 'info');
     return;
   }
   let addedMeetings = 0;
@@ -1463,10 +1527,10 @@ async function addAllBountyMeetings(bountyId) {
     const bits = [];
     if (addedMarker) bits.push('coverage marker');
     if (addedMeetings > 0) bits.push(`${addedMeetings} meeting${addedMeetings === 1 ? '' : 's'}`);
-    showToast(`Added ${bits.join(' + ')} to your calendar.`, 'success');
+    showToast(t('Added {what} to your calendar.', { what: bits.join(' + ') }), 'success');
     audio.coin();
   } else {
-    showToast('Nothing new to add.', 'info');
+    showToast(t('Nothing new to add.'), 'info');
   }
 }
 
@@ -1474,10 +1538,10 @@ async function copyInviteLink(teamId) {
   // Managers mint a fresh rotating token (14 days, 25 uses; revokes prior
   // links). The crew doc-id is no longer a join credential.
   if (state.myRole !== 'manager') {
-    showToast('Ask a crew manager to share an invite link.', 'info', 5000);
+    showToast(t('Ask a crew manager to share an invite link.'), 'info', 5000);
     return;
   }
-  showToast('Creating invite link…', 'info', 2000);
+  showToast(t('Creating invite link…'), 'info', 2000);
   try {
     const result = await callCreateInviteToken({ teamId });
     const link = `${location.origin}/#/join/${encodeURIComponent(result.data.token)}`;
@@ -1485,42 +1549,42 @@ async function copyInviteLink(teamId) {
     const expiresLabel = expires.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     try {
       await navigator.clipboard.writeText(link);
-      showToast(`Invite link copied — valid until ${expiresLabel} or ${result.data.maxUses} joins. Sharing a new one revokes this link.`, 'success', 7000);
-    } catch { showToast(`Invite link: ${link}`, 'info', 10000); }
+      showToast(t('Invite link copied — valid until {date} or {n} joins. Sharing a new one revokes this link.', { date: expiresLabel, n: result.data.maxUses }), 'success', 7000);
+    } catch { showToast(`${t('Invite link')}: ${link}`, 'info', 10000); }
   } catch (err) { showToast(err.message, 'error', 6000); }
 }
 
 async function sendScrollAction(teamId, toUid, message, bountyId) {
   try {
     await callSendScroll({ teamId, toUid, message, bountyId: bountyId ?? null });
-    showToast('Thank-you scroll sent.', 'success');
+    showToast(t('Thank-you scroll sent.'), 'success');
     audio.rank();
   } catch (err) {
-    showToast(`Could not send the scroll: ${err.message}`, 'error', 5000);
+    showToast(t('Could not send the scroll: {msg}', { msg: err.message }), 'error', 5000);
   }
 }
 
 function showSkinPicker() {
   const current = skin.current();
   const body = `
-    <p style="margin: 0 0 12px;">Pick a look. Persists across visits on this browser.</p>
+    <p style="margin: 0 0 12px;">${esc(t('Pick a look. Persists across visits on this browser.'))}</p>
     <div class="skin-picker-grid">
       ${SKIN_OPTIONS.map((s) => `
         <button class="skin-card ${s.id === current ? 'selected' : ''}" data-action="pick-skin" data-id="${esc(s.id)}">
           <div class="skin-preview skin-preview-${s.id}">${s.id === 'basic' ? 'Time Off' : (s.id === 'dark-knight' ? '> Time Off_' : 'TIME OFF')}</div>
           <div class="skin-card-meta">
-            <strong>${esc(s.label)}</strong>
-            <small>${esc(s.desc)}</small>
+            <strong>${esc(t(s.label))}</strong>
+            <small>${esc(t(s.desc))}</small>
           </div>
         </button>
       `).join('')}
     </div>
   `;
   showModal({
-    title: 'Choose a skin',
+    title: t('Choose a skin'),
     body,
     wide: true,
-    primaryLabel: 'Close',
+    primaryLabel: t('Close'),
   });
 }
 
@@ -1536,7 +1600,7 @@ function showAvatarPicker() {
   const grid = AVATAR_LIST.map((id) => {
     const isMale = id.startsWith('m');
     const isSelected = id === current;
-    return `<button class="avatar-tile ${isSelected ? 'selected' : ''}" data-action="pick-avatar" data-id="${id}" title="${isMale ? 'Male' : 'Female'} pirate">
+    return `<button class="avatar-tile ${isSelected ? 'selected' : ''}" data-action="pick-avatar" data-id="${id}" title="${esc(isMale ? t('Male pirate') : t('Female pirate'))}">
       <span class="avatar-tile-art">${SVG.avatars[id]}</span>
       <span class="avatar-tile-label">${isMale ? 'M' : 'F'}${id.slice(1)}</span>
     </button>`;
@@ -1547,39 +1611,48 @@ function showAvatarPicker() {
       <div class="profile-id">
         <strong>${esc(u.displayName ?? '')}</strong>
         <small class="muted">${esc(u.email ?? '')}</small>
-        ${rank && team ? `<small class="profile-rank">${spriteIcon(rank.sprite)} ${esc(rank.name)} · ${stats.lifetimeEarned} doubloons earned lifetime</small>` : ''}
+        ${rank && team ? `<small class="profile-rank">${spriteIcon(rank.sprite)} ${esc(t(rank.name))} · ${esc(t('{n} doubloons earned lifetime', { n: stats.lifetimeEarned }))}</small>` : ''}
       </div>
       ${team && totalBalance !== null ? `
-        <span class="coin-pill" title="Total doubloons in this crew">
+        <span class="coin-pill" title="${esc(t('Total doubloons in this crew'))}">
           ${SVG.doubloon}<span>${totalBalance}</span>
         </span>` : ''}
     </div>
 
     <div class="profile-section">
-      <p style="margin: 0 0 12px;">Pick a pirate to wear as your face. You can change it any time.</p>
+      <p style="margin: 0 0 12px;">${esc(t('Pick a pirate to wear as your face. You can change it any time.'))}</p>
       <div class="avatar-grid">${grid}</div>
-      ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">Use Google photo</button></p>` : ''}
+      ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">${esc(t('Use Google photo'))}</button></p>` : ''}
     </div>
 
     <div class="profile-section">
       <div class="profile-row">
         <span>
-          <strong style="display: block;">Theme</strong>
-          <small class="muted">Pirate, Basic, High Contrast, or Dark Knight.</small>
+          <strong style="display: block;">${esc(t('Language'))}</strong>
+          <small class="muted">${esc(t('Applies immediately, everywhere in the app.'))}</small>
         </span>
-        <button class="btn btn-secondary" data-action="open-skin-picker" type="button">🎨 Choose a skin</button>
+        <select data-action="set-lang" aria-label="${esc(t('Language'))}" style="width: auto; min-width: 160px;">
+          ${LANG_OPTIONS.map((o) => `<option value="${o.id}" ${lang.stored() === o.id ? 'selected' : ''}>${esc(o.id === 'auto' ? t('Auto (browser)') : o.label)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="profile-row">
+        <span>
+          <strong style="display: block;">${esc(t('Theme'))}</strong>
+          <small class="muted">${esc(t('Pirate, Basic, High Contrast, or Dark Knight.'))}</small>
+        </span>
+        <button class="btn btn-secondary" data-action="open-skin-picker" type="button">🎨 ${esc(t('Choose a skin'))}</button>
       </div>
       <label class="profile-row" style="cursor: pointer;">
         <span>
-          <strong style="display: block;">Sound effects</strong>
-          <small class="muted">Clicks, coins, and toast chimes.</small>
+          <strong style="display: block;">${esc(t('Sound effects'))}</strong>
+          <small class="muted">${esc(t('Clicks, coins, and toast chimes.'))}</small>
         </span>
         <input type="checkbox" data-action="sound" ${audio.enabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
       </label>
       <label class="profile-row" style="cursor: pointer;">
         <span>
-          <strong style="display: block;">Daily email digest</strong>
-          <small class="muted">A morning summary of open bounties, doubloons earned, and new scrolls. Transactional emails (acceptance, cancellations) stay on.</small>
+          <strong style="display: block;">${esc(t('Daily email digest'))}</strong>
+          <small class="muted">${esc(t('A morning summary of open bounties, doubloons earned, and new scrolls. Transactional emails (acceptance, cancellations) stay on.'))}</small>
         </span>
         <input type="checkbox" data-action="toggle-digest" ${digestEnabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
       </label>
@@ -1588,34 +1661,34 @@ function showAvatarPicker() {
     <div class="profile-section">
       <div class="profile-row">
         <span>
-          <strong style="display: block;">Your data</strong>
-          <small class="muted">Download everything Time Off stores about you, as JSON.</small>
+          <strong style="display: block;">${esc(t('Your data'))}</strong>
+          <small class="muted">${esc(t('Download everything Time Off stores about you, as JSON.'))}</small>
         </span>
-        <button class="btn btn-secondary" data-action="export-data" type="button">Export my data</button>
+        <button class="btn btn-secondary" data-action="export-data" type="button">${esc(t('Export my data'))}</button>
       </div>
       <div class="profile-row">
         <span>
-          <strong style="display: block;">Delete account</strong>
-          <small class="muted">Leaves all crews and erases your profile. Crew financial records keep an anonymous ID.</small>
+          <strong style="display: block;">${esc(t('Delete account'))}</strong>
+          <small class="muted">${esc(t('Leaves all crews and erases your profile. Crew financial records keep an anonymous ID.'))}</small>
         </span>
-        <button class="btn btn-danger" data-action="delete-account" type="button">Delete…</button>
+        <button class="btn btn-danger" data-action="delete-account" type="button">${esc(t('Delete…'))}</button>
       </div>
     </div>
 
     <div class="profile-section profile-signout">
-      <button class="btn btn-secondary" data-action="sign-out" type="button">Sign out</button>
+      <button class="btn btn-secondary" data-action="sign-out" type="button">${esc(t('Sign out'))}</button>
     </div>
   `;
   showModal({
-    title: 'Profile',
+    title: t('Profile'),
     body,
     wide: true,
-    primaryLabel: 'Done',
+    primaryLabel: t('Done'),
   });
 }
 
 async function exportMyDataAction() {
-  showToast('Preparing your export…', 'info', 3000);
+  showToast(t('Preparing your export…'), 'info', 3000);
   try {
     const result = await callExportMyData({});
     const blob = new Blob([JSON.stringify(result.data.data, null, 2)], { type: 'application/json' });
@@ -1626,33 +1699,33 @@ async function exportMyDataAction() {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-    showToast('Export downloaded.', 'success');
+    showToast(t('Export downloaded.'), 'success');
   } catch (err) { showToast(err.message, 'error', 6000); }
 }
 
 function showDeleteAccountModal() {
   const inputId = 'del-confirm-' + Math.random().toString(36).slice(2, 8);
   showModal({
-    title: 'Delete your account?',
+    title: t('Delete your account?'),
     body: `
-      <p>This permanently removes you from every crew, erases your profile, and deletes your sign-in. It cannot be undone.</p>
-      <p class="muted" style="font-size: var(--fs-meta);">Blocked while you have open or active bounties, or while you are the last manager of a crew with other members.</p>
+      <p>${esc(t('This permanently removes you from every crew, erases your profile, and deletes your sign-in. It cannot be undone.'))}</p>
+      <p class="muted" style="font-size: var(--fs-meta);">${esc(t('Blocked while you have open or active bounties, or while you are the last manager of a crew with other members.'))}</p>
       <label style="display:block; margin-top: 12px;">
-        <span style="display:block; margin-bottom: 4px;">Type <code>DELETE</code> to confirm</span>
+        <span style="display:block; margin-bottom: 4px;">${t('Type <code>DELETE</code> to confirm')}</span>
         <input id="${inputId}" type="text" autocomplete="off" placeholder="DELETE" />
       </label>`,
-    primaryLabel: 'Delete my account',
-    secondaryLabel: 'Cancel',
+    primaryLabel: t('Delete my account'),
+    secondaryLabel: t('Cancel'),
     onPrimary: () => {
       const val = document.getElementById(inputId)?.value.trim();
       if (val !== 'DELETE') {
-        showToast('Type DELETE (in capitals) to confirm.', 'error');
+        showToast(t('Type DELETE (in capitals) to confirm.'), 'error');
         return false;
       }
       (async () => {
         try {
           await callDeleteMyAccount({ confirm: 'DELETE' });
-          showToast('Account deleted. Fair winds.', 'success', 4000);
+          showToast(t('Account deleted. Fair winds.'), 'success', 4000);
           closeAllModals();
           await signOut(auth);
         } catch (err) { showToast(err.message, 'error', 8000); }
@@ -1664,26 +1737,26 @@ function showDeleteAccountModal() {
 function showDisbandCrewModal(team) {
   const inputId = 'disband-' + Math.random().toString(36).slice(2, 8);
   showModal({
-    title: 'Disband this crew?',
+    title: t('Disband this crew?'),
     body: `
-      <p>This permanently deletes <strong>${esc(team.name)}</strong> — every bounty record, wallet, ledger entry, scroll, and the audit log. It cannot be undone.</p>
-      <p class="muted" style="font-size: var(--fs-meta);">Blocked while open or active bounties exist. Consider exporting data first (Profile → Export my data).</p>
+      <p>${t('This permanently deletes <strong>{name}</strong> — every bounty record, wallet, ledger entry, scroll, and the audit log. It cannot be undone.', { name: esc(team.name) })}</p>
+      <p class="muted" style="font-size: var(--fs-meta);">${esc(t('Blocked while open or active bounties exist. Consider exporting data first (Profile → Export my data).'))}</p>
       <label style="display:block; margin-top: 12px;">
-        <span style="display:block; margin-bottom: 4px;">Type the crew name to confirm</span>
+        <span style="display:block; margin-bottom: 4px;">${esc(t('Type the crew name to confirm'))}</span>
         <input id="${inputId}" type="text" autocomplete="off" placeholder="${esc(team.name)}" />
       </label>`,
-    primaryLabel: 'Disband crew',
-    secondaryLabel: 'Cancel',
+    primaryLabel: t('Disband crew'),
+    secondaryLabel: t('Cancel'),
     onPrimary: () => {
       const val = document.getElementById(inputId)?.value ?? '';
       if (val.trim() !== team.name.trim()) {
-        showToast('Crew name does not match.', 'error');
+        showToast(t('Crew name does not match.'), 'error');
         return false;
       }
       (async () => {
         try {
           await callDisbandCrew({ teamId: team.id, confirmName: val });
-          showToast('Crew disbanded.', 'success', 4000);
+          showToast(t('Crew disbanded.'), 'success', 4000);
           closeAllModals();
           location.hash = '#/';
         } catch (err) { showToast(err.message, 'error', 8000); }
@@ -1698,27 +1771,27 @@ function showManageCrewModal(team) {
   const body = `
     <div class="form-grid">
       <label class="wide">
-        <span>Crew name</span>
+        <span>${esc(t('Crew name'))}</span>
         <input id="${inputName}" type="text" value="${esc(team.name)}" maxlength="100" />
       </label>
       <label class="wide">
-        <span>Crew photo URL (optional)</span>
+        <span>${esc(t('Crew photo URL (optional)'))}</span>
         <input id="${inputPhoto}" type="text" value="${esc(team.photoURL ?? '')}" placeholder="https://…" />
       </label>
     </div>
-    <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">Paste a square image URL. Leave blank to use the default flag.</p>
+    <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">${esc(t('Paste a square image URL. Leave blank to use the default flag.'))}</p>
   `;
   showModal({
-    title: 'Manage crew',
+    title: t('Manage crew'),
     body,
     wide: true,
-    primaryLabel: 'Save',
-    secondaryLabel: 'Cancel',
+    primaryLabel: t('Save'),
+    secondaryLabel: t('Cancel'),
     onPrimary: () => {
       const n = document.getElementById(inputName)?.value.trim() ?? '';
       const p = document.getElementById(inputPhoto)?.value.trim() ?? '';
       if (!n) {
-        showToast('Crew name cannot be empty.', 'error');
+        showToast(t('Crew name cannot be empty.'), 'error');
         return false;
       }
       const updates = { name: n };
@@ -1733,23 +1806,23 @@ function confirmCancelBounty(bountyId) {
   if (!b) return;
   const remaining = Math.max(0, (b.coinsEscrowed ?? 0) - (b.coinsReleased ?? 0));
   const message = remaining > 0
-    ? `Cancel this bounty? <strong>${remaining} doubloons</strong> will be refunded to the requester.`
-    : 'Cancel this bounty? Nothing to refund.';
+    ? t('Cancel this bounty? <strong>{n} doubloons</strong> will be refunded to the requester.', { n: remaining })
+    : t('Cancel this bounty? Nothing to refund.');
   showModal({
-    title: 'Cancel bounty?',
+    title: t('Cancel bounty?'),
     body: `<p>${message}</p>`,
-    primaryLabel: 'Cancel bounty',
-    secondaryLabel: 'Nevermind',
+    primaryLabel: t('Cancel bounty'),
+    secondaryLabel: t('Keep it'),
     onPrimary: () => cancelBountyAction(bountyId),
   });
 }
 
 async function exportLedgerCsv() {
   if (!state.teamId || !state.user?.uid) {
-    showToast('No crew loaded.', 'info');
+    showToast(t('No crew loaded.'), 'info');
     return;
   }
-  showToast('Preparing CSV…', 'info', 2000);
+  showToast(t('Preparing CSV…'), 'info', 2000);
   // Page through the full ledger so we don't silently cap at the live
   // listener's 40-row window. Hard cap of 10k rows to stay friendly.
   const entries = [];
@@ -1773,11 +1846,11 @@ async function exportLedgerCsv() {
     }
   } catch (err) {
     console.error('CSV export query failed', err);
-    showToast('Could not load full ledger.', 'error');
+    showToast(t('Could not load full ledger.'), 'error');
     return;
   }
   if (entries.length === 0) {
-    showToast('Nothing to export.', 'info');
+    showToast(t('Nothing to export.'), 'info');
     return;
   }
   const rows = [['Date','Type','Amount','Bucket','Related bounty']];
@@ -1803,7 +1876,7 @@ async function exportLedgerCsv() {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  showToast(`Exported ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`, 'success');
+  showToast(t('Exported {n} entries.', { n: entries.length }), 'success');
 }
 
 function showEditBountyModal(bountyId) {
@@ -1817,7 +1890,7 @@ function showEditBountyModal(bountyId) {
     return `<label class="check-pixel">
       <input type="checkbox" name="r-${r.value}" value="${r.value}" ${checked ? 'checked' : ''}/>
       <span class="check-box"></span>
-      <span class="check-label">${spriteIcon(r.sprite)} ${esc(r.short)}</span>
+      <span class="check-label">${spriteIcon(r.sprite)} ${esc(t(r.short))}</span>
     </label>`;
   }).join('');
   const kindChecks = COVERAGE_KIND_OPTIONS.map((k) => {
@@ -1825,31 +1898,31 @@ function showEditBountyModal(bountyId) {
     return `<label class="check-pixel">
       <input type="checkbox" name="k-${k.value}" value="${k.value}" ${checked ? 'checked' : ''}/>
       <span class="check-box"></span>
-      <span class="check-label">${spriteIcon(k.sprite)} ${esc(k.label)}</span>
+      <span class="check-label">${spriteIcon(k.sprite)} ${esc(t(k.label))}</span>
     </label>`;
   }).join('');
   const body = `
     <div class="form-grid">
       <label class="wide"><span>SLA</span><input id="${slaId}" type="text" value="${esc(b.sla || '')}" /></label>
-      <label class="wide"><span>Coverage scope</span><input id="${scopeId}" type="text" value="${esc(b.coverageScope || '')}" /></label>
-      <label class="wide"><span>Emergency definition</span><textarea id="${emergId}" rows="2">${esc(b.emergencyDef || '')}</textarea></label>
+      <label class="wide"><span>${esc(t('Coverage scope'))}</span><input id="${scopeId}" type="text" value="${esc(b.coverageScope || '')}" /></label>
+      <label class="wide"><span>${esc(t('Emergency definition'))}</span><textarea id="${emergId}" rows="2">${esc(b.emergencyDef || '')}</textarea></label>
       <div class="wide">
-        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Reachability</span>
+        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(t('Reachability'))}</span>
         <div class="check-group">${reachChecks}</div>
       </div>
       <div class="wide">
-        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Coverage kinds</span>
+        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(t('Coverage kinds'))}</span>
         <div class="check-group">${kindChecks}</div>
       </div>
     </div>
-    <p class="muted" style="font-size: var(--fs-meta); margin: 8px 0 0;">Dates + selected days are locked to keep the escrow contract intact.</p>
+    <p class="muted" style="font-size: var(--fs-meta); margin: 8px 0 0;">${esc(t('Dates + selected days are locked to keep the escrow contract intact.'))}</p>
   `;
   showModal({
-    title: 'Edit bounty',
+    title: t('Edit bounty'),
     body,
     wide: true,
-    primaryLabel: 'Save',
-    secondaryLabel: 'Cancel',
+    primaryLabel: t('Save'),
+    secondaryLabel: t('Cancel'),
     onPrimary: () => {
       const sla = document.getElementById(slaId)?.value?.trim() ?? '';
       const scope = document.getElementById(scopeId)?.value?.trim() ?? '';
@@ -1861,7 +1934,7 @@ function showEditBountyModal(bountyId) {
         .filter((k) => document.querySelector(`input[name="k-${k.value}"]`)?.checked)
         .map((k) => k.value);
       if (reachability.length === 0) {
-        showToast('Pick at least one reachability option.', 'error');
+        showToast(t('Pick at least one reachability option.'), 'error');
         return false;
       }
       (async () => {
@@ -1874,7 +1947,7 @@ function showEditBountyModal(bountyId) {
             reachability,
             coverageKinds,
           });
-          showToast('Bounty updated.', 'success');
+          showToast(t('Bounty updated.'), 'success');
         } catch (err) { showToast(err.message, 'error', 6000); }
       })();
     },
@@ -1887,29 +1960,29 @@ function showSendBonus(targetUid, displayName) {
 
 function showSendScrollModal(toUid, toName, bountyId) {
   if (!toUid || toUid === state.user?.uid) {
-    showToast('You cannot send a scroll to yourself.', 'error');
+    showToast(t('You cannot send a scroll to yourself.'), 'error');
     return;
   }
   const inputId = 'scroll-msg-' + Math.random().toString(36).slice(2, 8);
   const body = `
     <div class="scroll-compose">
       <div class="scroll-target">
-        <span>To:</span><strong>${esc(toName || 'Crewmate')}</strong>
+        <span>${esc(t('To:'))}</span><strong>${esc(toName || t('A crewmate'))}</strong>
       </div>
-      <textarea id="${inputId}" maxlength="240" placeholder="A short note of thanks…"></textarea>
-      <div class="scroll-char-count" id="${inputId}-count">240 left</div>
+      <textarea id="${inputId}" maxlength="240" placeholder="${esc(t('A short note of thanks…'))}"></textarea>
+      <div class="scroll-char-count" id="${inputId}-count">${esc(t('{n} left', { n: 240 }))}</div>
     </div>
   `;
   showModal({
-    title: 'SEND A THANK-YOU SCROLL',
+    title: t('Send a thank-you scroll'),
     body,
-    primaryLabel: 'Send scroll',
-    secondaryLabel: 'Cancel',
+    primaryLabel: t('Send scroll'),
+    secondaryLabel: t('Cancel'),
     onPrimary: () => {
       const el = document.getElementById(inputId);
       const message = el?.value?.trim() ?? '';
       if (!message) {
-        showToast('Write something — even a few words.', 'error');
+        showToast(t('Write something — even a few words.'), 'error');
         return false;
       }
       sendScrollAction(state.teamId, toUid, message, bountyId);
@@ -1920,7 +1993,7 @@ function showSendScrollModal(toUid, toName, bountyId) {
     const el = document.getElementById(inputId);
     const count = document.getElementById(inputId + '-count');
     if (!el || !count) return;
-    el.addEventListener('input', () => { count.textContent = `${240 - el.value.length} left`; });
+    el.addEventListener('input', () => { count.textContent = t('{n} left', { n: 240 - el.value.length }); });
     el.focus();
   }, 10);
 }
@@ -1933,7 +2006,7 @@ async function refreshLeaderboard() {
     state.leaderboard = result.data;
   } catch (err) {
     console.error('leaderboard fetch failed', err);
-    showToast(`Could not load the Wall of Fame: ${err.message}`, 'error', 5000);
+    showToast(t('Could not load the Wall of Fame: {msg}', { msg: err.message }), 'error', 5000);
   } finally { state.leaderboardLoading = false; render(); }
 }
 
@@ -1946,7 +2019,7 @@ async function refreshCrewSettings() {
     state.crewSettings = result.data;
   } catch (err) {
     console.error('crew settings fetch failed', err);
-    showToast(`Could not load settings: ${err.message}`, 'error', 5000);
+    showToast(t('Could not load settings: {msg}', { msg: err.message }), 'error', 5000);
   } finally { state.crewSettingsLoading = false; render(); }
 }
 
@@ -1958,14 +2031,14 @@ async function refreshAuditLog() {
     state.auditLog = result.data.entries;
   } catch (err) {
     console.error('audit log fetch failed', err);
-    showToast(`Could not load audit log: ${err.message}`, 'error', 5000);
+    showToast(t('Could not load audit log: {msg}', { msg: err.message }), 'error', 5000);
   } finally { state.auditLogLoading = false; render(); }
 }
 
 async function changeMemberRole(targetUid, role, displayName) {
   try {
     await callUpdateMemberRole({ teamId: state.teamId, targetUid, role });
-    showToast(`${displayName} is now a ${role === 'manager' ? 'manager' : 'member'}.`, 'success');
+    showToast(role === 'manager' ? t('{name} is now a manager.', { name: displayName }) : t('{name} is now a member.', { name: displayName }), 'success');
     audio.coin();
     refreshCrewMembers();
   } catch (err) { showToast(err.message, 'error', 6000); }
@@ -1974,7 +2047,7 @@ async function changeMemberRole(targetUid, role, displayName) {
 async function removeMemberAction(targetUid, displayName) {
   try {
     await callRemoveMember({ teamId: state.teamId, targetUid });
-    showToast(`${displayName} was removed from the crew.`, 'success');
+    showToast(t('{name} was removed from the crew.', { name: displayName }), 'success');
     refreshCrewMembers();
   } catch (err) { showToast(err.message, 'error', 6000); }
 }
@@ -1982,7 +2055,7 @@ async function removeMemberAction(targetUid, displayName) {
 async function grantBonusAction(targetUid, amount, reason, displayName) {
   try {
     const result = await callGrantBonusDoubloons({ teamId: state.teamId, targetUid, amount, reason });
-    showToast(`Sent ${result.data.amount} doubloons to ${displayName}.`, 'success');
+    showToast(t('Sent {n} doubloons to {name}.', { n: result.data.amount, name: displayName }), 'success');
     audio.coin();
     refreshCrewMembers();
   } catch (err) { showToast(err.message, 'error', 6000); }
@@ -2005,30 +2078,30 @@ function showGrantBonusModal(targetUid, displayName) {
   const amountId = 'bonus-amt-' + Math.random().toString(36).slice(2, 8);
   const reasonId = 'bonus-rsn-' + Math.random().toString(36).slice(2, 8);
   showModal({
-    title: `Grant bonus to ${esc(displayName || 'crewmate')}`,
+    title: t('Grant bonus to {name}', { name: displayName || t('a crewmate') }),
     body: `
       <div class="form-grid">
         <label class="wide">
-          <span style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Amount (1–500)</span>
+          <span style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">${esc(t('Amount (1–500)'))}</span>
           <input id="${amountId}" type="number" min="1" max="500" value="20" />
         </label>
         <label class="wide">
-          <span style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Reason (visible in audit log)</span>
-          <textarea id="${reasonId}" rows="2" placeholder="e.g. Covered the Acme P1 escalation over the weekend."></textarea>
+          <span style="font-family: var(--font-body); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">${esc(t('Reason (visible in audit log)'))}</span>
+          <textarea id="${reasonId}" rows="2" placeholder="${esc(t('e.g. Covered the Acme P1 escalation over the weekend.'))}"></textarea>
         </label>
       </div>
     `,
     wide: true,
-    primaryLabel: 'Send doubloons',
-    secondaryLabel: 'Cancel',
+    primaryLabel: t('Send doubloons'),
+    secondaryLabel: t('Cancel'),
     onPrimary: () => {
       const amount = Number(document.getElementById(amountId)?.value || 0);
       const reason = (document.getElementById(reasonId)?.value || '').trim();
       if (!amount || amount < 1 || amount > 500) {
-        showToast('Pick an amount between 1 and 500.', 'error'); return false;
+        showToast(t('Pick an amount between 1 and 500.'), 'error'); return false;
       }
       if (reason.length < 3) {
-        showToast('Add a short reason (audit trail).', 'error'); return false;
+        showToast(t('Add a short reason (audit trail).'), 'error'); return false;
       }
       grantBonusAction(targetUid, amount, reason, displayName);
     },
@@ -2040,20 +2113,20 @@ function showMemberAdminModal(member) {
   const isMe = member.uid === state.user?.uid;
   const targetRole = member.role;
   showModal({
-    title: `Manage ${esc(member.displayName || 'crewmate')}`,
+    title: t('Manage {name}', { name: member.displayName || t('a crewmate') }),
     body: `
-      <p style="margin: 0 0 12px;">Pick an admin action for <strong>${esc(member.displayName || 'this crewmate')}</strong>.</p>
+      <p style="margin: 0 0 12px;">${t('Pick an admin action for <strong>{name}</strong>.', { name: esc(member.displayName || t('this crewmate')) })}</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        ${isMe ? `<p class="muted" style="font-size: var(--fs-meta);">Some actions disabled — that's you.</p>` : ''}
-        <button class="btn btn-secondary" data-action="adm-bonus" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">💰 Grant bonus doubloons</button>
+        ${isMe ? `<p class="muted" style="font-size: var(--fs-meta);">${esc(t("Some actions disabled — that's you."))}</p>` : ''}
+        <button class="btn btn-secondary" data-action="adm-bonus" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">💰 ${esc(t('Grant bonus doubloons'))}</button>
         ${targetRole === 'member'
-          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">⬆ Promote to manager</button>`
-          : `<button class="btn btn-secondary" data-action="adm-demote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${isOwner ? 'disabled title="Owner cannot be demoted"' : ''}>⬇ Demote to crewmate</button>`
+          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">⬆ ${esc(t('Promote to manager'))}</button>`
+          : `<button class="btn btn-secondary" data-action="adm-demote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${isOwner ? `disabled title="${esc(t('Owner cannot be demoted'))}"` : ''}>⬇ ${esc(t('Demote to member'))}</button>`
         }
-        <button class="btn btn-danger" data-action="adm-remove" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${(isOwner || isMe) ? 'disabled title="Cannot remove owner / yourself"' : ''}>🗑 Remove from crew</button>
+        <button class="btn btn-danger" data-action="adm-remove" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${(isOwner || isMe) ? `disabled title="${esc(t('Cannot remove owner / yourself'))}"` : ''}>🗑 ${esc(t('Remove from crew'))}</button>
       </div>
     `,
-    primaryLabel: 'Close',
+    primaryLabel: t('Close'),
   });
 }
 
@@ -2065,23 +2138,23 @@ async function refreshCrewMembers() {
     state.crewMembers = result.data.members;
   } catch (err) {
     console.error('crew members fetch failed', err);
-    showToast(`Could not load the crew: ${err.message}`, 'error', 5000);
+    showToast(t('Could not load the crew: {msg}', { msg: err.message }), 'error', 5000);
   } finally { state.crewMembersLoading = false; render(); }
 }
 
 async function topUpGrantAction() {
   showModal({
-    title: 'Top up starter chest?',
-    body: `<p>This will credit each crewmate who received the old 20-doubloon grant with the missing <strong>105 doubloons</strong> so everyone hits the new 125 starting balance. It runs once per crewmate (idempotent).</p>`,
-    primaryLabel: 'Top up the grant',
-    secondaryLabel: 'Cancel',
+    title: t('Top up starter chest?'),
+    body: `<p>${t('This will credit each crewmate who received the old 20-doubloon grant with the missing <strong>105 doubloons</strong> so everyone hits the new 125 starting balance. It runs once per crewmate (idempotent).')}</p>`,
+    primaryLabel: t('Top up the grant'),
+    secondaryLabel: t('Cancel'),
     onPrimary: async () => {
       try {
         const result = await callTopUpGrant({ teamId: state.teamId });
         if (result.data.toppedUpCount === 0) {
-          showToast('Everyone is already at the new grant.', 'info');
+          showToast(t('Everyone is already at the new grant.'), 'info');
         } else {
-          showToast(`Topped up ${result.data.toppedUpCount} crewmate${result.data.toppedUpCount === 1 ? '' : 's'} (+${result.data.perUser} each).`, 'success');
+          showToast(t('Topped up {n} crewmates (+{coins} each).', { n: result.data.toppedUpCount, coins: result.data.perUser }), 'success');
           audio.coin();
         }
       } catch (err) {
@@ -2096,12 +2169,12 @@ async function generateBriefingAction(bountyId) {
   state.briefingLoading = true; render();
   try {
     const result = await callGenerateBriefing({ teamId: state.teamId, requestId: bountyId });
-    showToast('✨ Briefing generated.', 'success', 4000);
+    showToast(t('Briefing generated.'), 'success', 4000);
     audio.rank();
     // Reload bounty detail modal
     showBountyDetail(bountyId);
   } catch (err) {
-    showToast(`Briefing failed: ${err.message}`, 'error', 7000);
+    showToast(t('Briefing failed: {msg}', { msg: err.message }), 'error', 7000);
   } finally { state.briefingLoading = false; render(); }
 }
 
@@ -2117,7 +2190,7 @@ async function reactToScrollAction(scrollId, emoji) {
 async function saveCrewSettings(updates) {
   try {
     await callUpdateCrewSettings({ teamId: state.teamId, ...updates });
-    showToast('Crew settings saved.', 'success');
+    showToast(t('Crew settings saved.'), 'success');
     await refreshCrewSettings();
   } catch (err) {
     showToast(err.message, 'error', 6000);
@@ -2127,6 +2200,86 @@ async function saveCrewSettings(updates) {
 /* ============================================================
    Coin shower + toasts + modal
    ============================================================ */
+
+/* ============================================================
+   Rank-up cinematic — full-screen Atari-era celebration.
+   Fires once per rank threshold per crew (docs/14 #21, docs/16
+   conflict 4: motion = meaning; this moment earns its frames).
+   Diegetic retro animation, so everything runs on steps().
+   ============================================================ */
+
+function rankCineKey() { return `vacaciones.rankMin.${state.teamId || 'none'}`; }
+
+function maybeShowRankCinematic(stats) {
+  if (!state.teamId || !stats) return;
+  const rank = computeRank(stats);
+  const stored = localStorage.getItem(rankCineKey());
+  if (stored === null) {
+    // First sighting of this crew on this browser — sync silently so we
+    // never replay history.
+    localStorage.setItem(rankCineKey(), String(rank.min));
+    return;
+  }
+  if (rank.min > Number(stored)) {
+    localStorage.setItem(rankCineKey(), String(rank.min));
+    showRankCinematic(rank);
+  } else if (rank.min < Number(stored)) {
+    localStorage.setItem(rankCineKey(), String(rank.min));
+  }
+}
+
+function showRankCinematic(rank, opts = {}) {
+  // Honor the OS motion preference: celebrate via toast instead.
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    showToast(t('Promoted to {rank}!', { rank: t(rank.name) }), 'success', 6000);
+    audio.rank();
+    return;
+  }
+  // Never stack two cinematics.
+  if (document.querySelector('.cine')) return;
+
+  const isCommodore = rank.min >= 800;
+  const name = firstName(state.user?.displayName) || '';
+  const wrap = document.createElement('div');
+  wrap.className = `cine ${isCommodore ? 'cine-gold' : ''}`;
+  wrap.setAttribute('role', 'dialog');
+  wrap.setAttribute('aria-label', t('Promotion ceremony'));
+  const stars = Array.from({ length: 14 }, (_, i) =>
+    `<span class="cine-star" style="left:${(i * 37 + 11) % 96}%; top:${(i * 23 + 7) % 44}%; animation-delay:${(i % 5) * 280}ms"></span>`,
+  ).join('');
+  const rays = Array.from({ length: 8 }, (_, i) =>
+    `<span class="cine-ray" style="transform: rotate(${i * 45}deg)"></span>`,
+  ).join('');
+  wrap.innerHTML = `
+    <div class="cine-stars">${stars}</div>
+    <div class="cine-sun"></div>
+    <div class="cine-sea"><div class="cine-wave"></div></div>
+    <div class="cine-ship">${SVG.flag ?? ''}</div>
+    <div class="cine-center">
+      <div class="cine-burst">${rays}</div>
+      <div class="cine-emblem">${SVG.icons[rank.sprite] ?? ''}</div>
+      <div class="cine-title">${esc(t(isCommodore ? 'FLEET PROMOTION' : 'PROMOTED'))}</div>
+      <div class="cine-rank">${esc(t(rank.name).toUpperCase())}${name ? ` · ${esc(name.toUpperCase())}` : ''}</div>
+      ${isCommodore ? `<div class="cine-flavor">${esc(t('Highest honor on the seven seas.'))}</div>` : ''}
+    </div>
+    <div class="cine-skip">${esc(t('Click anywhere to continue'))}</div>
+    <div class="cine-scanlines" aria-hidden="true"></div>
+  `;
+  const ttl = isCommodore ? 6800 : 5200;
+  let timer;
+  const dismiss = () => {
+    clearTimeout(timer);
+    document.removeEventListener('keydown', onKey, true);
+    wrap.classList.add('cine-out');
+    setTimeout(() => wrap.remove(), 320);
+  };
+  const onKey = (e) => { e.preventDefault(); e.stopPropagation(); dismiss(); };
+  wrap.addEventListener('click', dismiss);
+  document.addEventListener('keydown', onKey, true);
+  document.body.appendChild(wrap);
+  timer = setTimeout(dismiss, ttl);
+  if (!opts.silent) { audio.init(); audio.fanfare(); }
+}
 
 function launchCoinShower(label) {
   const root = document.getElementById('coin-shower'); if (!root) return;
@@ -2281,17 +2434,17 @@ function renderStanScene() {
   const body = `
     <div class="stan-scene">
       <div class="stan-portrait">${SVG.stan}</div>
-      <div class="stan-speech"><p>${esc(scene.speech)}</p></div>
+      <div class="stan-speech"><p>${esc(t(scene.speech))}</p></div>
     </div>
     <div class="stan-progress">
       ${STAN_SCENES.map((_, i) => `<span class="stan-dot ${i === idx ? 'active' : ''}"></span>`).join('')}
     </div>
   `;
   showModal({
-    title: 'Stan, Harbormaster',
+    title: t('Stan, Harbormaster'),
     body,
-    primaryLabel: isLast ? 'Set sail' : 'Next',
-    secondaryLabel: idx === 0 ? 'Skip' : 'Back',
+    primaryLabel: isLast ? t('Set sail') : t('Next'),
+    secondaryLabel: idx === 0 ? t('Skip') : t('Back'),
     onPrimary: () => {
       audio.click();
       if (!isLast) {
@@ -2320,18 +2473,18 @@ function showBountyDetail(bountyId) {
   const cost = computeCoverageCost(b.windowStart?.toDate?.(), b.windowEnd?.toDate?.());
   const body = `
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-      <span class="status-badge status-${status}">${STATUS_LABEL[status] || status}</span>
+      <span class="status-badge status-${status}">${esc(t(STATUS_LABEL[status] || status))}</span>
       <span style="font-family: 'Silkscreen', monospace; font-size: 22px; color: var(--brass-deep); display: inline-flex; align-items: center; gap: 4px;">
         ${SVG.doubloon}${b.totalCoinsOffered ?? 0}
-        <span style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">doubloons</span>
+        <span style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">${esc(t('doubloons'))}</span>
       </span>
     </div>
 
     <div class="bd-section">
-      <h4>Requester</h4>
+      <h4>${esc(t('Requester'))}</h4>
       <div style="display: flex; align-items: center; gap: 8px;">
         ${b.requesterPhotoURL ? `<img class="avatar-mini" src="${esc(b.requesterPhotoURL)}" alt="" referrerpolicy="no-referrer" style="width: 32px; height: 32px;" />` : ''}
-        <span class="bd-value">${esc(b.requesterDisplayName || 'A crewmate')}${mine ? ' (you)' : ''}</span>
+        <span class="bd-value">${esc(b.requesterDisplayName || t('A crewmate'))}${mine ? ` (${t('you')})` : ''}</span>
       </div>
     </div>
 
@@ -2343,20 +2496,20 @@ function showBountyDetail(bountyId) {
       if (crewMode && coverers.length > 0) {
         return `
           <div class="bd-section">
-            <h4>Crew coverers (${coverers.length})</h4>
+            <h4>${esc(t('Crew coverers'))} (${coverers.length})</h4>
             <ul class="coverer-list">
               ${coverers.map((c) => {
                 const mineDays = allKeys.filter((k) => dayCoverers[k]?.uid === c.uid);
                 return `<li>
                   ${c.photoURL ? `<img class="avatar-mini" src="${esc(c.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 28px; height: 28px;" />` : ''}
-                  <span>${esc(shortName(c.displayName || 'Crewmate'))}${c.uid === state.user?.uid ? ' (you)' : ''}</span>
-                  <small>${mineDays.length} day${mineDays.length === 1 ? '' : 's'}</small>
+                  <span>${esc(shortName(c.displayName || t('A crewmate')))}${c.uid === state.user?.uid ? ` (${t('you')})` : ''}</span>
+                  <small>${esc(t('{n} days', { n: mineDays.length }))}</small>
                 </li>`;
               }).join('')}
             </ul>
             ${(() => {
               const remaining = allKeys.filter((k) => !dayCoverers[k]).length;
-              return remaining > 0 ? `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${remaining} day${remaining === 1 ? '' : 's'} still open.</p>` : `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">All days claimed.</p>`;
+              return remaining > 0 ? `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('{n} days still open.', { n: remaining }))}</p>` : `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('All days claimed.'))}</p>`;
             })()}
           </div>
         `;
@@ -2364,10 +2517,10 @@ function showBountyDetail(bountyId) {
       if (b.covererUid) {
         return `
           <div class="bd-section">
-            <h4>Covered by</h4>
+            <h4>${esc(t('Covered by'))}</h4>
             <div style="display: flex; align-items: center; gap: 8px;">
               ${b.covererPhotoURL ? `<img class="avatar-mini" src="${esc(b.covererPhotoURL)}" alt="" referrerpolicy="no-referrer" style="width: 32px; height: 32px;" />` : ''}
-              <span class="bd-value">${esc(b.covererDisplayName || 'A crewmate')}${b.covererUid === state.user?.uid ? ' (you)' : ''}</span>
+              <span class="bd-value">${esc(b.covererDisplayName || t('A crewmate'))}${b.covererUid === state.user?.uid ? ` (${t('you')})` : ''}</span>
             </div>
           </div>
         `;
@@ -2376,68 +2529,68 @@ function showBountyDetail(bountyId) {
     })()}
 
     <div class="bd-grid">
-      <span class="bd-label">Window</span>
-      <span class="bd-value">${esc(formatDate(b.windowStart?.toDate()))} → ${esc(formatDate(b.windowEnd?.toDate()))} (${days} day${days === 1 ? '' : 's'})</span>
-      <span class="bd-label">Timezone</span>
+      <span class="bd-label">${esc(t('Window'))}</span>
+      <span class="bd-value">${esc(formatDate(b.windowStart?.toDate()))} → ${esc(formatDate(b.windowEnd?.toDate()))} (${esc(t('{n} days', { n: days }))})</span>
+      <span class="bd-label">${esc(t('Timezone'))}</span>
       <span class="bd-value">${esc(b.timezone || '')}</span>
-      <span class="bd-label">Cost breakdown</span>
-      <span class="bd-value">${cost.weekdays} weekday × ${ECONOMY.COVERAGE_PRICE_PER_DAY} + ${cost.weekendDays} weekend × ${ECONOMY.COVERAGE_PRICE_PER_DAY * ECONOMY.WEEKEND_MULTIPLIER}</span>
+      <span class="bd-label">${esc(t('Cost breakdown'))}</span>
+      <span class="bd-value">${esc(t('{a} weekdays × {x} + {b} weekend days × {y}', { a: cost.weekdays, x: ECONOMY.COVERAGE_PRICE_PER_DAY, b: cost.weekendDays, y: ECONOMY.COVERAGE_PRICE_PER_DAY * ECONOMY.WEEKEND_MULTIPLIER }))}</span>
       ${b.sla ? `<span class="bd-label">SLA</span><span class="bd-value">${esc(b.sla)}</span>` : ''}
     </div>
 
     ${b.coverageScope ? `
       <div class="bd-section">
-        <h4>Coverage scope</h4>
+        <h4>${esc(t('Coverage scope'))}</h4>
         <p class="bd-value" style="margin: 0;">${esc(b.coverageScope)}</p>
       </div>
     ` : ''}
 
     ${reaches.length > 0 ? `
       <div class="bd-section">
-        <h4>Reachability</h4>
-        <div class="chips">${reaches.map((r) => `<span class="chip chip-cream">${spriteIcon(r.sprite)} ${esc(r.label)}</span>`).join('')}</div>
+        <h4>${esc(t('Reachability'))}</h4>
+        <div class="chips">${reaches.map((r) => `<span class="chip chip-cream">${spriteIcon(r.sprite)} ${esc(t(r.label))}</span>`).join('')}</div>
       </div>` : ''}
 
     ${kinds.length > 0 ? `
       <div class="bd-section">
-        <h4>What you'd be covering</h4>
-        <div class="chips">${kinds.map((k) => `<span class="chip chip-cyan">${spriteIcon(k.sprite)} ${esc(k.label)}</span>`).join('')}</div>
+        <h4>${esc(t("What you'd be covering"))}</h4>
+        <div class="chips">${kinds.map((k) => `<span class="chip chip-cyan">${spriteIcon(k.sprite)} ${esc(t(k.label))}</span>`).join('')}</div>
       </div>` : ''}
 
     ${b.emergencyDef ? `
       <div class="bd-section">
-        <h4>What counts as a real emergency</h4>
+        <h4>${esc(t('What counts as a real emergency'))}</h4>
         <p class="bd-value" style="margin: 0;">${esc(b.emergencyDef)}</p>
       </div>` : ''}
 
     ${b.aiBriefing ? `
       <div class="bd-section ai-briefing">
-        <h4>✨ AI briefing</h4>
+        <h4>✨ ${esc(t('AI briefing'))}</h4>
         <div class="ai-content markdown">${renderMarkdown(b.aiBriefing.content || '')}</div>
-        <small class="muted" style="display: block; margin-top: 8px;">Generated by Gemini · ${esc(timeAgo(new Date(b.aiBriefing.generatedAtMs || 0)))}</small>
+        <small class="muted" style="display: block; margin-top: 8px;">${esc(t('Generated by Gemini'))} · ${esc(timeAgo(new Date(b.aiBriefing.generatedAtMs || 0)))}</small>
       </div>` : ''}
     ${mine && (b.status === 'open' || b.status === 'accepted' || b.status === 'active') ? `
       <div style="margin-top: var(--sp-3); display: flex; gap: 8px; flex-wrap: wrap;">
         <button class="btn btn-secondary" data-action="gen-briefing" data-bounty-id="${esc(b.id)}" ${state.briefingLoading ? 'disabled' : ''}>
-          ${state.briefingLoading ? 'Generating…' : (b.aiBriefing ? '✨ Regenerate briefing' : '✨ Generate AI briefing')}
+          ${esc(state.briefingLoading ? t('Generating…') : (b.aiBriefing ? '✨ ' + t('Regenerate briefing') : '✨ ' + t('Generate AI briefing')))}
         </button>
-        ${b.status === 'open' ? `<button class="btn btn-secondary" data-action="edit-bounty" data-bounty-id="${esc(b.id)}">✏ Edit details</button>` : ''}
+        ${b.status === 'open' ? `<button class="btn btn-secondary" data-action="edit-bounty" data-bounty-id="${esc(b.id)}">✏ ${esc(t('Edit details'))}</button>` : ''}
       </div>
     ` : ''}
 
     ${arr(b.meetings).length > 0 ? `
       <div class="bd-section">
-        <h4>Meetings to cover (${arr(b.meetings).length})</h4>
+        <h4>${esc(t('Meetings to cover'))} (${arr(b.meetings).length})</h4>
         <ul class="meeting-list bounty-meeting-list">
           ${arr(b.meetings).map((m) => `
             <li>
               <div class="meeting-info">
                 <strong>${esc(m.summary)}</strong>
-                <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${m.attendees.length} attendees` : ''}</small>
+                <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${esc(t('{n} attendees', { n: m.attendees.length }))}` : ''}</small>
                 <span class="meeting-links">
                   ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">📹 Meet</a>` : ''}
                   ${arr(m.conferenceLinks).map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">🔗 ${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('')}
-                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 In Calendar</a>` : ''}
+                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 ${esc(t('In Calendar'))}</a>` : ''}
                 </span>
                 ${m.location ? `<small class="meeting-loc">📍 ${esc(m.location)}</small>` : ''}
               </div>
@@ -2450,10 +2603,10 @@ function showBountyDetail(bountyId) {
           const markerAdded = localStorage.getItem(`vacaciones.addedMarker.${b.id}`) === '1';
           const allDone = remaining === 0 && markerAdded;
           const label = allDone
-            ? 'All added to your calendar'
+            ? t('All added to your calendar')
             : !markerAdded && remaining === 0
-              ? '📅 Add coverage marker to my calendar'
-              : `📅 Add coverage marker${remaining > 0 ? ` + ${remaining} meeting${remaining === 1 ? '' : 's'}` : ''} to my calendar`;
+              ? '📅 ' + t('Add coverage marker to my calendar')
+              : '📅 ' + (remaining > 0 ? t('Add coverage marker + {n} meetings to my calendar', { n: remaining }) : t('Add coverage marker to my calendar'));
           return `<div style="margin-top: 12px;">
             <button class="btn btn-secondary" data-action="add-meetings" data-bounty-id="${esc(b.id)}" ${allDone ? 'disabled' : ''}>${esc(label)}</button>
           </div>`;
@@ -2466,30 +2619,30 @@ function showBountyDetail(bountyId) {
   const remainingDays = allDayKeys.filter((k) => !dayCoverers[k]).length;
   if (status === 'open' && !mine && isCrew && remainingDays > 0) {
     showModal({
-      title: 'Bounty detail',
+      title: t('Bounty detail'),
       body,
       wide: true,
-      primaryLabel: `Claim days (${remainingDays} left)`,
-      secondaryLabel: 'Back',
+      primaryLabel: t('Claim days ({n} left)', { n: remainingDays }),
+      secondaryLabel: t('Back'),
       onPrimary: () => startCrewClaim(bountyId),
     });
   } else if (status === 'open' && !mine) {
     showModal({
-      title: 'Bounty detail',
+      title: t('Bounty detail'),
       body,
       wide: true,
-      primaryLabel: 'Cover this bounty',
-      secondaryLabel: 'Back',
+      primaryLabel: t('Cover this bounty'),
+      secondaryLabel: t('Back'),
       onPrimary: () => acceptRequest(bountyId),
     });
   } else if (status === 'completed' && mine && b.covererUid) {
     // Requester whose bounty was completed — invite them to send a scroll
     showModal({
-      title: 'Bounty detail',
+      title: t('Bounty detail'),
       body,
       wide: true,
-      primaryLabel: '🪶 Send Thank-You Scroll',
-      secondaryLabel: 'Close',
+      primaryLabel: '🪶 ' + t('Send Thank-You Scroll'),
+      secondaryLabel: t('Close'),
       onPrimary: () => showSendScrollModal(b.covererUid, b.covererDisplayName, b.id),
     });
   } else {
@@ -2502,14 +2655,14 @@ function showBountyDetail(bountyId) {
     // Append force-complete button into body for managers
     let bodyWithAdmin = body;
     if (canForceComplete) {
-      bodyWithAdmin += `<div style="margin-top: 12px;"><button class="btn btn-danger" data-action="force-complete" data-bounty-id="${esc(bountyId)}">🏁 Force complete</button></div>`;
+      bodyWithAdmin += `<div style="margin-top: 12px;"><button class="btn btn-danger" data-action="force-complete" data-bounty-id="${esc(bountyId)}">🏁 ${esc(t('Force complete'))}</button></div>`;
     }
     showModal({
-      title: 'Bounty detail',
+      title: t('Bounty detail'),
       body: bodyWithAdmin,
       wide: true,
-      primaryLabel: 'Close',
-      secondaryLabel: canCancel ? '🗑 Cancel bounty' : undefined,
+      primaryLabel: t('Close'),
+      secondaryLabel: canCancel ? '🗑 ' + t('Cancel bounty') : undefined,
       onSecondary: canCancel ? () => { confirmCancelBounty(bountyId); return false; } : undefined,
     });
   }
@@ -2531,10 +2684,10 @@ function renderUserInfo() {
   // Launch-gate item 11: the header carries bell + avatar only. Balance,
   // rank, theme, sound, identity and sign-out live in the Profile sheet.
   target.innerHTML = `
-    <button class="bell" data-action="bell" title="Notifications" aria-label="${unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
+    <button class="bell" data-action="bell" title="${esc(t('Notifications'))}" aria-label="${esc(unread > 0 ? t('Notifications, {n} unread', { n: unread }) : t('Notifications'))}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
       <span aria-hidden="true">🔔</span>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
     </button>
-    <button class="avatar-slot" data-action="pick-avatar-open" title="Profile" aria-label="Open profile" aria-haspopup="dialog">
+    <button class="avatar-slot" data-action="pick-avatar-open" title="${esc(t('Profile'))}" aria-label="${esc(t('Open profile'))}" aria-haspopup="dialog">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 32, klass: 'avatar-img' })}
     </button>
     ${state.bellOpen ? renderBellDropdown(notifs) : ''}
@@ -2543,10 +2696,10 @@ function renderUserInfo() {
 
 function renderBellDropdown(notifs) {
   return `
-    <div class="bell-dropdown" role="region" aria-label="Recent activity">
-      <div class="dropdown-title">Recent activity</div>
+    <div class="bell-dropdown" role="region" aria-label="${esc(t('Recent activity'))}">
+      <div class="dropdown-title">${esc(t('Recent activity'))}</div>
       ${notifs.length === 0 ? `
-        <div class="bell-empty">Nothing new in the harbour.</div>
+        <div class="bell-empty">${esc(t('Nothing new in the harbour.'))}</div>
       ` : `
         <ul class="bell-list">
           ${notifs.map((n) => `
@@ -2585,29 +2738,29 @@ function render() {
 function renderHelp() {
   return `
     <nav class="breadcrumb">
-      <a href="#/">Crews</a><span class="sep">/</span><span class="current">Help</span>
+      <a href="#/">${esc(t('Crews'))}</a><span class="sep">/</span><span class="current">${esc(t('Help'))}</span>
     </nav>
     <header class="team-header">
-      <div><h1>HOW TIME OFF WORKS</h1></div>
+      <div><h1>${esc(t('How Time Off works'))}</h1></div>
     </header>
     <div class="panel">
-      <div class="panel-title">The doubloon economy</div>
-      <h3 style="margin-top: 12px;">🪙 Your purse, your starter chest, the Crown's stipend</h3>
-      <p>Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend doubloons expire at the end of each month, so spend them or lose them. Earned doubloons (the ones you got by covering crewmates) never expire.</p>
-      <h3>📅 What a day of coverage costs</h3>
-      <p>One day costs <strong>5 doubloons</strong> (Mon–Fri). Weekend days cost <strong>10</strong>. Holidays don't have special rates yet — they cost what their weekday says.</p>
-      <h3>🏴‍☠️ Posting a bounty</h3>
-      <p>Pick a date range, pick which days you actually want covered (toggle weekends off if you're not asking for them), set how reachable you'll be, what kinds of work need covering, and an SLA. Costs come straight from your wallet (stipend first, then earned). Single coverer mode is the default — one crewmate takes everything. Crew mode lets multiple crewmates split days; the bounty stays open until every day is claimed.</p>
-      <h3>⚓ Taking a voyage</h3>
-      <p>Browse the Bounty Board. Click any open bounty to see the full briefing. In crew mode you pick which days you can cover; in single mode you take the whole window. Doubloons release to you one day at a time as the days pass, paid out by a daily cron.</p>
-      <h3>🏆 Voyage Rank + Wall of Fame</h3>
-      <p>Your rank (Cabin Boy → Commodore) is based on lifetime doubloons earned by covering. The Wall of Fame ranks crewmates by what they earned in the last 90 days, so old salts can't sit on their laurels.</p>
-      <h3>🪶 Thank-You Scrolls</h3>
-      <p>Recognition that isn't tied to doubloons. Send a scroll to a crewmate who covered you well, or tip your hat to anyone on the Wall of Fame.</p>
+      <div class="panel-title">${esc(t('The doubloon economy'))}</div>
+      <h3 style="margin-top: 12px;">🪙 ${esc(t("Your purse, your starter chest, the Crown's stipend"))}</h3>
+      <p>${t('Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend doubloons expire at the end of each month, so spend them or lose them. Earned doubloons (the ones you got by covering crewmates) never expire.')}</p>
+      <h3>📅 ${esc(t('What a day of coverage costs'))}</h3>
+      <p>${t("One day costs <strong>5 doubloons</strong> (Mon–Fri). Weekend days cost <strong>10</strong>. Holidays don't have special rates yet — they cost what their weekday says.")}</p>
+      <h3>🏴‍☠️ ${esc(t('Posting a bounty'))}</h3>
+      <p>${t("Pick a date range, pick which days you actually want covered (toggle weekends off if you're not asking for them), set how reachable you'll be, what kinds of work need covering, and an SLA. Costs come straight from your wallet (stipend first, then earned). Single coverer mode is the default — one crewmate takes everything. Crew mode lets multiple crewmates split days; the bounty stays open until every day is claimed.")}</p>
+      <h3>⚓ ${esc(t('Covering a bounty'))}</h3>
+      <p>${t('Browse the Bounty Board. Click any open bounty to see the full briefing. In crew mode you pick which days you can cover; in single mode you take the whole window. Doubloons release to you one day at a time as the days pass, paid out by a daily cron.')}</p>
+      <h3>🏆 ${esc(t('Voyage Rank + Wall of Fame'))}</h3>
+      <p>${t("Your rank (Cabin Boy → Commodore) is based on lifetime doubloons earned by covering. The Wall of Fame ranks crewmates by what they earned in the last 90 days, so old salts can't sit on their laurels.")}</p>
+      <h3>🪶 ${esc(t('Thank-You Scrolls'))}</h3>
+      <p>${t("Recognition that isn't tied to doubloons. Send a scroll to a crewmate who covered you well, or tip your hat to anyone on the Wall of Fame.")}</p>
       <h3>📅 Google Calendar</h3>
-      <p>Optional. Connect Calendar in the post form to pick which meetings the coverer should attend. When you accept a bounty you can add a coverage marker + the meetings to your own Calendar with one click.</p>
-      <h3>🤖 Gemini briefing (manager-configured)</h3>
-      <p>If your crew has a Gemini API key in Settings, the requester can hit "✨ Generate briefing" on their bounty and Gemini will draft a structured briefing (orientation, accounts, what to do, emergency protocol, open questions). The coverer reads it inside the bounty detail.</p>
+      <p>${t('Optional. Connect Calendar in the post form to pick which meetings the coverer should attend. When you accept a bounty you can add a coverage marker + the meetings to your own Calendar with one click.')}</p>
+      <h3>🤖 ${esc(t('Gemini briefing (manager-configured)'))}</h3>
+      <p>${t('If your crew has a Gemini API key in Settings, the requester can hit "✨ Generate briefing" on their bounty and Gemini will draft a structured briefing (orientation, accounts, what to do, emergency protocol, open questions). The coverer reads it inside the bounty detail.')}</p>
     </div>
   `;
 }
@@ -2623,21 +2776,21 @@ function renderLogin() {
       ${renderHarborBg()}
       <div class="login-content">
         <h1 class="login-title">TIME OFF</h1>
-        <p class="login-tagline">Tales of Monkey Coverage</p>
+        <p class="login-tagline">${esc(t('Tales of Monkey Coverage'))}</p>
         <div class="login-card">
           <button class="btn btn-google" data-action="sign-in" ${busy ? 'disabled' : ''}>
-            ${busy ? `<span class="spinner"></span>Signing in…` : `
+            ${busy ? `<span class="spinner"></span>${esc(t('Signing in…'))}` : `
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
-              </svg>SIGN IN WITH GOOGLE`}
+              </svg>${esc(t('Sign in with Google'))}`}
           </button>
         </div>
       </div>
       <div class="mascot-floater">
-        <div class="mascot-bubble">${esc(pickMascotLine())}</div>
+        <div class="mascot-bubble">${esc(t(pickMascotLine()))}</div>
         <div class="mascot-sprite">${SVG.turtle}</div>
       </div>
     </div>
@@ -2878,30 +3031,30 @@ function renderHome() {
   const teams = state.myTeams;
   return `
     <section class="hero">
-      <h1>Welcome aboard, ${esc(firstName(state.user?.displayName))}</h1>
-      <p>Pick a crew to manage bounties, or raise your own colours.</p>
+      <h1>${esc(t('Welcome aboard, {name}', { name: firstName(state.user?.displayName) }))}</h1>
+      <p>${esc(t('Pick a crew to manage bounties, or raise your own colours.'))}</p>
     </section>
     <section>
-      <h2>Your Crews</h2>
+      <h2>${esc(t('Your Crews'))}</h2>
       ${teams.length === 0 ? `
         <div class="empty-card">
           <div class="empty-mascot">${SVG.turtle}</div>
-          <p><strong>No crew yet.</strong></p>
-          <p class="muted">Form one with your colleagues, or sign on with an invite link.</p>
+          <p><strong>${esc(t('No crew yet.'))}</strong></p>
+          <p class="muted">${esc(t('Form one with your colleagues, or sign on with an invite link.'))}</p>
         </div>
       ` : `
         <ul class="team-list">
-          ${teams.map((t) => `
+          ${teams.map((tm) => `
             <li>
-              <a href="#/team/${esc(t.id)}" class="team-card">
-                ${t.photoURL
-                  ? `<img class="team-flag" src="${esc(t.photoURL)}" alt="" referrerpolicy="no-referrer" />`
+              <a href="#/team/${esc(tm.id)}" class="team-card">
+                ${tm.photoURL
+                  ? `<img class="team-flag" src="${esc(tm.photoURL)}" alt="" referrerpolicy="no-referrer" />`
                   : `<span class="team-flag">${SVG.flag}</span>`}
                 <div class="team-main">
-                  <strong>${esc(t.name)}</strong>
-                  <small>${(t.memberUids?.length || 0)} crewmate${(t.memberUids?.length === 1 ? '' : 's')}</small>
+                  <strong>${esc(tm.name)}</strong>
+                  <small>${esc(t('{n} crewmates', { n: tm.memberUids?.length || 0 }))}</small>
                 </div>
-                <code class="team-id-chip" title="Crew ID (internal reference — invites use manager-shared links)">${esc(t.id)}</code>
+                <code class="team-id-chip" title="${esc(t('Crew ID (internal reference — invites use manager-shared links)'))}">${esc(tm.id)}</code>
                 <span class="arrow">▶</span>
               </a>
             </li>
@@ -2911,19 +3064,19 @@ function renderHome() {
     </section>
     <section class="actions">
       <div class="panel">
-        <div class="panel-title">Form a crew</div>
-        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.</p>
+        <div class="panel-title">${esc(t('Form a crew'))}</div>
+        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">${esc(t('You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.'))}</p>
         <div class="row">
-          <input id="new-team-name" type="text" placeholder="Crew name" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
-          <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${state.busy.createTeam ? 'Creating…' : 'Create crew'}</button>
+          <input id="new-team-name" type="text" placeholder="${esc(t('Crew name'))}" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
+          <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${esc(state.busy.createTeam ? t('Creating…') : t('Create crew'))}</button>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-title">Sign on with a crew</div>
-        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">Paste the invite link a crew manager shared.</p>
+        <div class="panel-title">${esc(t('Sign on with a crew'))}</div>
+        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">${esc(t('Paste the invite link a crew manager shared.'))}</p>
         <div class="row">
-          <input id="join-team-id" type="text" placeholder="Invite link" ${state.busy.joinTeam ? 'disabled' : ''} />
-          <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${state.busy.joinTeam ? 'Joining…' : 'Join'}</button>
+          <input id="join-team-id" type="text" placeholder="${esc(t('Invite link'))}" ${state.busy.joinTeam ? 'disabled' : ''} />
+          <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${esc(state.busy.joinTeam ? t('Joining…') : t('Join'))}</button>
         </div>
       </div>
     </section>
@@ -2940,9 +3093,9 @@ function renderTeam() {
     return `
       <div class="empty-card" style="margin-top: 48px;">
         <div class="empty-mascot">${SVG.turtle}</div>
-        <h2 style="color: var(--ink-pure);">Crew not found</h2>
-        <p class="muted">You may have been pressed elsewhere, or the crew ID is wrong.</p>
-        <p style="margin-top: 16px;"><a href="#/">◀ Back to your crews</a></p>
+        <h2 style="color: var(--ink-pure);">${esc(t('Crew not found'))}</h2>
+        <p class="muted">${esc(t('You may have been pressed elsewhere, or the crew ID is wrong.'))}</p>
+        <p style="margin-top: 16px;"><a href="#/">◀ ${esc(t('Back to your crews'))}</a></p>
       </div>
     `;
   }
@@ -2958,7 +3111,7 @@ function renderTeam() {
 
   return `
     <nav class="breadcrumb">
-      <a href="#/">Crews</a><span class="sep">/</span><span class="current">${esc(team.name)}</span>
+      <a href="#/">${esc(t('Crews'))}</a><span class="sep">/</span><span class="current">${esc(team.name)}</span>
     </nav>
     <header class="team-header">
       <div style="display: flex; align-items: center; gap: 12px;">
@@ -2967,21 +3120,21 @@ function renderTeam() {
           : `<span style="width: 48px; height: 48px; display: inline-block;">${SVG.flag}</span>`}
         <div>
           <h1>${esc(team.name)}</h1>
-          <small>${team.memberUids?.length || 0} crewmate${team.memberUids?.length === 1 ? '' : 's'} · ID: <code>${esc(team.id)}</code></small>
+          <small>${esc(t('{n} crewmates', { n: team.memberUids?.length || 0 }))} · ID: <code>${esc(team.id)}</code></small>
         </div>
       </div>
       <div class="invite-actions">
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">✏ Manage</button>` : ''}
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 Share invite</button>` : ''}
+        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">✏ ${esc(t('Manage'))}</button>` : ''}
+        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 ${esc(t('Share invite'))}</button>` : ''}
       </div>
     </header>
-    <nav class="tabs" aria-label="Crew navigation">
-      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}" ${tab === 'bounties' ? 'aria-current="page"' : ''}>Bounty Board ${openCount > 0 ? `<span class="tab-count" aria-label="${openCount} open">${openCount}</span>` : ''}</a>
-      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}" ${tab === 'chest' ? 'aria-current="page"' : ''}>Treasure Chest</a>
-      <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}" ${tab === 'wof' ? 'aria-current="page"' : ''}>Wall of Fame</a>
-      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}" ${tab === 'members' ? 'aria-current="page"' : ''}>Crew</a>
-      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}" ${tab === 'post' ? 'aria-current="page"' : ''}>Post Bounty</a>
-      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}" ${tab === 'settings' ? 'aria-current="page"' : ''}><span aria-hidden="true">⚙ </span>Settings</a>` : ''}
+    <nav class="tabs" aria-label="${esc(t('Crew navigation'))}">
+      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}" ${tab === 'bounties' ? 'aria-current="page"' : ''}>${esc(t('Bounty Board'))} ${openCount > 0 ? `<span class="tab-count" aria-label="${esc(t('{n} open', { n: openCount }))}">${openCount}</span>` : ''}</a>
+      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}" ${tab === 'chest' ? 'aria-current="page"' : ''}>${esc(t('Treasure Chest'))}</a>
+      <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}" ${tab === 'wof' ? 'aria-current="page"' : ''}>${esc(t('Wall of Fame'))}</a>
+      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}" ${tab === 'members' ? 'aria-current="page"' : ''}>${esc(t('Crew'))}</a>
+      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}" ${tab === 'post' ? 'aria-current="page"' : ''}>${esc(t('Post Bounty'))}</a>
+      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}" ${tab === 'settings' ? 'aria-current="page"' : ''}><span aria-hidden="true">⚙ </span>${esc(t('Settings'))}</a>` : ''}
     </nav>
     ${body}
   `;
@@ -3023,23 +3176,23 @@ function renderBountyBoardTab() {
   return `
     <section>
       <div class="filter-row">
-        ${renderFilter('all', `All · ${counts.all}`)}
-        ${renderFilter('open', `Open · ${counts.open}`)}
-        ${renderFilter('taken', `Taken · ${counts.taken}`)}
-        ${renderFilter('done', `Done · ${counts.done}`)}
-        ${renderFilter('mine', `Mine · ${counts.mine}`)}
+        ${renderFilter('all', `${t('All')} · ${counts.all}`)}
+        ${renderFilter('open', `${t('Open')} · ${counts.open}`)}
+        ${renderFilter('taken', `${t('Taken')} · ${counts.taken}`)}
+        ${renderFilter('done', `${t('Done')} · ${counts.done}`)}
+        ${renderFilter('mine', `${t('Mine')} · ${counts.mine}`)}
       </div>
       <div class="search-row">
-        <input id="bounty-search" type="text" placeholder="Search requester, scope, SLA…" value="${esc(state.bountyFilterText)}" />
-        ${state.bountyFilterText ? `<button class="btn-ghost" data-action="clear-search">Clear</button>` : ''}
-        <button class="btn-ghost density-toggle" data-action="toggle-density" title="${state.density === 'compact' ? 'Switch to comfortable rows' : 'Switch to compact rows'}" aria-pressed="${state.density === 'compact' ? 'true' : 'false'}" aria-label="${state.density === 'compact' ? 'Switch to comfortable rows' : 'Switch to compact rows'}">${state.density === 'compact' ? 'Comfortable' : 'Compact'}</button>
+        <input id="bounty-search" type="text" placeholder="${esc(t('Search requester, scope, SLA…'))}" value="${esc(state.bountyFilterText)}" />
+        ${state.bountyFilterText ? `<button class="btn-ghost" data-action="clear-search">${esc(t('Clear'))}</button>` : ''}
+        <button class="btn-ghost density-toggle" data-action="toggle-density" title="${esc(state.density === 'compact' ? t('Switch to comfortable rows') : t('Switch to compact rows'))}" aria-pressed="${state.density === 'compact' ? 'true' : 'false'}" aria-label="${esc(state.density === 'compact' ? t('Switch to comfortable rows') : t('Switch to compact rows'))}">${esc(state.density === 'compact' ? t('Comfortable') : t('Compact'))}</button>
       </div>
       ${list.length === 0 ? `
         <div class="empty-card">
           <div class="empty-mascot">${SVG.turtle}</div>
-          <p><strong>${filter === 'all' ? 'The bounty board is empty.' : `No ${filter} bounties.`}</strong></p>
-          <p class="muted">${filter === 'all' ? 'Post one yourself — your crewmates earn doubloons by covering you.' : 'Switch the filter above to see other bounties.'}</p>
-          ${filter === 'all' ? `<p style="margin-top: 16px;"><a href="#/team/${esc(state.teamId)}/post">▶ Post a bounty</a></p>` : ''}
+          <p><strong>${esc(filter === 'all' ? t('The bounty board is empty.') : t('Nothing matches this filter.'))}</strong></p>
+          <p class="muted">${esc(filter === 'all' ? t('Post one yourself — your crewmates earn doubloons by covering you.') : t('Switch the filter above to see other bounties.'))}</p>
+          ${filter === 'all' ? `<p style="margin-top: 16px;"><a href="#/team/${esc(state.teamId)}/post">▶ ${esc(t('Post a bounty'))}</a></p>` : ''}
         </div>
       ` : `<ul class="bounties" data-density="${esc(state.density)}">${list.map(renderBountyCard).join('')}</ul>`}
     </section>
@@ -3053,11 +3206,11 @@ function renderFilter(value, label) {
 
 function renderBountyCard(b) {
   const status = b.status || 'open';
-  const statusLabel = STATUS_LABEL[status] || status.toUpperCase();
+  const statusLabel = t(STATUS_LABEL[status] || status);
   const mine = b.requesterUid === state.user?.uid;
   const accepting = state.busy.acceptId === b.id;
   const days = Math.max(1, Math.round(((b.windowEnd?.toDate?.() ?? new Date()) - (b.windowStart?.toDate?.() ?? new Date())) / 86400000) + 1);
-  const reqName = b.requesterDisplayName || (mine ? 'You' : 'A crewmate');
+  const reqName = b.requesterDisplayName || (mine ? t('You') : t('A crewmate'));
   const reqPhoto = b.requesterPhotoURL;
   const mode = b.coverageMode || 'single';
   const isCrew = mode === 'crew';
@@ -3072,11 +3225,11 @@ function renderBountyCard(b) {
 
   let actionHtml = '';
   if (mine) {
-    actionHtml = `<span class="own-tag">Your bounty</span>`;
+    actionHtml = `<span class="own-tag">${esc(t('Your bounty'))}</span>`;
   } else if (isCrew && status === 'open') {
-    actionHtml = `<button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : `Claim days (${remainingCount} left)`}</button>`;
+    actionHtml = `<button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? esc(t('Accepting…')) : esc(t('Claim days ({n} left)', { n: remainingCount }))}</button>`;
   } else if (status === 'open') {
-    actionHtml = `<button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? 'Accepting…' : 'Cover'}</button>`;
+    actionHtml = `<button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? esc(t('Accepting…')) : esc(t('Cover'))}</button>`;
   }
   // Taken states need no action slot — the status badge (row 1) and the
   // "covered by" note (row 2) carry it.
@@ -3088,26 +3241,26 @@ function renderBountyCard(b) {
     if (status === 'open') return '';
     if (isCrew && coverers.length > 0) {
       const names = coverers.slice(0, 2).map((c) => shortName(c.displayName ?? '')).join(', ');
-      return ` · covered by ${names}${coverers.length > 2 ? ` +${coverers.length - 2}` : ''}`;
+      return ` · ${t('covered by {name}', { name: names })}${coverers.length > 2 ? ` +${coverers.length - 2}` : ''}`;
     }
     if (b.covererDisplayName || youCover) {
-      return ` · covered by ${shortName(b.covererDisplayName || 'you')}`;
+      return ` · ${t('covered by {name}', { name: shortName(b.covererDisplayName || t('you')) })}`;
     }
     return '';
   })();
 
   return `
-    <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" role="button" tabindex="0" aria-label="Bounty from ${esc(b.requesterDisplayName ?? 'crewmate')}, ${esc(statusLabel)}, ${b.totalCoinsOffered ?? 0} doubloons" style="cursor: pointer;">
+    <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" role="button" tabindex="0" aria-label="${esc(t('Bounty from {name}, {status}, {n} doubloons', { name: b.requesterDisplayName ?? t('A crewmate'), status: statusLabel, n: b.totalCoinsOffered ?? 0 }))}" style="cursor: pointer;">
       <div class="b-row1">
         ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar-mini avatar-mini-blank"></span>`}
         <strong class="b-name" title="${esc(b.requesterDisplayName ?? '')}">${esc(shortName(reqName))}</strong>
         <span class="status-badge status-${status}">${esc(statusLabel)}</span>
-        ${isCrew ? `<span class="mode-pill" title="${claimedCount}/${allDays.length} days claimed">Crew ${claimedCount}/${allDays.length}</span>` : ''}
-        ${(youHaveDays || youCover) ? `<span class="mine-pill">You</span>` : ''}
+        ${isCrew ? `<span class="mode-pill" title="${esc(t('{a}/{b} days claimed', { a: claimedCount, b: allDays.length }))}">${esc(t('Crew'))} ${claimedCount}/${allDays.length}</span>` : ''}
+        ${(youHaveDays || youCover) ? `<span class="mine-pill">${esc(t('You'))}</span>` : ''}
       </div>
       <div class="b-row2">
         ${esc(formatDate(b.windowStart?.toDate()))} – ${esc(formatDate(b.windowEnd?.toDate()))}
-        · ${days} day${days === 1 ? '' : 's'}${b.timezone ? ` · ${esc(b.timezone)}` : ''}${esc(covererNote)}
+        · ${esc(t('{n} days', { n: days }))}${b.timezone ? ` · ${esc(b.timezone)}` : ''}${esc(covererNote)}
       </div>
       <div class="b-row3">
         <span class="b-price">${SVG.doubloon}<strong>${b.totalCoinsOffered ?? 0}</strong></span>
@@ -3127,61 +3280,62 @@ function renderChestTab() {
     <div class="rank-hero">
       <div class="rank-emblem">${SVG.icons[rank.sprite] ?? ''}</div>
       <div class="rank-info">
-        <div class="rank-name">${esc(rank.name)}</div>
+        <div class="rank-name">${esc(t(rank.name))}</div>
         <div class="rank-progress">
           ${rank.nextName
-            ? `Earn <strong>${rank.toNext}</strong> more doubloons to reach <strong>${esc(rank.nextName)}</strong>.`
-            : `Highest rank achieved. Your name will be sung in shanties.`}
+            ? t('Earn <strong>{n}</strong> more doubloons to reach <strong>{rank}</strong>.', { n: rank.toNext, rank: esc(t(rank.nextName)) })
+            : t('Highest rank achieved. Your name will be sung in shanties.')}
         </div>
         <div class="rank-bar"><div class="rank-bar-fill" style="width: ${Math.round(rank.progress * 100)}%"></div></div>
+        <div><button class="btn-ghost" data-action="replay-cine" style="margin-top: 6px;">▶ ${esc(t('Replay promotion ceremony'))}</button></div>
       </div>
     </div>
 
     <div class="panel wallet-panel">
-      <div class="panel-title">Your treasure chest</div>
+      <div class="panel-title">${esc(t('Your treasure chest'))}</div>
       ${w ? `
         <div class="balances">
           <div class="bucket">
             <strong>${w.earnedBalance ?? 0}</strong>
-            <small>Earned</small>
+            <small>${esc(t('Earned'))}</small>
           </div>
           <div class="bucket">
             <strong>${w.stipendBalance ?? 0}</strong>
-            <small>Crown’s stipend</small>
-            <em>resets monthly</em>
+            <small>${esc(t('Crown’s stipend'))}</small>
+            <em>${esc(t('resets monthly'))}</em>
           </div>
           <div class="bucket total">
             <strong>${(w.earnedBalance ?? 0) + (w.stipendBalance ?? 0)}</strong>
-            <small>Total doubloons</small>
+            <small>${esc(t('Total doubloons'))}</small>
           </div>
         </div>
-      ` : `<p class="muted" style="margin: 0 0 12px;">No doubloons yet — the chest will fill as you act.</p>`}
+      ` : `<p class="muted" style="margin: 0 0 12px;">${esc(t('No doubloons yet — the chest will fill as you act.'))}</p>`}
 
-      <h3 style="margin-bottom: 8px;">Honors</h3>
+      <h3 style="margin-bottom: 8px;">${esc(t('Honors'))}</h3>
       <div class="achievements">
         ${achievements.map((a) => `
-          <div class="badge ${a.unlocked ? '' : 'locked'}" title="${esc(a.name)}">
+          <div class="badge ${a.unlocked ? '' : 'locked'}" title="${esc(t(a.name))}">
             <div class="badge-icon">${a.icon}</div>
-            <div class="badge-name">${esc(a.name)}</div>
+            <div class="badge-name">${esc(t(a.name))}</div>
           </div>
         `).join('')}
       </div>
 
       <div style="margin: 12px 0 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-        <h3 style="margin: 0;">Captain’s log</h3>
-        ${state.ledger.length > 0 ? `<button class="btn-ghost" data-action="export-csv">📥 Download CSV</button>` : ''}
+        <h3 style="margin: 0;">${esc(t('Captain’s log'))}</h3>
+        ${state.ledger.length > 0 ? `<button class="btn-ghost" data-action="export-csv">📥 ${esc(t('Download CSV'))}</button>` : ''}
       </div>
-      ${state.ledger.length === 0 ? `<p class="muted">Your ledger is empty for now.</p>` : `
+      ${state.ledger.length === 0 ? `<p class="muted">${esc(t('Your ledger is empty for now.'))}</p>` : `
         <ul class="ledger">
           ${state.ledger.slice(0, 20).map((e) => `
             <li class="${e.amountSigned > 0 ? 'credit' : e.amountSigned < 0 ? 'debit' : ''}">
               <div>
-                <strong>${esc(LEDGER_TYPE_LABELS[e.type] ?? e.type)}</strong>
+                <strong>${esc(t(LEDGER_TYPE_LABELS[e.type] ?? e.type))}</strong>
                 <small>${esc(formatDateTime(e.createdAt?.toDate()))}</small>
               </div>
               <span class="amount">
                 ${e.amountSigned > 0 ? '+' : ''}${e.amountSigned}
-                <small>${esc(e.balanceBucket)}</small>
+                <small>${esc(t(e.balanceBucket))}</small>
               </span>
             </li>
           `).join('')}
@@ -3197,7 +3351,7 @@ function renderDayPicker() {
   const start = parseLocalDate(f.startDate);
   const end = parseLocalDate(f.endDate);
   if (!start || !end || end < start) {
-    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">Pick the date range above first.</span></div>`;
+    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">${esc(t('Pick the date range above first.'))}</span></div>`;
   }
   const allKeys = allDayKeysInRange(start, end);
   const selectedSet = new Set(f.selectedDayKeys.length > 0 ? f.selectedDayKeys : allKeys);
@@ -3206,10 +3360,10 @@ function renderDayPicker() {
   return `
     <div class="meetings-picker">
       <div class="meetings-head">
-        <span class="muted" style="font-size: var(--fs-meta);">${selectedSet.size} of ${allKeys.length} day${allKeys.length === 1 ? '' : 's'} · ${cost.totalCoins} doubloons</span>
+        <span class="muted" style="font-size: var(--fs-meta);">${esc(t('{a} of {b} days · {n} doubloons', { a: selectedSet.size, b: allKeys.length, n: cost.totalCoins }))}</span>
         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-          <button type="button" class="btn-ghost" data-action="select-weekdays">Weekdays only</button>
-          <button type="button" class="btn-ghost" data-action="select-all-days">All</button>
+          <button type="button" class="btn-ghost" data-action="select-weekdays">${esc(t('Weekdays only'))}</button>
+          <button type="button" class="btn-ghost" data-action="select-all-days">${esc(t('All'))}</button>
         </div>
       </div>
       <ul class="day-list">
@@ -3220,9 +3374,9 @@ function renderDayPicker() {
           const cost = isWeekend ? 10 : 5;
           const sel = selectedSet.has(key);
           return `
-            <li class="day-card ${sel ? 'selected' : 'off'} ${isWeekend ? 'weekend' : ''}" data-action="toggle-day" data-day-key="${esc(key)}" role="button" tabindex="0" aria-pressed="${sel ? 'true' : 'false'}" aria-label="${WEEKDAY_NAMES[dow]} ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}, ${cost} doubloons, ${sel ? 'selected' : 'not selected'}">
-              <strong aria-hidden="true">${WEEKDAY_NAMES[dow]}</strong>
-              <span class="day-date" aria-hidden="true">${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}</span>
+            <li class="day-card ${sel ? 'selected' : 'off'} ${isWeekend ? 'weekend' : ''}" data-action="toggle-day" data-day-key="${esc(key)}" role="button" tabindex="0" aria-pressed="${sel ? 'true' : 'false'}" aria-label="${esc(t(WEEKDAY_NAMES[dow]))} ${d.getUTCDate()} ${esc(t(MONTH_NAMES[d.getUTCMonth()]))}, ${esc(t('{n} doubloons', { n: cost }))}, ${esc(sel ? t('selected') : t('not selected'))}">
+              <strong aria-hidden="true">${esc(t(WEEKDAY_NAMES[dow]))}</strong>
+              <span class="day-date" aria-hidden="true">${d.getUTCDate()} ${esc(t(MONTH_NAMES[d.getUTCMonth()]))}</span>
               <span class="day-cost" aria-hidden="true">${cost} <small>${SVG.doubloon}</small></span>
             </li>
           `;
@@ -3236,24 +3390,24 @@ function renderMeetingsPicker() {
   const f = state.formState;
   const hasDates = !!parseLocalDate(f.startDate) && !!parseLocalDate(f.endDate);
   if (!hasDates) {
-    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">Pick dates above to see your meetings in that window.</span></div>`;
+    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">${esc(t('Pick dates above to see your meetings in that window.'))}</span></div>`;
   }
   if (!calendar.isConnected()) {
     return `
       <div class="meetings-picker">
-        <button type="button" class="btn btn-secondary" data-action="connect-calendar">📅 Connect Google Calendar</button>
-        <p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">Optional. Lets you pick which meetings the coverer should attend, with Meet/Teams/Zoom links included.</p>
+        <button type="button" class="btn btn-secondary" data-action="connect-calendar">📅 ${esc(t('Connect Google Calendar'))}</button>
+        <p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('Optional. Lets you pick which meetings the coverer should attend, with Meet/Teams/Zoom links included.'))}</p>
       </div>
     `;
   }
   if (state.calendarLoading) {
-    return `<div class="meetings-picker"><span class="loading-doubloon">${SVG.doubloon}</span> Loading meetings…</div>`;
+    return `<div class="meetings-picker"><span class="loading-doubloon">${SVG.doubloon}</span> ${esc(t('Loading meetings…'))}</div>`;
   }
   if (state.calendarError) {
     return `
       <div class="meetings-picker">
-        <p class="error-text">Calendar: ${esc(state.calendarError)}</p>
-        <button type="button" class="btn-ghost" data-action="refresh-cal">↻ Retry</button>
+        <p class="error-text">${esc(t('Calendar: {msg}', { msg: state.calendarError }))}</p>
+        <button type="button" class="btn-ghost" data-action="refresh-cal">↻ ${esc(t('Retry'))}</button>
       </div>
     `;
   }
@@ -3261,8 +3415,8 @@ function renderMeetingsPicker() {
   if (events.length === 0) {
     return `
       <div class="meetings-picker">
-        <p class="muted" style="margin: 0;">No meetings in this window. (Cleared shore leave!)</p>
-        <button type="button" class="btn-ghost" data-action="refresh-cal" style="margin-top: 8px;">↻ Refresh</button>
+        <p class="muted" style="margin: 0;">${esc(t('No meetings in this window. (Clear sailing!)'))}</p>
+        <button type="button" class="btn-ghost" data-action="refresh-cal" style="margin-top: 8px;">↻ ${esc(t('Refresh'))}</button>
       </div>
     `;
   }
@@ -3270,8 +3424,8 @@ function renderMeetingsPicker() {
   return `
     <div class="meetings-picker">
       <div class="meetings-head">
-        <span class="muted" style="font-size: var(--fs-meta);">${events.length} meeting${events.length === 1 ? '' : 's'} in window. Tick the ones the coverer should handle.</span>
-        <button type="button" class="btn-ghost" data-action="refresh-cal">↻ Refresh</button>
+        <span class="muted" style="font-size: var(--fs-meta);">${esc(t('{n} meetings in window. Tick the ones the coverer should handle.', { n: events.length }))}</span>
+        <button type="button" class="btn-ghost" data-action="refresh-cal">↻ ${esc(t('Refresh'))}</button>
       </div>
       <ul class="meeting-list">
         ${events.map((m) => `
@@ -3281,11 +3435,11 @@ function renderMeetingsPicker() {
               <span class="check-box"></span>
               <span class="meeting-info">
                 <strong>${esc(m.summary)}</strong>
-                <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${m.attendees.length} attendees` : ''}</small>
+                <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${esc(t('{n} attendees', { n: m.attendees.length }))}` : ''}</small>
                 <span class="meeting-links">
                   ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">📹 Meet</a>` : ''}
                   ${m.conferenceLinks?.map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">🔗 ${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('') || ''}
-                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 In Calendar</a>` : ''}
+                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 ${esc(t('In Calendar'))}</a>` : ''}
                 </span>
                 ${m.location ? `<small class="meeting-loc">📍 ${esc(m.location)}</small>` : ''}
               </span>
@@ -3310,81 +3464,81 @@ function renderPostTab() {
   const cost = computeCurrentPostCost();
   return `
     <div class="create-card">
-      <div class="panel-title">Post a bounty</div>
+      <div class="panel-title">${esc(t('Post a bounty'))}</div>
       <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
-        ${ECONOMY.WEEKEND_MULTIPLIER}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.
+        ${esc(t('{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.', { x: ECONOMY.WEEKEND_MULTIPLIER }))}
       </p>
       <form id="create-form" autocomplete="off">
         <div class="form-grid">
-          <label><span>Shore leave from</span><input type="date" name="startDate" value="${esc(f.startDate)}" /></label>
-          <label><span>Returning by</span><input type="date" name="endDate" value="${esc(f.endDate)}" /></label>
-          <label class="wide"><span>Timezone</span><input type="text" name="timezone" value="${esc(tz)}" /></label>
+          <label><span>${esc(t('Shore leave from'))}</span><input type="date" name="startDate" value="${esc(f.startDate)}" /></label>
+          <label><span>${esc(t('Returning by'))}</span><input type="date" name="endDate" value="${esc(f.endDate)}" /></label>
+          <label class="wide"><span>${esc(t('Timezone'))}</span><input type="text" name="timezone" value="${esc(tz)}" /></label>
           <label class="wide">
-            <span>What you’re covered for · pick any</span>
+            <span>${esc(t('What you’re covered for · pick any'))}</span>
             <div class="check-group">
               ${COVERAGE_KIND_OPTIONS.map((k) => `
                 <label class="check-pixel">
                   <input type="checkbox" name="coverageKinds" value="${esc(k.value)}" ${f.coverageKinds.includes(k.value) ? 'checked' : ''}/>
                   <span class="check-box"></span>
-                  <span class="check-label">${spriteIcon(k.sprite)} ${esc(k.label)}</span>
+                  <span class="check-label">${spriteIcon(k.sprite)} ${esc(t(k.label))}</span>
                 </label>
               `).join('')}
             </div>
           </label>
           <label class="wide">
-            <span>How reachable while away · pick any</span>
+            <span>${esc(t('How reachable while away · pick any'))}</span>
             <div class="check-group">
               ${REACHABILITY_OPTIONS.map((r) => `
                 <label class="check-pixel">
                   <input type="checkbox" name="reachability" value="${esc(r.value)}" ${f.reachability.includes(r.value) ? 'checked' : ''}/>
                   <span class="check-box"></span>
-                  <span class="check-label">${spriteIcon(r.sprite)} ${esc(r.label)}</span>
+                  <span class="check-label">${spriteIcon(r.sprite)} ${esc(t(r.label))}</span>
                 </label>
               `).join('')}
             </div>
           </label>
           <div class="wide" id="day-picker-host">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Days to be covered · click to toggle</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Days to be covered · click to toggle'))}</span>
             ${renderDayPicker()}
           </div>
 
           <div class="wide">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Coverage mode</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Coverage mode'))}</span>
             <div class="mode-toggle">
               <label class="mode-option">
                 <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
                 <div>
-                  <strong>👤 Single coverer</strong>
-                  <small>One crewmate takes the whole window. Some clients want only one person on the rotation.</small>
+                  <strong>👤 ${esc(t('Single coverer'))}</strong>
+                  <small>${esc(t('One crewmate takes the whole window. Some clients want only one person on the rotation.'))}</small>
                 </div>
               </label>
               <label class="mode-option">
                 <input type="radio" name="coverageMode" value="crew" ${f.coverageMode === 'crew' ? 'checked' : ''} />
                 <div>
-                  <strong>🏴‍☠️ Crew coverage</strong>
-                  <small>Several crewmates can split the days. Long vacations get covered faster.</small>
+                  <strong>🏴‍☠️ ${esc(t('Crew coverage'))}</strong>
+                  <small>${esc(t('Several crewmates can split the days. Long vacations get covered faster.'))}</small>
                 </div>
               </label>
             </div>
           </div>
 
-          <label class="wide"><span>Coverage scope · which accounts / responsibilities</span><input type="text" name="coverageScope" placeholder="e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp" value="${esc(f.coverageScope)}" /></label>
+          <label class="wide"><span>${esc(t('Coverage scope · which accounts / responsibilities'))}</span><input type="text" name="coverageScope" placeholder="${esc(t('e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp'))}" value="${esc(f.coverageScope)}" /></label>
 
           <div class="wide" id="meetings-picker-host">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">Meetings to be covered</span>
+            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Meetings to be covered'))}</span>
             ${renderMeetingsPicker()}
           </div>
-          <label class="wide"><span>SLA the coverer should hold</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
-          <label class="wide"><span>What counts as a real emergency? (optional)</span><textarea name="emergencyDef" rows="2" placeholder="“Wake me only if Acme’s production is down.”">${esc(f.emergencyDef)}</textarea></label>
+          <label class="wide"><span>${esc(t('SLA the coverer should hold'))}</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
+          <label class="wide"><span>${esc(t('What counts as a real emergency? (optional)'))}</span><textarea name="emergencyDef" rows="2" placeholder="${esc(t('“Wake me only if Acme’s production is down.”'))}">${esc(f.emergencyDef)}</textarea></label>
         </div>
         <div class="preview-row">
           <div class="preview">
             ${cost.days > 0
-              ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>doubloons</span></div>
-                 <small>${cost.days} day${cost.days === 1 ? '' : 's'} · ${cost.weekdays} weekday · ${cost.weekendDays} weekend</small>`
-              : `<small class="muted-light">Pick a window to preview the cost.</small>`}
+              ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>${esc(t('doubloons'))}</span></div>
+                 <small>${esc(t('{n} days', { n: cost.days }))} · ${esc(t('{n} weekday', { n: cost.weekdays }))} · ${esc(t('{n} weekend', { n: cost.weekendDays }))}</small>`
+              : `<small class="muted-light">${esc(t('Pick a window to preview the cost.'))}</small>`}
           </div>
-          <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${state.busy.postRequest ? 'Posting…' : 'Post bounty'}</button>
+          <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${esc(state.busy.postRequest ? t('Posting…') : t('Post bounty'))}</button>
         </div>
       </form>
     </div>
@@ -3394,15 +3548,15 @@ function renderPostTab() {
 /* Wall of Fame */
 function renderWofTab() {
   if (state.leaderboardLoading && !state.leaderboard) {
-    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Reading the ship's logs&hellip;</div>`;
+    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>${esc(t("Reading the ship's logs…"))}</div>`;
   }
   const lb = state.leaderboard;
   if (!lb || lb.entries.length === 0) {
     return `
       <div class="empty-card">
         <div class="empty-mascot">${SVG.turtle}</div>
-        <p><strong>No covers yet.</strong></p>
-        <p class="muted">The wall fills as crewmates earn doubloons by covering each other.</p>
+        <p><strong>${esc(t('No covers yet.'))}</strong></p>
+        <p class="muted">${esc(t('The wall fills as crewmates earn doubloons by covering each other.'))}</p>
       </div>
     `;
   }
@@ -3429,8 +3583,8 @@ function renderWofTab() {
 
   return `
     <div class="wof-meta">
-      <span>Top covers in the last ${lb.windowDays} days · refreshed ${esc(timeAgo(new Date(lb.generatedAtMs)))}</span>
-      <button class="btn-ghost" data-action="refresh-wof" ${state.leaderboardLoading ? 'disabled' : ''}>${state.leaderboardLoading ? 'Refreshing…' : '↻ Refresh'}</button>
+      <span>${esc(t('Top covers in the last {n} days', { n: lb.windowDays }))} · ${esc(t('refreshed {when}', { when: timeAgo(new Date(lb.generatedAtMs)) }))}</span>
+      <button class="btn-ghost" data-action="refresh-wof" ${state.leaderboardLoading ? 'disabled' : ''}>${esc(state.leaderboardLoading ? t('Refreshing…') : '↻ ' + t('Refresh'))}</button>
     </div>
 
     <div class="wof-podium">
@@ -3441,9 +3595,9 @@ function renderWofTab() {
           ${p.photoURL
             ? `<img class="podium-avatar" src="${esc(p.photoURL)}" alt="" referrerpolicy="no-referrer" />`
             : `<div class="podium-avatar-fallback">${esc(initials(p.displayName))}</div>`}
-          <div class="podium-name">${esc(shortName(p.displayName))}${p.displayName === meName ? ' (you)' : ''}</div>
+          <div class="podium-name">${esc(shortName(p.displayName))}${p.displayName === meName ? ` (${t('you')})` : ''}</div>
           <div class="podium-score">${SVG.doubloon}${p.earnedInWindow}</div>
-          <div class="podium-voyages">${p.voyages} voyage${p.voyages === 1 ? '' : 's'}</div>
+          <div class="podium-voyages">${esc(t('{n} voyages', { n: p.voyages }))}</div>
         </div>
       `).join('')}
     </div>
@@ -3456,10 +3610,10 @@ function renderWofTab() {
             ${entry.photoURL
               ? `<img class="avatar-mini" src="${esc(entry.photoURL)}" alt="" referrerpolicy="no-referrer" />`
               : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;"></span>`}
-            <div class="wof-name">${esc(shortName(entry.displayName))}${entry.displayName === meName ? ' (you)' : ''}<br><small>${entry.voyages} voyage${entry.voyages === 1 ? '' : 's'}</small></div>
+            <div class="wof-name">${esc(shortName(entry.displayName))}${entry.displayName === meName ? ` (${t('you')})` : ''}<br><small>${esc(t('{n} voyages', { n: entry.voyages }))}</small></div>
             <span class="wof-score">${SVG.doubloon}${entry.earnedInWindow}</span>
             ${entry.uid !== state.user?.uid
-              ? `<button class="tip-hat" data-action="tip-hat" data-to-uid="${esc(entry.uid)}" data-to-name="${esc(entry.displayName)}">🪶 TIP HAT</button>`
+              ? `<button class="tip-hat" data-action="tip-hat" data-to-uid="${esc(entry.uid)}" data-to-name="${esc(entry.displayName)}">🪶 ${esc(t('Tip hat'))}</button>`
               : ''}
           </li>
         `).join('')}
@@ -3472,17 +3626,17 @@ function renderWofTab() {
 
 function renderMembersTab() {
   if (state.crewMembersLoading && state.crewMembers.length === 0) {
-    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Mustering the crew&hellip;</div>`;
+    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>${esc(t('Mustering the crew…'))}</div>`;
   }
   const members = state.crewMembers;
   if (members.length === 0) {
-    return `<div class="empty-card"><p><strong>Empty roster.</strong></p><p class="muted">Should never see this — refresh.</p></div>`;
+    return `<div class="empty-card"><p><strong>${esc(t('Empty roster.'))}</strong></p><p class="muted">${esc(t('Should never see this — refresh.'))}</p></div>`;
   }
   return `
     <section>
       <div class="wof-meta">
-        <span>${members.length} crewmate${members.length === 1 ? '' : 's'} aboard</span>
-        <button class="btn-ghost" data-action="refresh-members">↻ Refresh</button>
+        <span>${esc(t('{n} crewmates aboard', { n: members.length }))}</span>
+        <button class="btn-ghost" data-action="refresh-members">↻ ${esc(t('Refresh'))}</button>
       </div>
       <ul class="member-list">
         ${members.map((m) => {
@@ -3497,15 +3651,15 @@ function renderMembersTab() {
             <li class="member-card ${isMe ? 'me' : ''}">
               ${avatarHtml}
               <div class="member-main">
-                <strong>${esc(m.displayName)}${isMe ? ' (you)' : ''}</strong>
-                <small>${spriteIcon(rank.sprite)} ${esc(rank.name)} · ${m.voyages} voyage${m.voyages === 1 ? '' : 's'}</small>
+                <strong>${esc(m.displayName)}${isMe ? ` (${t('you')})` : ''}</strong>
+                <small>${spriteIcon(rank.sprite)} ${esc(t(rank.name))} · ${esc(t('{n} voyages', { n: m.voyages }))}</small>
               </div>
-              ${m.role === 'manager' ? `<span class="role-badge manager">CAPTAIN</span>` : `<span class="role-badge member">CREW</span>`}
+              ${m.role === 'manager' ? `<span class="role-badge manager">${esc(t('Manager'))}</span>` : `<span class="role-badge member">${esc(t('Member'))}</span>`}
               <div class="member-stats">
                 <span class="member-stat">${SVG.doubloon}<strong>${m.earnedLast90d}</strong></span>
-                <small>90d earned</small>
+                <small>${esc(t('90d earned'))}</small>
               </div>
-              ${state.myRole === 'manager' ? `<button class="kebab" data-action="member-admin" data-uid="${esc(m.uid)}" title="Admin actions" aria-label="Admin actions for ${esc(m.displayName || 'crewmate')}" aria-haspopup="dialog"><span aria-hidden="true">⋯</span></button>` : ''}
+              ${state.myRole === 'manager' ? `<button class="kebab" data-action="member-admin" data-uid="${esc(m.uid)}" title="${esc(t('Admin actions'))}" aria-label="${esc(t('Admin actions for {name}', { name: m.displayName || t('a crewmate') }))}" aria-haspopup="dialog"><span aria-hidden="true">⋯</span></button>` : ''}
             </li>
           `;
         }).join('')}
@@ -3519,40 +3673,38 @@ function renderSettingsTab() {
     return `
       <div class="empty-card">
         <div class="empty-mascot">${SVG.turtle}</div>
-        <p><strong>Captain's quarters.</strong></p>
-        <p class="muted">Only the crew manager can edit settings.</p>
+        <p><strong>${esc(t("Captain's quarters."))}</strong></p>
+        <p class="muted">${esc(t('Only the crew manager can edit settings.'))}</p>
       </div>
     `;
   }
   if (state.crewSettingsLoading && !state.crewSettings) {
-    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Loading crew settings&hellip;</div>`;
+    return `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>${esc(t('Loading crew settings…'))}</div>`;
   }
   const s = state.crewSettings || { hasGeminiKey: false, geminiKeyLast4: null, geminiKeySetAtMs: null };
   const inputId = 'gemini-key-' + Math.random().toString(36).slice(2, 8);
   return `
     <div class="panel">
-      <div class="panel-title">Crew settings</div>
+      <div class="panel-title">${esc(t('Crew settings'))}</div>
       <p class="muted" style="margin: 0 0 var(--sp-3); font-size: var(--fs-meta);">
-        These settings only the manager can change. Secret keys are stored server-side
-        and never returned to the browser — only metadata (last 4 chars, set date).
+        ${esc(t('Only managers can change these settings. Secret keys are stored server-side and never returned to the browser — only metadata (last 4 characters, set date).'))}
       </p>
 
       <div class="setting-row">
         <div class="setting-info">
-          <strong>Gemini API key</strong>
+          <strong>${esc(t('Gemini API key'))}</strong>
           <p class="muted" style="margin: 4px 0 0; font-size: var(--fs-meta);">
-            Used by future AI-powered features (briefing extraction, smart bounty drafts).
-            Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+            ${t('Powers the AI briefing on bounties. Get one at {link}.', { link: '<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>' })}
           </p>
           ${s.hasGeminiKey ? `
             <p class="setting-status" style="margin: 8px 0 0;">
-              <span class="status-badge status-active">CONFIGURED</span>
-              ends in <code>${esc(s.geminiKeyLast4 ?? '????')}</code>
-              ${s.geminiKeySetAtMs ? ` · set ${esc(timeAgo(new Date(s.geminiKeySetAtMs)))}` : ''}
+              <span class="status-badge status-active">${esc(t('Configured'))}</span>
+              ${esc(t('ends in'))} <code>${esc(s.geminiKeyLast4 ?? '????')}</code>
+              ${s.geminiKeySetAtMs ? ` · ${esc(t('set {when}', { when: timeAgo(new Date(s.geminiKeySetAtMs)) }))}` : ''}
             </p>
           ` : `
             <p class="setting-status" style="margin: 8px 0 0;">
-              <span class="status-badge status-cancelled">NOT SET</span>
+              <span class="status-badge status-cancelled">${esc(t('Not set'))}</span>
             </p>
           `}
         </div>
@@ -3560,37 +3712,37 @@ function renderSettingsTab() {
 
       <div style="margin-top: var(--sp-3);">
         <label>
-          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${s.hasGeminiKey ? 'Replace' : 'Set'} the key</span>
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(s.hasGeminiKey ? t('Replace the key') : t('Set the key'))}</span>
           <input type="password" id="${inputId}" placeholder="AIza..." autocomplete="off" />
         </label>
         <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap;">
-          <button class="btn" data-action="save-gemini" data-input-id="${inputId}">Save key</button>
-          ${s.hasGeminiKey ? `<button class="btn btn-danger" data-action="clear-gemini">Clear key</button>` : ''}
+          <button class="btn" data-action="save-gemini" data-input-id="${inputId}">${esc(t('Save key'))}</button>
+          ${s.hasGeminiKey ? `<button class="btn btn-danger" data-action="clear-gemini">${esc(t('Clear key'))}</button>` : ''}
         </div>
       </div>
     </div>
 
     <div class="panel" style="margin-top: var(--sp-4);">
-      <div class="panel-title">Crew identity</div>
-      <p class="muted" style="margin: 0 0 var(--sp-2); font-size: var(--fs-meta);">Name and crew photo also live under MANAGE on the header.</p>
-      <button class="btn btn-secondary" data-action="manage-crew">✏ Open Manage Crew</button>
+      <div class="panel-title">${esc(t('Crew identity'))}</div>
+      <p class="muted" style="margin: 0 0 var(--sp-2); font-size: var(--fs-meta);">${esc(t('Rename the crew or set its photo.'))}</p>
+      <button class="btn btn-secondary" data-action="manage-crew">✏ ${esc(t('Manage crew'))}</button>
     </div>
 
     <div class="panel" style="margin-top: var(--sp-4);">
-      <div class="panel-title">Backfill onboarding grant</div>
+      <div class="panel-title">${esc(t('Backfill onboarding grant'))}</div>
       <p class="muted" style="font-size: var(--fs-meta); margin-bottom: var(--sp-2);">
-        The starter chest used to be 20 doubloons; it's now 125 (covers 25 business days). Top up any existing crewmate who got the old grant so everyone starts on the new floor.
+        ${esc(t("The starter chest used to be 20 doubloons; it's now 125 (covers 25 business days). Top up any existing crewmate who got the old grant so everyone starts on the new floor."))}
       </p>
-      <button class="btn btn-secondary" data-action="topup-grant">💰 Top up to 125</button>
+      <button class="btn btn-secondary" data-action="topup-grant">💰 ${esc(t('Top up to 125'))}</button>
     </div>
 
     <div class="panel" style="margin-top: var(--sp-4);">
-      <div class="panel-title">Audit log · last 50 actions</div>
+      <div class="panel-title">${esc(t('Audit log · last 50 actions'))}</div>
       <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-        <button class="btn-ghost" data-action="refresh-audit">${state.auditLogLoading ? 'Refreshing…' : '↻ Refresh'}</button>
+        <button class="btn-ghost" data-action="refresh-audit">${esc(state.auditLogLoading ? t('Refreshing…') : '↻ ' + t('Refresh'))}</button>
       </div>
       ${state.auditLog.length === 0 ? `
-        <p class="muted" style="font-size: var(--fs-meta);">No admin actions recorded yet.</p>
+        <p class="muted" style="font-size: var(--fs-meta);">${esc(t('No admin actions recorded yet.'))}</p>
       ` : `
         <ul class="audit-list">
           ${state.auditLog.map((a) => {
@@ -3606,19 +3758,19 @@ function renderSettingsTab() {
               forceCompleteBounty: '🏁',
             })[a.action] || '📜';
             const text = ({
-              cancelBounty: 'cancelled a bounty',
-              updateTeam: 'updated crew name / photo',
-              updateCrewSettings: 'changed crew settings',
-              topUpOnboardingGrant: 'topped up the onboarding grant',
-              updateBountyDetails: 'edited a bounty',
-              updateMemberRole: `made ${a.targetName || 'crewmate'} a ${a.details?.to || 'role'}`,
-              removeMember: `removed ${a.targetName || 'crewmate'}`,
-              grantBonusDoubloons: `granted ${a.details?.amount || ''} doubloons to ${a.targetName || 'crewmate'}`,
+              cancelBounty: t('cancelled a bounty'),
+              updateTeam: t('updated crew name / photo'),
+              updateCrewSettings: t('changed crew settings'),
+              topUpOnboardingGrant: t('topped up the onboarding grant'),
+              updateBountyDetails: t('edited a bounty'),
+              updateMemberRole: t('made {name} a {role}', { name: a.targetName || t('a crewmate'), role: a.details?.to === 'manager' ? t('manager') : t('member') }),
+              removeMember: t('removed {name}', { name: a.targetName || t('a crewmate') }),
+              grantBonusDoubloons: t('granted {n} doubloons to {name}', { n: a.details?.amount || '', name: a.targetName || t('a crewmate') }),
               forceCompleteBounty: a.details?.coinsReleased
-                ? `force-completed a bounty (released ${a.details.coinsReleased} doubloons over ${a.details.daysReleased} day${a.details.daysReleased === 1 ? '' : 's'})`
-                : 'force-completed a bounty',
-              createInviteToken: 'created a fresh invite link',
-              memberLeftViaAccountDeletion: 'left the crew (account deletion)',
+                ? t('force-completed a bounty (released {n} doubloons over {d} days)', { n: a.details.coinsReleased, d: a.details.daysReleased })
+                : t('force-completed a bounty'),
+              createInviteToken: t('created a fresh invite link'),
+              memberLeftViaAccountDeletion: t('left the crew (account deletion)'),
             })[a.action] || a.action;
             const reason = a.details?.reason ? ` · "${esc(a.details.reason)}"` : '';
             return `
@@ -3636,16 +3788,15 @@ function renderSettingsTab() {
     </div>
 
     <div class="panel danger-zone" style="margin-top: var(--sp-4);">
-      <div class="panel-title">Danger zone</div>
+      <div class="panel-title">${esc(t('Danger zone'))}</div>
       <div class="setting-row">
         <div class="setting-info">
-          <strong>Disband crew</strong>
+          <strong>${esc(t('Disband crew'))}</strong>
           <p class="muted" style="margin: 4px 0 0; font-size: var(--fs-meta);">
-            Permanently deletes this crew and everything in it — bounties, wallets,
-            ledger, scrolls, audit log. Blocked while bounties are open or active.
+            ${esc(t('Permanently deletes this crew and everything in it — bounties, wallets, ledger, scrolls, audit log. Blocked while bounties are open or active.'))}
           </p>
         </div>
-        <button class="btn btn-danger" data-action="disband-crew">Disband…</button>
+        <button class="btn btn-danger" data-action="disband-crew">${esc(t('Disband…'))}</button>
       </div>
     </div>
   `;
@@ -3655,12 +3806,12 @@ function renderTavern() {
   const scrolls = state.scrolls || [];
   return `
     <section class="tavern">
-      <h2>The Tavern · recent scrolls</h2>
-      <div class="tavern-meta">Peer recognition. Decoupled from doubloons. Hand someone a tip of the hat for a good cover.</div>
+      <h2>${esc(t('The Tavern · recent scrolls'))}</h2>
+      <div class="tavern-meta">${esc(t('Peer recognition, decoupled from doubloons. Hand someone a tip of the hat for a good cover.'))}</div>
       ${scrolls.length === 0 ? `
         <div class="empty-card" style="padding: 24px;">
-          <p><strong>The tavern is quiet.</strong></p>
-          <p class="muted">Send the first scroll to a crewmate who covered you well.</p>
+          <p><strong>${esc(t('The tavern is quiet.'))}</strong></p>
+          <p class="muted">${esc(t('Send the first scroll to a crewmate who covered you well.'))}</p>
         </div>
       ` : `
         <ul class="scrolls">
@@ -3675,7 +3826,7 @@ function renderTavern() {
             const reactionBar = ['🪙','🍻','🏴‍☠️','⚓','🦜'].map((emo) => {
               const cnt = counts[emo] || 0;
               const mine = myReact === emo;
-              return `<button class="react-btn ${mine ? 'mine' : ''}" data-action="react-scroll" data-scroll-id="${esc(s.id)}" data-emoji="${esc(emo)}" data-mine="${mine ? '1' : '0'}" aria-pressed="${mine ? 'true' : 'false'}" aria-label="React with ${esc(emo)}${cnt > 0 ? `, ${cnt} reaction${cnt === 1 ? '' : 's'}` : ''}"><span aria-hidden="true">${emo}</span>${cnt > 0 ? ` <span class="react-count" aria-hidden="true">${cnt}</span>` : ''}</button>`;
+              return `<button class="react-btn ${mine ? 'mine' : ''}" data-action="react-scroll" data-scroll-id="${esc(s.id)}" data-emoji="${esc(emo)}" data-mine="${mine ? '1' : '0'}" aria-pressed="${mine ? 'true' : 'false'}" aria-label="${esc(t('React with {emoji}', { emoji: emo }))}${cnt > 0 ? `, ${cnt}` : ''}"><span aria-hidden="true">${emo}</span>${cnt > 0 ? ` <span class="react-count" aria-hidden="true">${cnt}</span>` : ''}</button>`;
             }).join('');
             return `
               <li class="scroll">
@@ -3771,7 +3922,7 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     skin.set(t.dataset.id);
     document.querySelectorAll('.skin-card').forEach((el) => el.classList.toggle('selected', el === t));
-    showToast('Skin applied.', 'success', 2500);
+    showToast(t('Skin applied.'), 'success', 2500);
     render();
   } else if (action === 'pick-avatar-open') {
     e.preventDefault();
@@ -3795,8 +3946,8 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     const input = document.getElementById(t.dataset.inputId);
     const key = input?.value?.trim() ?? '';
-    if (!key) { showToast('Paste an API key first.', 'error'); return; }
-    if (key.length < 8) { showToast('Key looks too short. Double-check.', 'error'); return; }
+    if (!key) { showToast(t('Paste an API key first.'), 'error'); return; }
+    if (key.length < 8) { showToast(t('Key looks too short. Double-check.'), 'error'); return; }
     saveCrewSettings({ geminiApiKey: key });
     if (input) input.value = '';
   } else if (action === 'toggle-day') {
@@ -3840,6 +3991,9 @@ document.addEventListener('click', async (e) => {
     state.density = state.density === 'compact' ? 'comfortable' : 'compact';
     localStorage.setItem('vacaciones.density', state.density);
     render();
+  } else if (action === 'replay-cine') {
+    e.preventDefault();
+    showRankCinematic(computeRank(computeStats()));
   } else if (action === 'export-data') {
     e.preventDefault();
     exportMyDataAction();
@@ -3869,37 +4023,37 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'adm-promote') {
     e.preventDefault();
     showModal({
-      title: 'Promote to manager?',
-      body: `<p>This will give <strong>${esc(t.dataset.name)}</strong> manager rights — they'll be able to edit the crew, cancel bounties, grant bonuses, change roles.</p>`,
-      primaryLabel: 'Promote to manager',
-      secondaryLabel: 'Cancel',
+      title: tr('Promote to manager?'),
+      body: `<p>${tr("This will give <strong>{name}</strong> manager rights — they'll be able to edit the crew, cancel bounties, grant bonuses, change roles.", { name: esc(t.dataset.name) })}</p>`,
+      primaryLabel: tr('Promote to manager'),
+      secondaryLabel: tr('Cancel'),
       onPrimary: () => changeMemberRole(t.dataset.uid, 'manager', t.dataset.name),
     });
   } else if (action === 'adm-demote') {
     e.preventDefault();
     showModal({
-      title: 'Demote to member?',
-      body: `<p>This will remove manager rights from <strong>${esc(t.dataset.name)}</strong>.</p>`,
-      primaryLabel: 'Demote to crewmate',
-      secondaryLabel: 'Cancel',
+      title: tr('Demote to member?'),
+      body: `<p>${tr('This will remove manager rights from <strong>{name}</strong>.', { name: esc(t.dataset.name) })}</p>`,
+      primaryLabel: tr('Demote to member'),
+      secondaryLabel: tr('Cancel'),
       onPrimary: () => changeMemberRole(t.dataset.uid, 'member', t.dataset.name),
     });
   } else if (action === 'adm-remove') {
     e.preventDefault();
     showModal({
-      title: 'Remove from crew?',
-      body: `<p>This will boot <strong>${esc(t.dataset.name)}</strong> from the crew. They can be re-invited but their wallet for this crew is sealed.</p>`,
-      primaryLabel: 'Remove from crew',
-      secondaryLabel: 'Cancel',
+      title: tr('Remove from crew?'),
+      body: `<p>${tr('This will remove <strong>{name}</strong> from the crew. They can be re-invited, but their wallet for this crew is sealed.', { name: esc(t.dataset.name) })}</p>`,
+      primaryLabel: tr('Remove from crew'),
+      secondaryLabel: tr('Cancel'),
       onPrimary: () => removeMemberAction(t.dataset.uid, t.dataset.name),
     });
   } else if (action === 'force-complete') {
     e.preventDefault();
     showModal({
-      title: 'Force complete bounty?',
-      body: `<p>This marks the bounty as completed immediately. Any unreleased doubloons for the covered days are paid out to the coverer(s) right now, then the harbour fee is burned. Use when the regular daily release can't finish on its own.</p>`,
-      primaryLabel: 'Force complete',
-      secondaryLabel: 'Cancel',
+      title: tr('Force complete bounty?'),
+      body: `<p>${tr("This marks the bounty as completed immediately. Any unreleased doubloons for the covered days are paid out to the coverer(s) right now, then the harbour fee is burned. Use when the regular daily release can't finish on its own.")}</p>`,
+      primaryLabel: tr('Force complete'),
+      secondaryLabel: tr('Cancel'),
       onPrimary: () => forceCompleteAction(t.dataset.bountyId),
     });
   } else if (action === 'export-csv') {
@@ -3919,10 +4073,10 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'clear-gemini') {
     e.preventDefault();
     showModal({
-      title: 'Clear Gemini key?',
-      body: '<p>The crew will lose access to AI-powered features until you set a new key.</p>',
-      primaryLabel: 'Clear log',
-      secondaryLabel: 'Nevermind',
+      title: tr('Clear Gemini key?'),
+      body: `<p>${tr('The crew will lose access to AI-powered features until you set a new key.')}</p>`,
+      primaryLabel: tr('Clear key'),
+      secondaryLabel: tr('Keep it'),
       onPrimary: () => saveCrewSettings({ geminiApiKey: null }),
     });
   }
@@ -3948,6 +4102,15 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   const form = e.target.closest('#create-form');
   if (form) syncFormStateFromDom(form);
+  if (e.target.matches?.('[data-action="set-lang"]')) {
+    lang.set(e.target.value);
+    render();
+    renderUserInfo();
+    // Re-open the profile sheet in the new language so the change is
+    // visible where it was made.
+    closeAllModals();
+    showAvatarPicker();
+  }
 });
 
 function syncFormStateFromDom(form) {
