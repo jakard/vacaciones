@@ -14,12 +14,14 @@
     "build": "npm run build:shared && npm run build:functions",
     "test": "npm test --workspace=functions",
     "test:all": "firebase emulators:exec --only firestore \"npm test --workspace=functions\"",
+    "smoke": "node tests/smoke/render.smoke.mjs",
     "deploy": "firebase deploy",
     "deploy:web": "firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules"
   },
   "devDependencies": {
+    "jsdom": "^29.1.1",
     "typescript": "^5.5.4"
   },
   "engines": {

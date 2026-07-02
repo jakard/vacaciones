@@ -2777,6 +2777,7 @@ function renderLogin() {
       <div class="login-content">
         <h1 class="login-title">TIME OFF</h1>
         <p class="login-tagline">${esc(t('Tales of Monkey Coverage'))}</p>
+        <p class="login-pitch">${esc(t('Going on vacation? Post a bounty. A crewmate covers your accounts — with your briefing in hand — and earns doubloons for it.'))}</p>
         <div class="login-card">
           <button class="btn btn-google" data-action="sign-in" ${busy ? 'disabled' : ''}>
             ${busy ? `<span class="spinner"></span>${esc(t('Signing in…'))}` : `
@@ -3140,6 +3141,63 @@ function renderTeam() {
   `;
 }
 
+/* First-run "how it works" strip — three steps, dismissible, shown on the
+   Bounty Board until dismissed. The single biggest "I don't get this
+   product" fix: the mechanic explained where the user lands. */
+function renderHowItWorks() {
+  if (localStorage.getItem('vacaciones.howDismissed') === '1') return '';
+  return `
+    <section class="panel howto" aria-label="${esc(t('How Time Off works'))}">
+      <button class="howto-dismiss" data-action="dismiss-how" title="${esc(t('Got it — hide this'))}" aria-label="${esc(t('Got it — hide this'))}">✕</button>
+      <div class="howto-steps">
+        <div class="howto-step">
+          <span class="howto-num">1</span>
+          ${spriteIcon('unreachable')}
+          <strong>${esc(t('Post'))}</strong>
+          <small>${esc(t('Going out? Post a bounty with your days, reachability, and context.'))}</small>
+        </div>
+        <div class="howto-step">
+          <span class="howto-num">2</span>
+          ${spriteIcon('deckhand')}
+          <strong>${esc(t('Cover'))}</strong>
+          <small>${esc(t('A crewmate claims it and gets your briefing — accounts, meetings, SLA.'))}</small>
+        </div>
+        <div class="howto-step">
+          <span class="howto-num">3</span>
+          ${spriteIcon('first-mate')}
+          <strong>${esc(t('Earn'))}</strong>
+          <small>${esc(t('They earn doubloons day by day. Spend yours on your next trip.'))}</small>
+        </div>
+      </div>
+      <div class="howto-actions">
+        <button class="btn" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+        <a href="#/help" class="btn-ghost">${esc(t('Full guide'))}</a>
+      </div>
+    </section>
+  `;
+}
+
+/* One-click preset: prefill next week's Mon–Fri and jump to the post form.
+   Time-to-first-bounty is the product's north-star input (docs/17 §B2). */
+function applyNextWeekPreset() {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const daysToMonday = ((8 - dow) % 7) || 7;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToMonday);
+  const friday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 4);
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const f = state.formState;
+  f.startDate = iso(monday);
+  f.endDate = iso(friday);
+  f.selectedDayKeys = allDayKeysInRange(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+  if (f.reachability.length === 0) f.reachability = ['email-only-emergencies'];
+  if (!f.sla) f.sla = t('Reply to P1s within 4h');
+  f.coverageMode = f.coverageMode || 'single';
+  navigate('team', state.teamId, 'post');
+  render();
+  showToast(t('Prefilled next week (Mon–Fri). Adjust and post.'), 'success', 4000);
+}
+
 /* Bounty Board */
 function renderBountyBoardTab() {
   const filter = state.bountyFilter;
@@ -3174,6 +3232,7 @@ function renderBountyBoardTab() {
     mine: state.bounties.filter((b) => b.requesterUid === state.user?.uid).length,
   };
   return `
+    ${renderHowItWorks()}
     <section>
       <div class="filter-row">
         ${renderFilter('all', `${t('All')} · ${counts.all}`)}
@@ -3192,7 +3251,11 @@ function renderBountyBoardTab() {
           <div class="empty-mascot">${SVG.turtle}</div>
           <p><strong>${esc(filter === 'all' ? t('The bounty board is empty.') : t('Nothing matches this filter.'))}</strong></p>
           <p class="muted">${esc(filter === 'all' ? t('Post one yourself — your crewmates earn doubloons by covering you.') : t('Switch the filter above to see other bounties.'))}</p>
-          ${filter === 'all' ? `<p style="margin-top: 16px;"><a href="#/team/${esc(state.teamId)}/post">▶ ${esc(t('Post a bounty'))}</a></p>` : ''}
+          ${filter === 'all' ? `
+            <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+              <button class="btn" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+              <a href="#/team/${esc(state.teamId)}/post" class="btn-ghost">${esc(t('Post a bounty'))}</a>
+            </div>` : ''}
         </div>
       ` : `<ul class="bounties" data-density="${esc(state.density)}">${list.map(renderBountyCard).join('')}</ul>`}
     </section>
@@ -3464,7 +3527,10 @@ function renderPostTab() {
   const cost = computeCurrentPostCost();
   return `
     <div class="create-card">
-      <div class="panel-title">${esc(t('Post a bounty'))}</div>
+      <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span>${esc(t('Post a bounty'))}</span>
+        <button type="button" class="btn-ghost" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+      </div>
       <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
         ${esc(t('{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.', { x: ECONOMY.WEEKEND_MULTIPLIER }))}
       </p>
@@ -3994,6 +4060,13 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'replay-cine') {
     e.preventDefault();
     showRankCinematic(computeRank(computeStats()));
+  } else if (action === 'dismiss-how') {
+    e.preventDefault();
+    localStorage.setItem('vacaciones.howDismissed', '1');
+    render();
+  } else if (action === 'preset-next-week') {
+    e.preventDefault();
+    applyNextWeekPreset();
   } else if (action === 'export-data') {
     e.preventDefault();
     exportMyDataAction();

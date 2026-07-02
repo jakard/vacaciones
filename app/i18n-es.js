@@ -449,6 +449,19 @@ export const ES = {
   'Pick a look. Persists across visits on this browser.': 'Elige un aspecto. Se recuerda en este navegador.',
   'Skin applied.': 'Tema aplicado.',
 
+  // — Friction pack —
+  'Going on vacation? Post a bounty. A crewmate covers your accounts — with your briefing in hand — and earns doubloons for it.': '¿Te vas de vacaciones? Publica un botín. Un tripulante cubre tus cuentas — con tu briefing en mano — y gana doblones por ello.',
+  'Got it — hide this': 'Entendido — ocultar',
+  'Post': 'Publicar',
+  'Going out? Post a bounty with your days, reachability, and context.': '¿Te vas? Publica un botín con tus días, disponibilidad y contexto.',
+  'A crewmate claims it and gets your briefing — accounts, meetings, SLA.': 'Un tripulante lo reclama y recibe tu briefing — cuentas, reuniones, SLA.',
+  'Earn': 'Ganar',
+  'They earn doubloons day by day. Spend yours on your next trip.': 'Gana doblones día a día. Gasta los tuyos en tu próximo viaje.',
+  "I'm out next week": 'Me voy la semana que viene',
+  'Full guide': 'Guía completa',
+  'Reply to P1s within 4h': 'Responder P1 en menos de 4h',
+  'Prefilled next week (Mon–Fri). Adjust and post.': 'Semana que viene precargada (lun–vie). Ajusta y publica.',
+
   // — Toasts / misc —
   'You’re already aboard that crew.': 'Ya estás a bordo de esa tripulación.',
   'Signed aboard! 125 doubloons in your chest.': '¡A bordo! 125 doblones en tu cofre.',

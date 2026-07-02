@@ -43,14 +43,8 @@ jobs:
           --only firestore --project demo-ci
           "npm test --workspace=functions"
 
-      - name: Frontend syntax check
-        run: >
-          node -e "import('./app/app.js').catch(e => {
-            const m = String(e);
-            if (m.includes('ERR_UNSUPPORTED_ESM_URL_SCHEME')) {
-              console.log('app.js parses OK');
-            } else { console.error(m); process.exit(1); }
-          })"
+      - name: Frontend render smoke (every screen, en+es, jsdom)
+        run: npm run smoke
 
   deploy-dev:
     # Opt-in: set repo variable ENABLE_DEPLOY=true + secret FIREBASE_TOKEN.

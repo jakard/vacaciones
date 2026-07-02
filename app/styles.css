@@ -4122,6 +4122,99 @@ label {
 [data-skin="dark-knight"] ::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
 
 /* ============================================================
+   How-it-works strip (first-run, dismissible) + login pitch
+   ============================================================ */
+
+.login-pitch {
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--cream);
+  max-width: 380px;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.92;
+}
+
+.howto {
+  position: relative;
+  margin-bottom: var(--sp-4);
+}
+.howto-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-faded);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px 10px;
+  line-height: 1;
+}
+.howto-dismiss:hover { color: var(--ink-pure); }
+.howto-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.howto-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  padding-left: 30px;
+}
+.howto-step .icon-16 { width: 22px; height: 22px; }
+.howto-num {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brass);
+  color: var(--ink-pure);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px var(--shadow-deep);
+}
+.howto-step strong {
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink-pure);
+}
+.howto-step small {
+  font-family: var(--font-body);
+  font-size: var(--fs-meta);
+  color: var(--ink-faded);
+  line-height: 1.45;
+}
+.howto-actions {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .howto-steps { grid-template-columns: 1fr; gap: var(--sp-2); }
+}
+
+[data-skin="dark-knight"] .howto-num {
+  background: var(--color-primary);
+  color: #1F1E1D;
+  border-radius: 6px;
+  box-shadow: none;
+}
+[data-skin="dark-knight"] .login-pitch { color: var(--color-muted); }
+[data-skin="basic"] .howto-num { border-radius: 50%; box-shadow: none; background: var(--color-primary); color: #fff; }
+[data-skin="hc"] .howto-num { background: #ffff00; color: #000; border: 2px solid #000; box-shadow: none; }
+
+/* ============================================================
    Rank-up cinematic — Atari-era full-screen celebration.
    Deliberately steps()-animated end to end (diegetic retro motion
    per docs/16 conflict-1 resolution). Identical across skins: the
