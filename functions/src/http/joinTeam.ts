@@ -34,6 +34,13 @@ export const joinTeam = onCall<unknown, Promise<JoinTeamResult>>(
     if (!raw) {
       throw new HttpsError('invalid-argument', 'An invite link is required.');
     }
+    // A Firestore document id cannot contain '/'. Reject anything with
+    // odd characters up front so a pasted URL/path yields the designed
+    // "Invalid invite link" message instead of an opaque 'internal' error
+    // from db.doc() throwing on a malformed path.
+    if (!/^[A-Za-z0-9_-]+$/.test(raw)) {
+      throw new HttpsError('not-found', 'Invalid invite link. Ask a crew manager for a fresh one.');
+    }
 
     const uid = request.auth.uid;
     const db = getFirestore();

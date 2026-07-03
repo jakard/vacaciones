@@ -3,7 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
 import { CALLABLE_OPTS } from '../options';
-import { recordLedgerEntry } from '../services/wallet';
+import { recordLedgerEntries, type LedgerEntryInput } from '../services/wallet';
 import { queueMail, wrapTemplate, BRAND_URL } from '../services/mail';
 
 const AcceptSchema = z.object({
@@ -135,11 +135,12 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
         const fromStipend = Math.min(requesterWallet.stipendBalance, amount);
         const fromEarned = amount - fromStipend;
 
+        // Both escrow debits go to the requester's wallet in ONE batched
+        // ledger write — calling recordLedgerEntry twice here would read
+        // after a write and crash the transaction.
+        const escrowEntries: LedgerEntryInput[] = [];
         if (fromStipend > 0) {
-          await recordLedgerEntry({
-            tx,
-            db,
-            teamId,
+          escrowEntries.push({
             uid: requesterUid,
             type: 'escrowIn',
             amountSigned: -fromStipend,
@@ -149,10 +150,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
           });
         }
         if (fromEarned > 0) {
-          await recordLedgerEntry({
-            tx,
-            db,
-            teamId,
+          escrowEntries.push({
             uid: requesterUid,
             type: 'escrowIn',
             amountSigned: -fromEarned,
@@ -161,6 +159,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
             idempotencyKey: `${requestId}_escrow_earned`,
           });
         }
+        await recordLedgerEntries({ tx, db, teamId, entries: escrowEntries });
 
         const coverer = {
           uid,
@@ -186,6 +185,13 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
           coinsEscrowed: amount,
           claimedDayKeys: allDayKeys,
           allClaimed: true,
+          // Needed by the post-commit notification email (was missing —
+          // single mode is the default flow, so the requester never got
+          // the "claimed your bounty" email and the missing fields made
+          // db.doc('users/') throw).
+          requesterUid: req.requesterUid,
+          windowStart: (req as { windowStart?: { toDate: () => Date } }).windowStart?.toDate?.()?.toISOString() ?? null,
+          windowEnd: (req as { windowEnd?: { toDate: () => Date } }).windowEnd?.toDate?.()?.toISOString() ?? null,
         };
       }
 
@@ -250,11 +256,9 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
       const fromEarned = claimCost - fromStipend;
       const sortedFirstDay = dayKeysToTake.slice().sort()[0];
 
+      const crewEscrowEntries: LedgerEntryInput[] = [];
       if (fromStipend > 0) {
-        await recordLedgerEntry({
-          tx,
-          db,
-          teamId,
+        crewEscrowEntries.push({
           uid: requesterUid,
           type: 'escrowIn',
           amountSigned: -fromStipend,
@@ -264,10 +268,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
         });
       }
       if (fromEarned > 0) {
-        await recordLedgerEntry({
-          tx,
-          db,
-          teamId,
+        crewEscrowEntries.push({
           uid: requesterUid,
           type: 'escrowIn',
           amountSigned: -fromEarned,
@@ -276,6 +277,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
           idempotencyKey: `${requestId}_escrow_${uid}_${sortedFirstDay}_earned`,
         });
       }
+      await recordLedgerEntries({ tx, db, teamId, entries: crewEscrowEntries });
 
       // Build updated dayCoverers map and coverers list
       const coverer = {

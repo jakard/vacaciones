@@ -14,7 +14,7 @@
     "build": "npm run build:shared && npm run build:functions",
     "test": "npm test --workspace=functions",
     "test:all": "firebase emulators:exec --only firestore \"npm test --workspace=functions\"",
-    "smoke": "node tests/smoke/render.smoke.mjs",
+    "smoke": "node tests/smoke/dict-check.mjs && node tests/smoke/render.smoke.mjs",
     "deploy": "firebase deploy",
     "deploy:web": "firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",

@@ -1337,12 +1337,15 @@ label {
    Coin shower (+N float)
    ============================================================ */
 
-.coin-shower {
+/* The container is <div id="coin-shower">, so these must be id selectors —
+   as .coin-shower the "+N" float rendered unstyled (no gold, no font, no
+   float animation). */
+#coin-shower {
   position: fixed;
   pointer-events: none;
   z-index: 50;
 }
-.coin-shower .pop {
+#coin-shower .pop {
   font-family: 'Silkscreen', monospace;
   font-weight: 700;
   font-size: 22px;

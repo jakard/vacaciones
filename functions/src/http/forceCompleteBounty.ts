@@ -3,7 +3,7 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 
 import { CALLABLE_OPTS } from '../options';
-import { recordLedgerEntry } from '../services/wallet';
+import { recordLedgerEntries, type LedgerEntryInput } from '../services/wallet';
 import {
   dailyReleaseAmountForKey,
   enumerateDayKeysInTz,
@@ -96,40 +96,41 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         }
       }
 
-      let coinsReleased = 0;
-      let daysReleased = 0;
-      for (const r of releases) {
-        const result = await recordLedgerEntry({
-          tx,
-          db,
-          teamId,
-          uid: r.uid,
-          type: 'coverageRelease',
-          amountSigned: r.amount,
-          balanceBucket: 'earned',
-          relatedRequestId: requestId,
-          idempotencyKey: `${requestId}_release_${r.dayKey}`,
-        });
-        if (result.applied) {
-          coinsReleased += r.amount;
-          daysReleased += 1;
-        }
-      }
-
       // Burn the transaction fee. Match dailyCoverageRelease's convention:
       // for crew bounties no single coverer should eat it, so fall back to
       // the requester when there is no top-level covererUid.
       const feeBurnUid = fallbackCovererUid ?? req.requesterUid;
-      await recordLedgerEntry({
-        tx,
-        db,
-        teamId,
+
+      // All per-day releases + the fee burn go through ONE batched write —
+      // the previous per-entry loop read after a write and crashed the
+      // transaction the moment a second entry applied.
+      const entries: LedgerEntryInput[] = releases.map((r) => ({
+        uid: r.uid,
+        type: 'coverageRelease' as const,
+        amountSigned: r.amount,
+        balanceBucket: 'earned' as const,
+        relatedRequestId: requestId,
+        idempotencyKey: `${requestId}_release_${r.dayKey}`,
+      }));
+      entries.push({
         uid: feeBurnUid,
         type: 'feeBurn',
         amountSigned: -ECONOMY.TRANSACTION_FEE,
         balanceBucket: 'earned',
         relatedRequestId: requestId,
         idempotencyKey: `${requestId}_feeBurn`,
+      });
+      const { applied } = await recordLedgerEntries({ tx, db, teamId, entries });
+
+      // applied[] is in entries order — the first `releases.length` flags
+      // correspond to the day releases; the last is the fee burn.
+      let coinsReleased = 0;
+      let daysReleased = 0;
+      releases.forEach((r, i) => {
+        if (applied[i]) {
+          coinsReleased += r.amount;
+          daysReleased += 1;
+        }
       });
 
       tx.update(requestRef, {

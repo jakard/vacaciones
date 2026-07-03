@@ -1257,9 +1257,12 @@ async function acceptRequest(requestId, dayKeysToClaim) {
     const result = await callAcceptCoverageRequest(payload);
     const days = result.data.claimedDayKeys?.length ?? 0;
     const allClaimed = !!result.data.allClaimed;
+    const n = result.data.coinsEscrowed;
     const msg = allClaimed
-      ? `Voyage accepted in full. ${result.data.coinsEscrowed} doubloons in escrow.`
-      : `Took ${days} day${days === 1 ? '' : 's'}. ${result.data.coinsEscrowed} doubloons in escrow.`;
+      ? t('Voyage accepted in full. {n} doubloons in escrow.', { n })
+      : days === 1
+        ? t('Took 1 day. {n} doubloons in escrow.', { n })
+        : t('Took {d} days. {n} doubloons in escrow.', { d: days, n });
     showToast(msg, 'success');
     audio.coin();
   } catch (err) { showToast(err.message, 'error', 6000); }
@@ -1350,7 +1353,7 @@ function showCrewClaimModal() {
       const submit = wrap.querySelector('[data-action="claim-submit"]');
       if (submit) {
         const n = state.claim.selectedDayKeys.length;
-        submit.textContent = `Take ${n} day${n === 1 ? '' : 's'}`;
+        submit.textContent = t('Take {n} days', { n });
         if (n === 0) submit.setAttribute('disabled', '');
         else submit.removeAttribute('disabled');
       }
@@ -1381,7 +1384,7 @@ async function setAvatar(avatarId) {
 async function setDigestEnabled(enabled) {
   try {
     await callSetProfile({ digestEnabled: !!enabled });
-    showToast(enabled ? 'Daily digest on.' : 'Daily digest off.', 'success');
+    showToast(enabled ? t('Daily digest on.') : t('Daily digest off.'), 'success');
   } catch (err) {
     showToast(t('Could not update notification preference: {msg}', { msg: err.message }), 'error', 5000);
   }
@@ -1525,8 +1528,8 @@ async function addAllBountyMeetings(bountyId) {
   }
   if (addedMeetings > 0 || addedMarker) {
     const bits = [];
-    if (addedMarker) bits.push('coverage marker');
-    if (addedMeetings > 0) bits.push(`${addedMeetings} meeting${addedMeetings === 1 ? '' : 's'}`);
+    if (addedMarker) bits.push(t('coverage marker'));
+    if (addedMeetings > 0) bits.push(addedMeetings === 1 ? t('1 meeting') : t('{n} meetings', { n: addedMeetings }));
     showToast(t('Added {what} to your calendar.', { what: bits.join(' + ') }), 'success');
     audio.coin();
   } else {
@@ -1683,7 +1686,7 @@ function showAvatarPicker() {
     title: t('Profile'),
     body,
     wide: true,
-    primaryLabel: t('Done'),
+    primaryLabel: t('Close'),
   });
 }
 
@@ -2067,8 +2070,10 @@ async function forceCompleteAction(requestId) {
     const released = result?.data?.coinsReleased ?? 0;
     const days = result?.data?.daysReleased ?? 0;
     const msg = released > 0
-      ? `Bounty force-completed. Released ${released} doubloons over ${days} day${days === 1 ? '' : 's'}.`
-      : 'Bounty force-completed.';
+      ? (days === 1
+          ? t('Bounty force-completed. Released {n} doubloons over 1 day.', { n: released })
+          : t('Bounty force-completed. Released {n} doubloons over {d} days.', { n: released, d: days }))
+      : t('Bounty force-completed.');
     showToast(msg, 'success', 5000);
     audio.rank();
   } catch (err) { showToast(err.message, 'error', 6000); }
@@ -2171,7 +2176,21 @@ async function generateBriefingAction(bountyId) {
     const result = await callGenerateBriefing({ teamId: state.teamId, requestId: bountyId });
     showToast(t('Briefing generated.'), 'success', 4000);
     audio.rank();
-    // Reload bounty detail modal
+    // Patch the local bounty so the reopened detail shows the briefing
+    // without waiting for the onSnapshot round-trip.
+    const b = state.bounties.find((x) => x.id === bountyId);
+    if (b && result?.data) {
+      b.aiBriefing = {
+        content: result.data.content,
+        generatedAtMs: result.data.generatedAtMs,
+        generatedByUid: state.user?.uid ?? null,
+        model: 'gemini-2.0-flash',
+      };
+    }
+    // Clear the loading flag BEFORE reopening (so the button isn't stuck
+    // disabled) and close the current detail modal so it doesn't stack.
+    state.briefingLoading = false;
+    closeAllModals();
     showBountyDetail(bountyId);
   } catch (err) {
     showToast(t('Briefing failed: {msg}', { msg: err.message }), 'error', 7000);
@@ -2725,7 +2744,7 @@ function render() {
   const app = document.getElementById('app');
   renderUserInfo();
   if (!state.authReady) {
-    app.innerHTML = `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>Loading the harbor&hellip;</div>`;
+    app.innerHTML = `<div class="loading"><span class="loading-doubloon">${SVG.doubloon}</span>${esc(t('Loading the harbor…'))}</div>`;
     return;
   }
   if (state.view === 'login') app.innerHTML = renderLogin();
@@ -3520,6 +3539,16 @@ function computeCurrentPostCost() {
   return computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
 }
 
+// Shared so renderPostTab and syncFormStateFromDom's live patch stay in
+// the same language — the surgical re-render used to hardcode English,
+// flipping the preview to English on the first keystroke in ES mode.
+function renderCostPreviewInner(cost) {
+  return cost.days > 0
+    ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>${esc(t('doubloons'))}</span></div>
+       <small>${esc(t('{n} days', { n: cost.days }))} · ${esc(t('{n} weekday', { n: cost.weekdays }))} · ${esc(t('{n} weekend', { n: cost.weekendDays }))}</small>`
+    : `<small class="muted-light">${esc(t('Pick a window to preview the cost.'))}</small>`;
+}
+
 function renderPostTab() {
   const tz = state.formState.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   state.formState.timezone = tz;
@@ -3598,12 +3627,7 @@ function renderPostTab() {
           <label class="wide"><span>${esc(t('What counts as a real emergency? (optional)'))}</span><textarea name="emergencyDef" rows="2" placeholder="${esc(t('“Wake me only if Acme’s production is down.”'))}">${esc(f.emergencyDef)}</textarea></label>
         </div>
         <div class="preview-row">
-          <div class="preview">
-            ${cost.days > 0
-              ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>${esc(t('doubloons'))}</span></div>
-                 <small>${esc(t('{n} days', { n: cost.days }))} · ${esc(t('{n} weekday', { n: cost.weekdays }))} · ${esc(t('{n} weekend', { n: cost.weekendDays }))}</small>`
-              : `<small class="muted-light">${esc(t('Pick a window to preview the cost.'))}</small>`}
-          </div>
+          <div class="preview">${renderCostPreviewInner(cost)}</div>
           <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${esc(state.busy.postRequest ? t('Posting…') : t('Post bounty'))}</button>
         </div>
       </form>
@@ -3988,7 +4012,7 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     skin.set(t.dataset.id);
     document.querySelectorAll('.skin-card').forEach((el) => el.classList.toggle('selected', el === t));
-    showToast(t('Skin applied.'), 'success', 2500);
+    showToast(tr('Skin applied.'), 'success', 2500);
     render();
   } else if (action === 'pick-avatar-open') {
     e.preventDefault();
@@ -4012,8 +4036,8 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     const input = document.getElementById(t.dataset.inputId);
     const key = input?.value?.trim() ?? '';
-    if (!key) { showToast(t('Paste an API key first.'), 'error'); return; }
-    if (key.length < 8) { showToast(t('Key looks too short. Double-check.'), 'error'); return; }
+    if (!key) { showToast(tr('Paste an API key first.'), 'error'); return; }
+    if (key.length < 8) { showToast(tr('Key looks too short. Double-check.'), 'error'); return; }
     saveCrewSettings({ geminiApiKey: key });
     if (input) input.value = '';
   } else if (action === 'toggle-day') {
@@ -4232,10 +4256,7 @@ function syncFormStateFromDom(form) {
   const previewEl = document.querySelector('.preview');
   if (previewEl) {
     const cost = computeCurrentPostCost();
-    previewEl.innerHTML = cost.days > 0
-      ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>doubloons</span></div>
-         <small>${cost.days} day${cost.days === 1 ? '' : 's'} · ${cost.weekdays} weekday · ${cost.weekendDays} weekend</small>`
-      : `<small class="muted-light">Pick a window to preview the cost.</small>`;
+    previewEl.innerHTML = renderCostPreviewInner(cost);
   }
 }
 

@@ -108,7 +108,7 @@ export const deleteMyAccount = onCall<unknown, Promise<{ deleted: boolean }>>(
       const teamName = (teamDoc.data() as { name?: string }).name ?? teamId;
       const memberUids = (teamDoc.data() as { memberUids?: string[] }).memberUids ?? [];
 
-      const [activeAsRequester, activeAsCoverer] = await Promise.all([
+      const [activeAsRequester, activeAsCoverer, activeInTeam] = await Promise.all([
         db.collection(`teams/${teamId}/coverageRequests`)
           .where('requesterUid', '==', uid)
           .where('status', 'in', ACTIVE_STATUSES)
@@ -119,8 +119,19 @@ export const deleteMyAccount = onCall<unknown, Promise<{ deleted: boolean }>>(
           .where('status', 'in', ACTIVE_STATUSES)
           .limit(1)
           .get(),
+        // Crew-mode claims never set covererUid — they live only in the
+        // dayCoverers map, which Firestore can't query into. Scan active
+        // requests and check the map in memory so a crew-mode coverer
+        // can't delete their account mid-coverage.
+        db.collection(`teams/${teamId}/coverageRequests`)
+          .where('status', 'in', ACTIVE_STATUSES)
+          .get(),
       ]);
-      if (!activeAsRequester.empty || !activeAsCoverer.empty) {
+      const coveringCrewDay = activeInTeam.docs.some((d) => {
+        const dc = (d.data() as { dayCoverers?: Record<string, { uid: string }> }).dayCoverers ?? {};
+        return Object.values(dc).some((c) => c.uid === uid);
+      });
+      if (!activeAsRequester.empty || !activeAsCoverer.empty || coveringCrewDay) {
         throw new HttpsError(
           'failed-precondition',
           `You have active bounties in "${teamName}". Cancel or complete them first.`,

@@ -5,7 +5,7 @@ export const ES = {
   // — Mascot lines —
   '"Ahoy, weary TAM!"': '"¡Ahoy, TAM fatigado!"',
   '"Coins, or coverage?"': '"¿Doblones, o cobertura?"',
-  '"Doubloons jingle softly."': '"Los doblones tintinean suave."',
+  '"Doubloons jingle softly."': '"Los doblones tintinean suavemente."',
   '"Even pirates take leave."': '"Hasta los piratas descansan."',
   '"Need a week ashore?"': '"¿Necesitas una semana en tierra?"',
   '“Wake me only if Acme’s production is down.”': '“Despiértenme solo si producción de Acme está caída.”',
@@ -61,7 +61,6 @@ export const ES = {
   'Back': 'Volver',
   'Cancel': 'Cancelar',
   'Save': 'Guardar',
-  'Done': 'Listo',
   'Next': 'Siguiente',
   'Skip': 'Saltar',
   'Clear': 'Limpiar',
@@ -435,7 +434,6 @@ export const ES = {
   'Open profile': 'Abrir perfil',
   'Notifications, {n} unread': 'Notificaciones, {n} sin leer',
   'Nothing new in the harbour.': 'Nada nuevo en el puerto.',
-  '{n} doubloons earned lifetime': '{n} doblones ganados en total',
 
   // — Skins —
   'Pirate (Monkey Island)': 'Pirate (Monkey Island)',
@@ -461,6 +459,20 @@ export const ES = {
   'Full guide': 'Guía completa',
   'Reply to P1s within 4h': 'Responder P1 en menos de 4h',
   'Prefilled next week (Mon–Fri). Adjust and post.': 'Semana que viene precargada (lun–vie). Ajusta y publica.',
+
+  // — Newly localized (bug-hunt sweep) —
+  'Loading the harbor…': 'Cargando el puerto…',
+  'Daily digest on.': 'Resumen diario activado.',
+  'Daily digest off.': 'Resumen diario desactivado.',
+  'Voyage accepted in full. {n} doubloons in escrow.': 'Viaje aceptado por completo. {n} doblones en depósito.',
+  'Took 1 day. {n} doubloons in escrow.': 'Tomaste 1 día. {n} doblones en depósito.',
+  'Took {d} days. {n} doubloons in escrow.': 'Tomaste {d} días. {n} doblones en depósito.',
+  'Bounty force-completed.': 'Botín completado a la fuerza.',
+  'Bounty force-completed. Released {n} doubloons over 1 day.': 'Botín completado a la fuerza. Se liberaron {n} doblones de 1 día.',
+  'Bounty force-completed. Released {n} doubloons over {d} days.': 'Botín completado a la fuerza. Se liberaron {n} doblones de {d} días.',
+  'coverage marker': 'marcador de cobertura',
+  '1 meeting': '1 reunión',
+  '{n} meetings': '{n} reuniones',
 
   // — Toasts / misc —
   'You’re already aboard that crew.': 'Ya estás a bordo de esa tripulación.',
