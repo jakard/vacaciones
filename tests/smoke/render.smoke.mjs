@@ -22,9 +22,9 @@ let src = readFileSync(APP, 'utf8');
 const esSrc = readFileSync(ES_DICT, 'utf8').replace(/^export const ES =/m, 'const TRANSLATIONS_ES =');
 const plainSrc = readFileSync(PLAIN_DICT, 'utf8').replace(/^export const PLAIN =/m, 'const PLAIN =');
 
-// Strip the gstatic + local dict imports; replace with stubs. Anchor on the
-// LAST local import so both dict imports are removed.
-const importAnchor = "import { PLAIN } from './i18n-plain.js';";
+// Strip the gstatic + local dict/config imports; replace with stubs. Anchor
+// on the LAST local import so all of them are removed.
+const importAnchor = "import { firebaseConfig } from './firebase-config.js';";
 const importBlockEnd = src.indexOf(importAnchor);
 if (importBlockEnd === -1) throw new Error('harness: dict import anchor not found');
 const afterImports = src.indexOf('\n', importBlockEnd) + 1;
@@ -59,6 +59,7 @@ const httpsCallableFromURL = (f, url) => async (payload) => {
 };
 ${esSrc}
 ${plainSrc}
+const firebaseConfig = { projectId: 'demo', appId: '1:0:web:0', apiKey: 'demo', authDomain: 'demo.firebaseapp.com', messagingSenderId: '0', storageBucket: 'demo.appspot.com' };
 // ---- end stubs ----
 `;
 

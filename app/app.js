@@ -24,19 +24,11 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-functions.js';
 import { ES as TRANSLATIONS_ES } from './i18n-es.js';
 import { PLAIN } from './i18n-plain.js';
+import { firebaseConfig } from './firebase-config.js';
 
 /* ============================================================
    Config
    ============================================================ */
-
-const firebaseConfig = {
-  projectId: 'vacaciones-dev-b3158',
-  appId: '1:1000746698778:web:0f498b2ad533327a9b69a3',
-  storageBucket: 'vacaciones-dev-b3158.firebasestorage.app',
-  apiKey: 'AIzaSyDdJsNemH83qjri-EOUURBPD4sQA2qkayg',
-  authDomain: 'vacaciones-dev-b3158.firebaseapp.com',
-  messagingSenderId: '1000746698778',
-};
 
 const ECONOMY = {
   ONBOARDING_GRANT: 125,

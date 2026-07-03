@@ -59,6 +59,21 @@ There is currently **one** Firebase project (`vacaciones-dev-b3158`)
 serving as both dev and prod — splitting them is Sprint-1 work in
 [docs/17](docs/17-master-improvement-plan.md) §4.
 
+## Stand up a fresh environment
+
+To provision an entirely new GCP/Firebase project (own config, own data,
+own auth) and deploy to it in one command:
+
+```bash
+scripts/bootstrap-gcp.sh --project-id timeoff-acme-prod \
+  --project-name "Time Off (Acme)" --billing-account <ID> --alias prod-acme
+```
+
+It creates the project, links billing, enables APIs, creates Firestore,
+registers a Web App (writing `app/firebase-config.js` — the only
+environment-specific file), and deploys. Full guide + the manual OAuth
+consent steps: [docs/19](docs/19-bootstrap-new-environment.md).
+
 ## Where to read next
 
 - [docs/17 — Master improvement plan](docs/17-master-improvement-plan.md)
