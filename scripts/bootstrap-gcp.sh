@@ -127,14 +127,30 @@ fi
 # 1. Create the GCP project
 # =============================================================================
 step "1/8  Create GCP project"
-if gcloud projects describe "$PROJECT_ID" >/dev/null 2>&1; then
-  ok "project already exists — reusing"
+# A project id is GLOBALLY unique across all of GCP. `describe` succeeding means
+# the project exists AND you can see it. `describe` failing is ambiguous — the id
+# may be free, OR taken by an account you have no access to. So on a describe miss
+# we attempt create and read the error to tell "taken elsewhere" from a real fault.
+DESCRIBE_OUT="$(gcloud projects describe "$PROJECT_ID" --format='value(lifecycleState)' 2>/dev/null || true)"
+if [ -n "$DESCRIBE_OUT" ]; then
+  warn "Project '$PROJECT_ID' already exists and you have access — REUSING it."
+  warn "Provisioning/deploy will target the existing project. Ctrl-C now if that's unintended."
+  if [ "$DESCRIBE_OUT" != "ACTIVE" ]; then
+    die "Project '$PROJECT_ID' exists but is in state '$DESCRIBE_OUT' (e.g. scheduled for deletion). Restore it or pick another id."
+  fi
 else
-  gcloud projects create "$PROJECT_ID" --name="$CLEAN_NAME" \
-    || die "Project create failed. The id must be globally unique and 6–30 chars, lowercase/digits/hyphens."
+  info "project '$PROJECT_ID' not visible to you — attempting to create it…"
+  CREATE_ERR="$(gcloud projects create "$PROJECT_ID" --name="$CLEAN_NAME" 2>&1)" && CREATE_OK=1 || CREATE_OK=0
+  if [ "$CREATE_OK" -ne 1 ]; then
+    printf '%s\n' "$CREATE_ERR" >&2
+    if printf '%s' "$CREATE_ERR" | grep -qiE 'already exists|ALREADY_EXISTS|already in use|not available|requested entity already exists'; then
+      die "Project id '$PROJECT_ID' is already taken GLOBALLY by another account you can't access. Pick a different --project-id."
+    fi
+    die "Project create failed (see error above). The id must be 6–30 chars, lowercase letters/digits/hyphens, globally unique. Org policy, quota, or missing create permission can also block this."
+  fi
   ok "created project $PROJECT_ID"
 fi
-gcloud config set project "$PROJECT_ID" >/dev/null 2>&1
+gcloud config set project "$PROJECT_ID" >/dev/null 2>&1 || true
 
 # =============================================================================
 # 2. Link billing (Blaze) — required for Cloud Functions
