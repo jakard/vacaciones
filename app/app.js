@@ -23,6 +23,7 @@ import {
   httpsCallableFromURL,
 } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-functions.js';
 import { ES as TRANSLATIONS_ES } from './i18n-es.js';
+import { PLAIN } from './i18n-plain.js';
 
 /* ============================================================
    Config
@@ -212,10 +213,24 @@ const lang = {
 };
 document.documentElement.lang = lang.current();
 
+// Voice — 'pirate' (default, the product's identity) or 'plain' (corporate
+// wording). Orthogonal to language: plain mode overlays the PLAIN map on
+// top of the same EN/ES lookup. Toggled in the Profile sheet.
+const voice = {
+  current() { return localStorage.getItem('vacaciones.voice') === 'plain' ? 'plain' : 'pirate'; },
+  isPirate() { return this.current() === 'pirate'; },
+  set(v) { localStorage.setItem('vacaciones.voice', v === 'plain' ? 'plain' : 'pirate'); },
+};
+
 function t(text, params) {
   const l = lang.current();
   let s = text;
-  if (l !== 'en') s = TRANSLATIONS[l]?.[text] || text;
+  if (voice.current() === 'plain' && PLAIN[text]) {
+    // Corporate wording for the active language (fall back to plain-EN).
+    s = PLAIN[text][l] ?? PLAIN[text].en ?? text;
+  } else if (l !== 'en') {
+    s = TRANSLATIONS[l]?.[text] || text;
+  }
   if (params) {
     for (const k of Object.keys(params)) s = s.split(`{${k}}`).join(String(params[k]));
   }
@@ -1638,6 +1653,13 @@ function showAvatarPicker() {
           ${LANG_OPTIONS.map((o) => `<option value="${o.id}" ${lang.stored() === o.id ? 'selected' : ''}>${esc(o.id === 'auto' ? t('Auto (browser)') : o.label)}</option>`).join('')}
         </select>
       </div>
+      <label class="profile-row" style="cursor: pointer;">
+        <span>
+          <strong style="display: block;">${esc(t('Pirate mode'))}</strong>
+          <small class="muted">${esc(t('Playful wording (doubloons, crew, bounties). Off = plain corporate wording (credits, team, requests).'))}</small>
+        </span>
+        <input type="checkbox" data-action="toggle-voice" ${voice.isPirate() ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
+      </label>
       <div class="profile-row">
         <span>
           <strong style="display: block;">${esc(t('Theme'))}</strong>
@@ -4205,6 +4227,13 @@ document.addEventListener('change', (e) => {
     renderUserInfo();
     // Re-open the profile sheet in the new language so the change is
     // visible where it was made.
+    closeAllModals();
+    showAvatarPicker();
+  }
+  if (e.target.matches?.('[data-action="toggle-voice"]')) {
+    voice.set(e.target.checked ? 'pirate' : 'plain');
+    render();
+    renderUserInfo();
     closeAllModals();
     showAvatarPicker();
   }

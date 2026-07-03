@@ -411,6 +411,8 @@ export const ES = {
   'Male pirate': 'Pirata',
   'Female pirate': 'Pirata',
   'Applies immediately, everywhere in the app.': 'Se aplica al instante, en toda la app.',
+  'Pirate mode': 'Modo pirata',
+  'Playful wording (doubloons, crew, bounties). Off = plain corporate wording (credits, team, requests).': 'Lenguaje lúdico (doblones, tripulación, botines). Desactivado = lenguaje corporativo neutro (créditos, equipo, solicitudes).',
   'Pirate, Basic, High Contrast, or Dark Knight.': 'Pirate, Basic, High Contrast o Dark Knight.',
   'Choose a skin': 'Elegir un tema',
   'Sound effects': 'Efectos de sonido',

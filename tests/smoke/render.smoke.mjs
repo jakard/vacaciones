@@ -13,15 +13,19 @@ import { JSDOM } from 'jsdom';
 const APP = new URL('../../app/app.js', import.meta.url);
 const ES_DICT = new URL('../../app/i18n-es.js', import.meta.url);
 const INDEX = new URL('../../app/index.html', import.meta.url);
+const PLAIN_DICT = new URL('../../app/i18n-plain.js', import.meta.url);
 
 // ---------------------------------------------------------------------
 // 1. Build the instrumented module source
 // ---------------------------------------------------------------------
 let src = readFileSync(APP, 'utf8');
 const esSrc = readFileSync(ES_DICT, 'utf8').replace(/^export const ES =/m, 'const TRANSLATIONS_ES =');
+const plainSrc = readFileSync(PLAIN_DICT, 'utf8').replace(/^export const PLAIN =/m, 'const PLAIN =');
 
-// Strip the four gstatic imports + the local dict import; replace with stubs.
-const importBlockEnd = src.indexOf("import { ES as TRANSLATIONS_ES } from './i18n-es.js';");
+// Strip the gstatic + local dict imports; replace with stubs. Anchor on the
+// LAST local import so both dict imports are removed.
+const importAnchor = "import { PLAIN } from './i18n-plain.js';";
+const importBlockEnd = src.indexOf(importAnchor);
 if (importBlockEnd === -1) throw new Error('harness: dict import anchor not found');
 const afterImports = src.indexOf('\n', importBlockEnd) + 1;
 src = src.slice(afterImports);
@@ -54,12 +58,13 @@ const httpsCallableFromURL = (f, url) => async (payload) => {
   return { data: {} };
 };
 ${esSrc}
+${plainSrc}
 // ---- end stubs ----
 `;
 
 const bridge = `
 ;globalThis.__TO = {
-  state, render, renderUserInfo, t, tr, lang, skin, audio, esc,
+  state, render, renderUserInfo, t, tr, lang, voice, skin, audio, esc,
   computeStats, computeRank, RANKS, STAN_SCENES, SVG,
   showRankCinematic, maybeShowRankCinematic,
   showAvatarPicker, showSkinPicker, showBountyDetail,
@@ -314,14 +319,23 @@ function openModalAndScan(label, opener) {
 // Language canaries prove translations actually flow end-to-end (a false
 // pass from rendering stale/english content in ES mode gets caught here).
 const CANARY = {
-  en: { login: 'Sign in with Google', home: 'Your Crews', bounties: 'Bounty Board', chest: 'Your treasure chest', wof: 'Top covers', members: 'aboard', post: 'Post a bounty', settings: 'Crew settings', help: 'doubloon' },
-  es: { login: 'Iniciar sesión con Google', home: 'Tus tripulaciones', bounties: 'Tablón de botines', chest: 'Tu cofre del tesoro', wof: 'Mejores coberturas', members: 'a bordo', post: 'Publicar un botín', settings: 'Ajustes de la tripulación', help: 'doblón' },
+  pirate: {
+    en: { login: 'Sign in with Google', home: 'Your Crews', bounties: 'Bounty Board', chest: 'Your treasure chest', wof: 'Top covers', members: 'aboard', post: 'Post a bounty', settings: 'Crew settings', help: 'doubloon' },
+    es: { login: 'Iniciar sesión con Google', home: 'Tus tripulaciones', bounties: 'Tablón de botines', chest: 'Tu cofre del tesoro', wof: 'Mejores coberturas', members: 'a bordo', post: 'Publicar un botín', settings: 'Ajustes de la tripulación', help: 'doblón' },
+  },
+  // Plain / corporate voice canaries — prove the PLAIN overlay flows.
+  plain: {
+    en: { login: 'Sign in with Google', home: 'Your Teams', bounties: 'Requests', chest: 'Your wallet', wof: 'Top covers', members: 'aboard', post: 'Post a request', settings: 'Team settings', help: 'credit' },
+    es: { login: 'Iniciar sesión con Google', home: 'Tus equipos', bounties: 'Solicitudes', chest: 'Tu cartera', wof: 'Mejores coberturas', members: 'a bordo', post: 'Publicar una solicitud', settings: 'Ajustes del equipo', help: 'crédito' },
+  },
 };
 
-for (const l of ['en', 'es']) {
+for (const vlang of ['pirate:en', 'pirate:es', 'plain:en', 'plain:es']) {
+  const [vc, l] = vlang.split(':');
+  T.voice.set(vc);
   T.lang.set(l);
-  const L = `[${l}]`;
-  const C = CANARY[l];
+  const L = `[${vc}/${l}]`;
+  const C = CANARY[vc][l];
 
   // Logged-out login screen
   T.state.authReady = true;
@@ -423,9 +437,9 @@ for (const l of ['en', 'es']) {
 // ---------------------------------------------------------------------
 // 7. Report
 // ---------------------------------------------------------------------
-console.log(`smoke: ${checks} checks across en+es`);
+console.log(`smoke: ${checks} checks across pirate+plain × en+es`);
 if (failures.length === 0) {
-  console.log('smoke: ✓ all screens render clean in both languages');
+  console.log('smoke: ✓ all screens render clean in both voices and languages');
   process.exit(0);
 }
 console.error(`smoke: ✗ ${failures.length} failure(s)`);

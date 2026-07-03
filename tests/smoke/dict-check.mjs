@@ -3,6 +3,7 @@
 // the smoke step so translation drift can't ship.
 import { readFileSync } from 'node:fs';
 import { ES } from '../../app/i18n-es.js';
+import { PLAIN } from '../../app/i18n-plain.js';
 
 const src = readFileSync(new URL('../../app/i18n-es.js', import.meta.url), 'utf8');
 
@@ -52,6 +53,21 @@ for (const rx of dynamicBlocks) {
 }
 const untranslated = [...callKeys].filter((k) => !(k in ES)).sort();
 
+// --- PLAIN (corporate voice) overlay validity ---
+// Every PLAIN key must be a real call-site/dynamic key (else dead), must
+// carry an `en` string, and its en/es values must reuse only the key's
+// placeholders.
+const plainProblems = [];
+for (const [key, val] of Object.entries(PLAIN)) {
+  if (!callKeys.has(key)) plainProblems.push(`PLAIN dead key (never used by t()): ${JSON.stringify(key)}`);
+  if (!val || typeof val.en !== 'string') { plainProblems.push(`PLAIN ${JSON.stringify(key)} missing .en`); continue; }
+  const kp = params(key);
+  for (const voiceLang of ['en', 'es']) {
+    if (typeof val[voiceLang] !== 'string') continue;
+    for (const p of params(val[voiceLang])) if (!kp.has(p)) plainProblems.push(`PLAIN ${JSON.stringify(key)}.${voiceLang} has ${p} not in key`);
+  }
+}
+
 const problems = [];
 if (dups.length) problems.push(`duplicate keys: ${dups.join(', ')}`);
 if (mismatches.length) problems.push(...mismatches);
@@ -59,10 +75,11 @@ if (untranslated.length) {
   problems.push(`${untranslated.length} call-site key(s) missing from ES dict:`);
   for (const k of untranslated) problems.push(`  · ${JSON.stringify(k)}`);
 }
+if (plainProblems.length) problems.push(...plainProblems);
 
 if (problems.length) {
   console.error(`dict-check: ✗ ${problems.length} problem(s)`);
   for (const p of problems) console.error('  ' + p);
   process.exit(1);
 }
-console.log(`dict-check: ✓ ${Object.keys(ES).length} ES entries, no dups, placeholders consistent`);
+console.log(`dict-check: ✓ ${Object.keys(ES).length} ES entries + ${Object.keys(PLAIN).length} PLAIN entries, no dups, placeholders consistent`);
