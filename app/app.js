@@ -141,6 +141,7 @@ const callCreateTeam = httpsCallableFromURL(functions, callableURL('createTeam')
 const callJoinTeam = httpsCallableFromURL(functions, callableURL('joinTeam'));
 const callCreateCoverageRequest = httpsCallableFromURL(functions, callableURL('createCoverageRequest'));
 const callAcceptCoverageRequest = httpsCallableFromURL(functions, callableURL('acceptCoverageRequest'));
+const callUpdateMyAccounts = httpsCallableFromURL(functions, callableURL('updateMyAccounts'));
 const callGetLeaderboard = httpsCallableFromURL(functions, callableURL('getLeaderboard'));
 const callSendScroll = httpsCallableFromURL(functions, callableURL('sendScroll'));
 const callSetProfile = httpsCallableFromURL(functions, callableURL('setProfile'));
@@ -344,6 +345,10 @@ const state = {
   bellOpen: false,
   notifLastSeen: Number(localStorage.getItem('vacaciones.notifLastSeen') || '0'),
   achievedIds: new Set(JSON.parse(localStorage.getItem('vacaciones.achievedIds') || '[]')),
+  // The current user's "book of business" — customer accounts they own,
+  // loaded from their member doc. Coverage can be split by account.
+  myAccounts: [],
+  accountsSaving: false,
   formState: {
     startDate: '',
     endDate: '',
@@ -356,8 +361,14 @@ const state = {
     meetings: [],
     selectedDayKeys: [],
     coverageMode: 'single',
+    // Which of my accounts this OOO covers (defaults to all active accounts)
+    // and the selected (account × day) cells. Empty accountIds ⇒ day-only.
+    accountIds: [],
+    selectedCells: [],
+    // false ⇒ the matrix defaults to all-on; true ⇒ respect explicit empties.
+    cellsTouched: false,
   },
-  claim: { bountyId: null, selectedDayKeys: [] },
+  claim: { bountyId: null, selectedDayKeys: [], selectedCells: [] },
   crewMembers: [],
   crewMembersLoading: false,
   bountyFilterText: '',
@@ -511,6 +522,34 @@ function computeCostFromKeys(keys) {
     if (isWeekend) weekendDays++; else weekdays++;
   }
   return { totalCoins, days: keys.length, weekdays, weekendDays };
+}
+
+/* ---- Account × day "cell" helpers (mirror functions/src/services/cells.ts) ---- */
+function cellKey(accountId, dayKey) { return `${accountId}__${dayKey}`; }
+function isWeekendKey(dayKey) {
+  const dow = parseDateKey(dayKey).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+function dayCostForKey(dayKey) {
+  return isWeekendKey(dayKey)
+    ? ECONOMY.COVERAGE_PRICE_PER_DAY * ECONOMY.WEEKEND_MULTIPLIER
+    : ECONOMY.COVERAGE_PRICE_PER_DAY;
+}
+function computeCostFromCells(cells) {
+  let totalCoins = 0, weekdays = 0, weekendDays = 0;
+  for (const c of arr(cells)) {
+    totalCoins += dayCostForKey(c.dayKey);
+    if (isWeekendKey(c.dayKey)) weekendDays++; else weekdays++;
+  }
+  return { totalCoins, days: arr(cells).length, weekdays, weekendDays };
+}
+/** The user's non-archived accounts. */
+function activeAccounts() { return arr(state.myAccounts).filter((a) => a && a.id && !a.archived); }
+/** Look up an account name (from the bounty snapshot) with a friendly fallback. */
+function accountName(accounts, id) {
+  const a = arr(accounts).find((x) => x.id === id);
+  const n = a && a.name ? String(a.name).trim() : '';
+  return n || t('General coverage');
 }
 function formatDate(d) {
   if (!d) return '—';
@@ -1094,7 +1133,11 @@ function subscribeTeam(teamId) {
 
   unsubMyMember = onSnapshot(
     doc(db, `teams/${teamId}/members/${state.user.uid}`),
-    (snap) => { state.myRole = snap.exists() ? (snap.data()?.role ?? 'member') : null; render(); },
+    (snap) => {
+      state.myRole = snap.exists() ? (snap.data()?.role ?? 'member') : null;
+      state.myAccounts = snap.exists() ? arr(snap.data()?.accounts) : [];
+      render();
+    },
     (err) => console.error('myMember query failed', err),
   );
 
@@ -1219,18 +1262,11 @@ async function postBounty() {
   if (f.reachability.length === 0) { showToast(t('Pick at least one reachability option.'), 'error'); return; }
   state.busy.postRequest = true; render();
   try {
-    const selectedDayKeys = f.selectedDayKeys.length > 0 ? f.selectedDayKeys : allDayKeysInRange(start, end);
-    if (selectedDayKeys.length === 0) {
-      showToast(t('Pick at least one day to be covered.'), 'error');
-      state.busy.postRequest = false; render();
-      return;
-    }
-    const result = await callCreateCoverageRequest({
+    const payload = {
       teamId: state.teamId,
       windowStartIso: start.toISOString(),
       windowEndIso: end.toISOString(),
       timezone: f.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      selectedDayKeys,
       coverageMode: f.coverageMode || 'single',
       reachability: f.reachability,
       coverageKinds: f.coverageKinds,
@@ -1238,13 +1274,37 @@ async function postBounty() {
       sla: f.sla,
       emergencyDef: f.emergencyDef || null,
       meetings: f.meetings,
-    });
+    };
+    if (postUsesMatrix()) {
+      // Split by account: send the accounts + the selected (account × day) cells.
+      const windowKeys = new Set(allDayKeysInRange(start, end));
+      const cells = arr(f.selectedCells).filter((c) => windowKeys.has(c.dayKey));
+      if (cells.length === 0) {
+        showToast(t('Pick at least one account-day to be covered.'), 'error');
+        state.busy.postRequest = false; render();
+        return;
+      }
+      const usedIds = new Set(cells.map((c) => c.accountId));
+      payload.accounts = activeAccounts()
+        .filter((a) => usedIds.has(a.id))
+        .map((a) => ({ id: a.id, name: a.name }));
+      payload.cells = cells.map((c) => ({ accountId: c.accountId, dayKey: c.dayKey }));
+    } else {
+      const selectedDayKeys = f.selectedDayKeys.length > 0 ? f.selectedDayKeys : allDayKeysInRange(start, end);
+      if (selectedDayKeys.length === 0) {
+        showToast(t('Pick at least one day to be covered.'), 'error');
+        state.busy.postRequest = false; render();
+        return;
+      }
+      payload.selectedDayKeys = selectedDayKeys;
+    }
+    const result = await callCreateCoverageRequest(payload);
     showToast(t('Bounty posted for {n} doubloons.', { n: result.data.coinsOffered }), 'success');
     state.formState = {
       startDate: '', endDate: '', timezone: state.formState.timezone,
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: '',
       sla: state.formState.sla, emergencyDef: '', meetings: [], selectedDayKeys: [],
-      coverageMode: 'single',
+      coverageMode: 'single', accountIds: [], selectedCells: [], cellsTouched: false,
     };
     state.calendarEvents = [];
     state.calendarLastWindow = null;
@@ -1253,23 +1313,24 @@ async function postBounty() {
   finally { state.busy.postRequest = false; render(); }
 }
 
-async function acceptRequest(requestId, dayKeysToClaim) {
+// opts: { cells: [{accountId,dayKey}] } (account-split bounties) or
+// { dayKeys: [...] } (legacy crew) or undefined (take everything open).
+async function acceptRequest(requestId, opts) {
   if (state.busy.acceptId) return;
   state.busy.acceptId = requestId; render();
   try {
     const payload = { teamId: state.teamId, requestId };
-    if (dayKeysToClaim && dayKeysToClaim.length > 0) {
-      payload.dayKeysToClaim = dayKeysToClaim;
-    }
+    if (opts?.cells?.length) payload.cellsToClaim = opts.cells;
+    else if (opts?.dayKeys?.length) payload.dayKeysToClaim = opts.dayKeys;
     const result = await callAcceptCoverageRequest(payload);
-    const days = result.data.claimedDayKeys?.length ?? 0;
     const allClaimed = !!result.data.allClaimed;
     const n = result.data.coinsEscrowed;
+    const count = result.data.claimedCount ?? result.data.claimedDayKeys?.length ?? 0;
     const msg = allClaimed
       ? t('Voyage accepted in full. {n} doubloons in escrow.', { n })
-      : days === 1
-        ? t('Took 1 day. {n} doubloons in escrow.', { n })
-        : t('Took {d} days. {n} doubloons in escrow.', { d: days, n });
+      : count === 1
+        ? t('Took 1 account-day. {n} doubloons in escrow.', { n })
+        : t('Took {d} account-days. {n} doubloons in escrow.', { d: count, n });
     showToast(msg, 'success');
     audio.coin();
   } catch (err) { showToast(err.message, 'error', 6000); }
@@ -1279,26 +1340,81 @@ async function acceptRequest(requestId, dayKeysToClaim) {
 function startCrewClaim(bountyId) {
   state.claim.bountyId = bountyId;
   state.claim.selectedDayKeys = [];
+  state.claim.selectedCells = [];
   showCrewClaimModal();
 }
 
 function showCrewClaimModal() {
   const b = state.bounties.find((x) => x.id === state.claim.bountyId);
   if (!b) return;
-  const allKeys = arr(b.selectedDayKeys);
-  const coverers = b.dayCoverers || {};
-  const renderInner = () => {
+  const me = state.user?.uid;
+  const hasCells = arr(b.cells).length > 0;
+  const accounts = arr(b.accounts);
+  const dayKeys = arr(b.selectedDayKeys);
+  const cellCoverers = b.cellCoverers || {};
+  const cellSet = new Set(arr(b.cells).map((c) => cellKey(c.accountId, c.dayKey)));
+
+  const selectedCount = () => (hasCells ? state.claim.selectedCells.length : state.claim.selectedDayKeys.length);
+  const submitLabel = () => (hasCells
+    ? t('Take {n} account-days', { n: selectedCount() })
+    : t('Take {n} days', { n: selectedCount() }));
+
+  // ---- account × day matrix (new bounties) ----
+  const renderMatrix = () => {
+    const selSet = new Set(state.claim.selectedCells.map((c) => cellKey(c.accountId, c.dayKey)));
+    const dayHead = dayKeys.map((k) => {
+      const d = parseDateKey(k); const wk = isWeekendKey(k);
+      return `<th class="cm-day ${wk ? 'weekend' : ''}"><span>${esc(t(WEEKDAY_NAMES[d.getUTCDay()]))}</span><small>${d.getUTCDate()} ${esc(t(MONTH_NAMES[d.getUTCMonth()]))}</small></th>`;
+    }).join('');
+    const rows = accounts.map((a) => {
+      const tiles = dayKeys.map((k) => {
+        const key = cellKey(a.id, k);
+        if (!cellSet.has(key)) return `<td><span class="cm-cell na" aria-hidden="true"></span></td>`;
+        const cover = cellCoverers[key];
+        const mine = cover?.uid === me;
+        const other = !!cover && !mine;
+        const sel = selSet.has(key);
+        const wk = isWeekendKey(k);
+        const klass = other ? 'cm-cell claimed' : mine ? 'cm-cell mine' : `cm-cell ${sel ? 'on' : 'off'} ${wk ? 'weekend' : ''}`;
+        const inner = other
+          ? `<small>${cover.displayName ? esc(shortName(cover.displayName)) : esc(t('Taken'))}</small>`
+          : mine ? `<small>${esc(t('Yours'))}</small>` : (sel ? dayCostForKey(k) : '');
+        const attrs = (other || mine)
+          ? 'disabled'
+          : `data-action="claim-toggle-cell" data-account-id="${esc(a.id)}" data-day-key="${esc(k)}" aria-pressed="${sel ? 'true' : 'false'}"`;
+        return `<td><button type="button" class="${klass}" ${attrs}>${inner}</button></td>`;
+      }).join('');
+      return `<tr><th class="cm-acct">${esc(a.name || t('General coverage'))}</th>${tiles}</tr>`;
+    }).join('');
+    const cost = computeCostFromCells(state.claim.selectedCells);
+    return `
+      <p style="margin: 0 0 8px;">${esc(t('Tap the account-days you can cover. Claimed cells are locked.'))}</p>
+      <div class="matrix-wrap">
+        <table class="coverage-matrix">
+          <thead><tr><th class="cm-corner">${esc(t('Account'))}</th>${dayHead}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p style="margin: 12px 0 0; font-family: 'Inter', system-ui, sans-serif;">
+        <strong>${esc(t('{n} account-days', { n: state.claim.selectedCells.length }))}</strong> ·
+        <strong style="color: var(--brass-deep);">${esc(t('{n} doubloons', { n: cost.totalCoins }))}</strong>
+      </p>`;
+  };
+
+  // ---- legacy day list (pre-account bounties) ----
+  const renderLegacy = () => {
+    const coverers = b.dayCoverers || {};
     const selectedSet = new Set(state.claim.selectedDayKeys);
     const cost = computeCostFromKeys(state.claim.selectedDayKeys);
     return `
       <p style="margin: 0 0 8px;">${esc(t('Pick the days you can cover. Unclaimed days are tappable.'))}</p>
       <ul class="day-list">
-        ${allKeys.map((key) => {
+        ${dayKeys.map((key) => {
           const d = parseDateKey(key);
           const dow = d.getUTCDay();
           const isWeekend = dow === 0 || dow === 6;
           const dayCoverer = coverers[key];
-          const claimedByMe = dayCoverer?.uid === state.user?.uid;
+          const claimedByMe = dayCoverer?.uid === me;
           const claimedByOther = !!dayCoverer && !claimedByMe;
           const selected = selectedSet.has(key);
           const klass = claimedByOther
@@ -1328,6 +1444,9 @@ function showCrewClaimModal() {
       </p>
     `;
   };
+
+  const renderInner = () => (hasCells ? renderMatrix() : renderLegacy());
+
   // Custom inline modal (so we can re-render the contents on toggles without closing it)
   const root = document.getElementById('modal-root');
   root.innerHTML = '';
@@ -1335,44 +1454,58 @@ function showCrewClaimModal() {
   wrap.className = 'modal-scrim';
   wrap.innerHTML = `
     <div class="modal wide">
-      <div class="modal-title">${esc(t('Claim your days'))}</div>
+      <div class="modal-title">${esc(hasCells ? t('Claim accounts to cover') : t('Claim your days'))}</div>
       <div class="modal-body" id="crew-claim-body">${renderInner()}</div>
       <div class="modal-actions">
         <button class="btn btn-secondary" data-action="claim-cancel">${esc(t('Cancel'))}</button>
-        <button class="btn" data-action="claim-submit" ${state.claim.selectedDayKeys.length === 0 ? 'disabled' : ''}>
-          ${esc(t('Take {n} days', { n: state.claim.selectedDayKeys.length }))}
+        <button class="btn" data-action="claim-submit" ${selectedCount() === 0 ? 'disabled' : ''}>
+          ${esc(submitLabel())}
         </button>
       </div>
     </div>`;
+  const refresh = () => {
+    const body = document.getElementById('crew-claim-body');
+    if (body) body.innerHTML = renderInner();
+    const submit = wrap.querySelector('[data-action="claim-submit"]');
+    if (submit) {
+      submit.textContent = submitLabel();
+      if (selectedCount() === 0) submit.setAttribute('disabled', '');
+      else submit.removeAttribute('disabled');
+    }
+    audio.click();
+  };
   wrap.addEventListener('click', async (e) => {
     if (e.target === wrap) { wrap.remove(); state.claim.bountyId = null; }
     const action = e.target.closest('[data-action]')?.dataset.action;
     if (action === 'claim-cancel') { wrap.remove(); state.claim.bountyId = null; }
+    if (action === 'claim-toggle-cell') {
+      const el = e.target.closest('[data-account-id][data-day-key]');
+      const accountId = el?.dataset.accountId;
+      const dayKey = el?.dataset.dayKey;
+      if (!accountId || !dayKey) return;
+      const key = cellKey(accountId, dayKey);
+      const idx = state.claim.selectedCells.findIndex((c) => cellKey(c.accountId, c.dayKey) === key);
+      if (idx >= 0) state.claim.selectedCells.splice(idx, 1);
+      else state.claim.selectedCells.push({ accountId, dayKey });
+      refresh();
+    }
     if (action === 'claim-toggle-day') {
       const k = e.target.closest('[data-day-key]')?.dataset.dayKey;
       if (!k) return;
       const idx = state.claim.selectedDayKeys.indexOf(k);
       if (idx >= 0) state.claim.selectedDayKeys.splice(idx, 1);
       else state.claim.selectedDayKeys.push(k);
-      // Re-render the contents without closing the modal
-      const body = document.getElementById('crew-claim-body');
-      if (body) body.innerHTML = renderInner();
-      const submit = wrap.querySelector('[data-action="claim-submit"]');
-      if (submit) {
-        const n = state.claim.selectedDayKeys.length;
-        submit.textContent = t('Take {n} days', { n });
-        if (n === 0) submit.setAttribute('disabled', '');
-        else submit.removeAttribute('disabled');
-      }
-      audio.click();
+      refresh();
     }
     if (action === 'claim-submit') {
-      if (state.claim.selectedDayKeys.length === 0) return;
+      if (selectedCount() === 0) return;
       const bountyId = state.claim.bountyId;
-      const days = state.claim.selectedDayKeys.slice();
+      const opts = hasCells
+        ? { cells: state.claim.selectedCells.slice() }
+        : { dayKeys: state.claim.selectedDayKeys.slice() };
       wrap.remove();
       state.claim.bountyId = null;
-      await acceptRequest(bountyId, days);
+      await acceptRequest(bountyId, opts);
     }
   });
   root.appendChild(wrap);
@@ -1673,6 +1806,14 @@ function showAvatarPicker() {
         </span>
         <input type="checkbox" data-action="toggle-digest" ${digestEnabled ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
       </label>
+      ${state.teamId ? `
+      <div class="profile-row">
+        <span>
+          <strong style="display: block;">${esc(t('Your accounts'))}</strong>
+          <small class="muted">${esc(t('The customer accounts you own. Lets you split coverage by account when you post time off.'))}${activeAccounts().length ? ` · ${esc(t('{n} saved', { n: activeAccounts().length }))}` : ''}</small>
+        </span>
+        <button class="btn btn-secondary" data-action="manage-accounts" type="button">${esc(t('Manage accounts'))}</button>
+      </div>` : ''}
     </div>
 
     <div class="profile-section">
@@ -2522,28 +2663,54 @@ function showBountyDetail(bountyId) {
     </div>
 
     ${(() => {
+      const accounts = arr(b.accounts).filter((a) => a && (a.name || '').trim());
+      const cells = arr(b.cells);
+      const cc = b.cellCoverers || {};
+      if (accounts.length === 0 || cells.length === 0) return '';
+      return `
+        <div class="bd-section">
+          <h4>${esc(t('Accounts'))} (${accounts.length})</h4>
+          <ul class="coverer-list">
+            ${accounts.map((a) => {
+              const acctCells = cells.filter((c) => c.accountId === a.id);
+              const total = acctCells.length;
+              const claimed = acctCells.filter((c) => cc[cellKey(a.id, c.dayKey)]).length;
+              const label = total === 0
+                ? esc(t('no coverage needed'))
+                : claimed >= total ? esc(t('covered')) : esc(t('{a}/{b} days', { a: claimed, b: total }));
+              return `<li><span>${esc(a.name)}</span><small>${label}</small></li>`;
+            }).join('')}
+          </ul>
+        </div>`;
+    })()}
+
+    ${(() => {
       const crewMode = (b.coverageMode || 'single') === 'crew';
       const coverers = arr(b.coverers);
+      const hasCells = arr(b.cells).length > 0;
+      const cellCoverers = b.cellCoverers || {};
       const dayCoverers = b.dayCoverers || {};
       const allKeys = arr(b.selectedDayKeys);
+      const cells = arr(b.cells);
+      const countFor = (uid) => hasCells
+        ? cells.filter((c) => cellCoverers[cellKey(c.accountId, c.dayKey)]?.uid === uid).length
+        : allKeys.filter((k) => dayCoverers[k]?.uid === uid).length;
+      const unitFor = (n) => (hasCells ? t('{n} account-days', { n }) : t('{n} days', { n }));
       if (crewMode && coverers.length > 0) {
+        const remaining = bountyClaimProgress(b).remaining;
         return `
           <div class="bd-section">
             <h4>${esc(t('Crew coverers'))} (${coverers.length})</h4>
             <ul class="coverer-list">
-              ${coverers.map((c) => {
-                const mineDays = allKeys.filter((k) => dayCoverers[k]?.uid === c.uid);
-                return `<li>
+              ${coverers.map((c) => `<li>
                   ${c.photoURL ? `<img class="avatar-mini" src="${esc(c.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 28px; height: 28px;" />` : ''}
                   <span>${esc(shortName(c.displayName || t('A crewmate')))}${c.uid === state.user?.uid ? ` (${t('you')})` : ''}</span>
-                  <small>${esc(t('{n} days', { n: mineDays.length }))}</small>
-                </li>`;
-              }).join('')}
+                  <small>${esc(unitFor(countFor(c.uid)))}</small>
+                </li>`).join('')}
             </ul>
-            ${(() => {
-              const remaining = allKeys.filter((k) => !dayCoverers[k]).length;
-              return remaining > 0 ? `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('{n} days still open.', { n: remaining }))}</p>` : `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('All days claimed.'))}</p>`;
-            })()}
+            ${remaining > 0
+              ? `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(hasCells ? t('{n} account-days still open.', { n: remaining }) : t('{n} days still open.', { n: remaining }))}</p>`
+              : `<p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('All covered.'))}</p>`}
           </div>
         `;
       }
@@ -3300,6 +3467,32 @@ function renderFilter(value, label) {
   return `<button class="filter-chip ${active ? 'active' : ''}" data-action="set-filter" data-filter="${value}">${esc(label)}</button>`;
 }
 
+/** Claim progress that works for both account-day cells and legacy days. */
+function bountyClaimProgress(b) {
+  const cells = arr(b.cells);
+  if (cells.length > 0) {
+    const cc = b.cellCoverers || {};
+    const claimed = cells.filter((c) => cc[cellKey(c.accountId, c.dayKey)]).length;
+    return { total: cells.length, claimed, remaining: cells.length - claimed, cells: true };
+  }
+  const days = arr(b.selectedDayKeys);
+  const dc = b.dayCoverers || {};
+  const claimed = days.filter((k) => dc[k]).length;
+  return { total: days.length, claimed, remaining: days.length - claimed, cells: false };
+}
+/** Does the current user cover any part of this bounty? */
+function iCoverAny(b) {
+  const me = state.user?.uid;
+  if (!me) return false;
+  const cells = arr(b.cells);
+  if (cells.length > 0) {
+    const cc = b.cellCoverers || {};
+    return cells.some((c) => cc[cellKey(c.accountId, c.dayKey)]?.uid === me);
+  }
+  const dc = b.dayCoverers || {};
+  return arr(b.selectedDayKeys).some((k) => dc[k]?.uid === me);
+}
+
 function renderBountyCard(b) {
   const status = b.status || 'open';
   const statusLabel = t(STATUS_LABEL[status] || status);
@@ -3310,20 +3503,21 @@ function renderBountyCard(b) {
   const reqPhoto = b.requesterPhotoURL;
   const mode = b.coverageMode || 'single';
   const isCrew = mode === 'crew';
-  const allDays = arr(b.selectedDayKeys);
-  const dayCoverers = b.dayCoverers || {};
-  const claimedCount = allDays.filter((k) => dayCoverers[k]).length;
-  const remainingCount = allDays.length - claimedCount;
+  const prog = bountyClaimProgress(b);
+  const accounts = arr(b.accounts).filter((a) => a && (a.name || '').trim());
   const coverers = arr(b.coverers);
   const youCover = coverers.some((c) => c.uid === state.user?.uid)
     || b.covererUid === state.user?.uid;
-  const youHaveDays = allDays.some((k) => dayCoverers[k]?.uid === state.user?.uid);
+  const youHaveDays = iCoverAny(b);
 
   let actionHtml = '';
   if (mine) {
     actionHtml = `<span class="own-tag">${esc(t('Your bounty'))}</span>`;
   } else if (isCrew && status === 'open') {
-    actionHtml = `<button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? esc(t('Accepting…')) : esc(t('Claim days ({n} left)', { n: remainingCount }))}</button>`;
+    const label = prog.cells
+      ? t('Claim ({n} left)', { n: prog.remaining })
+      : t('Claim days ({n} left)', { n: prog.remaining });
+    actionHtml = `<button class="btn" data-action="crew-claim" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? esc(t('Accepting…')) : esc(label)}</button>`;
   } else if (status === 'open') {
     actionHtml = `<button class="btn" data-action="accept" data-id="${esc(b.id)}" ${accepting ? 'disabled' : ''}>${accepting ? esc(t('Accepting…')) : esc(t('Cover'))}</button>`;
   }
@@ -3351,12 +3545,12 @@ function renderBountyCard(b) {
         ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar-mini avatar-mini-blank"></span>`}
         <strong class="b-name" title="${esc(b.requesterDisplayName ?? '')}">${esc(shortName(reqName))}</strong>
         <span class="status-badge status-${status}">${esc(statusLabel)}</span>
-        ${isCrew ? `<span class="mode-pill" title="${esc(t('{a}/{b} days claimed', { a: claimedCount, b: allDays.length }))}">${esc(t('Crew'))} ${claimedCount}/${allDays.length}</span>` : ''}
+        ${isCrew ? `<span class="mode-pill" title="${esc(t('{a}/{b} claimed', { a: prog.claimed, b: prog.total }))}">${esc(t('Crew'))} ${prog.claimed}/${prog.total}</span>` : ''}
         ${(youHaveDays || youCover) ? `<span class="mine-pill">${esc(t('You'))}</span>` : ''}
       </div>
       <div class="b-row2">
         ${esc(formatDate(b.windowStart?.toDate()))} – ${esc(formatDate(b.windowEnd?.toDate()))}
-        · ${esc(t('{n} days', { n: days }))}${b.timezone ? ` · ${esc(b.timezone)}` : ''}${esc(covererNote)}
+        · ${esc(t('{n} days', { n: days }))}${accounts.length > 1 ? ` · ${esc(t('{n} accounts', { n: accounts.length }))}` : ''}${b.timezone ? ` · ${esc(b.timezone)}` : ''}${esc(covererNote)}
       </div>
       <div class="b-row3">
         <span class="b-price">${SVG.doubloon}<strong>${b.totalCoinsOffered ?? 0}</strong></span>
@@ -3482,6 +3676,196 @@ function renderDayPicker() {
   `;
 }
 
+/** Rows = the user's active accounts, columns = days in the window. Tap a cell
+ * to toggle whether that account needs coverage that day. Only shown when the
+ * user has a book of business; otherwise the plain day picker is used. */
+function renderCoverageMatrix() {
+  const f = state.formState;
+  const start = parseLocalDate(f.startDate);
+  const end = parseLocalDate(f.endDate);
+  if (!start || !end || end < start) {
+    return `<div class="meetings-picker"><span class="muted" style="font-size: var(--fs-meta);">${esc(t('Pick the date range above first.'))}</span></div>`;
+  }
+  const accts = activeAccounts();
+  const dayKeys = allDayKeysInRange(start, end);
+  const allCells = [];
+  for (const a of accts) for (const k of dayKeys) allCells.push({ accountId: a.id, dayKey: k });
+  const validKeys = new Set(allCells.map((c) => cellKey(c.accountId, c.dayKey)));
+  // Sanitize stored selection to the current window/accounts. Default all-on on
+  // a fresh form; once the user has touched the grid, respect an empty grid.
+  let selected = arr(f.selectedCells).filter((c) => validKeys.has(cellKey(c.accountId, c.dayKey)));
+  if (selected.length === 0 && !f.cellsTouched) selected = allCells.slice();
+  f.selectedCells = selected;
+  const selSet = new Set(selected.map((c) => cellKey(c.accountId, c.dayKey)));
+  const cost = computeCostFromCells(selected);
+  const dayHead = dayKeys.map((k) => {
+    const d = parseDateKey(k);
+    const wk = isWeekendKey(k);
+    return `<th class="cm-day ${wk ? 'weekend' : ''}"><span>${esc(t(WEEKDAY_NAMES[d.getUTCDay()]))}</span><small>${d.getUTCDate()} ${esc(t(MONTH_NAMES[d.getUTCMonth()]))}</small></th>`;
+  }).join('');
+  const rows = accts.map((a) => {
+    const tiles = dayKeys.map((k) => {
+      const on = selSet.has(cellKey(a.id, k));
+      const wk = isWeekendKey(k);
+      const d = parseDateKey(k);
+      return `<td><button type="button" class="cm-cell ${on ? 'on' : 'off'} ${wk ? 'weekend' : ''}" data-action="toggle-cell" data-account-id="${esc(a.id)}" data-day-key="${esc(k)}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${esc(a.name)} · ${esc(t(WEEKDAY_NAMES[d.getUTCDay()]))} ${d.getUTCDate()} · ${esc(on ? t('covered') : t('not covered'))}">${on ? dayCostForKey(k) : ''}</button></td>`;
+    }).join('');
+    return `<tr><th class="cm-acct"><button type="button" class="cm-acct-btn" data-action="matrix-row" data-account-id="${esc(a.id)}" title="${esc(t('Toggle all days for {name}', { name: a.name }))}">${esc(a.name)}</button></th>${tiles}</tr>`;
+  }).join('');
+  return `
+    <div class="meetings-head">
+      <span class="muted" style="font-size: var(--fs-meta);">${esc(t('{a} of {b} account-days · {n} doubloons', { a: selected.length, b: allCells.length, n: cost.totalCoins }))}</span>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button type="button" class="btn-ghost" data-action="matrix-weekdays">${esc(t('Weekdays only'))}</button>
+        <button type="button" class="btn-ghost" data-action="matrix-all">${esc(t('All'))}</button>
+        <button type="button" class="btn-ghost" data-action="matrix-clear">${esc(t('Clear'))}</button>
+      </div>
+    </div>
+    <div class="matrix-wrap">
+      <table class="coverage-matrix">
+        <thead><tr><th class="cm-corner">${esc(t('Account'))}</th>${dayHead}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/** Every (account × day) cell for the current form window + active accounts. */
+function currentPostCells() {
+  const f = state.formState;
+  const start = parseLocalDate(f.startDate);
+  const end = parseLocalDate(f.endDate);
+  if (!start || !end || end < start) return [];
+  const dayKeys = allDayKeysInRange(start, end);
+  const out = [];
+  for (const a of activeAccounts()) for (const k of dayKeys) out.push({ accountId: a.id, dayKey: k });
+  return out;
+}
+function toggleCell(accountId, dayKey) {
+  const f = state.formState;
+  f.cellsTouched = true;
+  const key = cellKey(accountId, dayKey);
+  const list = arr(f.selectedCells);
+  const idx = list.findIndex((c) => cellKey(c.accountId, c.dayKey) === key);
+  if (idx >= 0) list.splice(idx, 1);
+  else list.push({ accountId, dayKey });
+  f.selectedCells = list;
+}
+/** Toggle a whole account row on/off (all its days). */
+function toggleMatrixRow(accountId) {
+  const f = state.formState;
+  f.cellsTouched = true;
+  const dayKeys = allDayKeysInRange(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+  const rowKeys = new Set(dayKeys.map((k) => cellKey(accountId, k)));
+  const list = arr(f.selectedCells);
+  const anyOn = list.some((c) => rowKeys.has(cellKey(c.accountId, c.dayKey)));
+  const without = list.filter((c) => !rowKeys.has(cellKey(c.accountId, c.dayKey)));
+  f.selectedCells = anyOn ? without : without.concat(dayKeys.map((k) => ({ accountId, dayKey: k })));
+}
+function setMatrixCells(mode) {
+  const f = state.formState;
+  f.cellsTouched = true;
+  if (mode === 'clear') { f.selectedCells = []; return; }
+  const all = currentPostCells();
+  f.selectedCells = mode === 'weekdays' ? all.filter((c) => !isWeekendKey(c.dayKey)) : all;
+}
+
+/** The inner content of #day-picker-host — a matrix when the user has accounts,
+ * otherwise the plain day picker. Shared by renderPostTab and the surgical
+ * re-render in syncFormStateFromDom so both stay in sync. */
+function renderPickerHostInner() {
+  const useMatrix = activeAccounts().length >= 1;
+  const label = useMatrix
+    ? t('Accounts × days to cover · tap the cells')
+    : t('Days to be covered · click to toggle');
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
+      <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px;">${esc(label)}</span>
+      <button type="button" class="btn-ghost" data-action="manage-accounts">${esc(t('Manage accounts'))}</button>
+    </div>
+    ${useMatrix ? renderCoverageMatrix() : renderDayPicker()}
+  `;
+}
+
+/* ---- Book of business editor ------------------------------------------- */
+let _acctRowSeq = 0;
+function genAccountId() {
+  // Short client id; matches the server's [A-Za-z0-9_-]{1,40} constraint.
+  return 'a' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+}
+function accountEditRowHtml(row) {
+  return `<div class="acct-edit-row">
+    <input type="text" class="acct-name-input" data-account-id="${esc(row.id)}" value="${esc(row.name)}" maxlength="80" placeholder="${esc(t('Account name (e.g. Acme Corp)'))}" />
+    <button type="button" class="btn-ghost acct-remove" data-action="acct-remove" aria-label="${esc(t('Remove'))}" title="${esc(t('Remove'))}">✕</button>
+  </div>`;
+}
+function showAccountsEditor() {
+  closeAllModals();
+  const initial = arr(state.myAccounts).map((a) => ({ id: a.id || genAccountId(), name: a.name || '' }));
+  if (initial.length === 0) initial.push({ id: genAccountId(), name: '' });
+  const root = document.getElementById('modal-root');
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-scrim';
+  wrap.innerHTML = `
+    <div class="modal wide">
+      <div class="modal-title">${esc(t('Your accounts'))}</div>
+      <div class="modal-body">
+        <p style="margin: 0 0 12px;">${esc(t('List the customer accounts you own. When you post time off, you can split coverage so crewmates take the accounts they want, for the days they want.'))}</p>
+        <div id="acct-rows">${initial.map(accountEditRowHtml).join('')}</div>
+        <button type="button" class="btn-ghost" data-action="acct-add" style="margin-top: 10px;">＋ ${esc(t('Add account'))}</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" data-action="acct-cancel">${esc(t('Cancel'))}</button>
+        <button class="btn" data-action="acct-save">${esc(t('Save accounts'))}</button>
+      </div>
+    </div>`;
+  wrap.addEventListener('click', async (e) => {
+    if (e.target === wrap) { wrap.remove(); return; }
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (action === 'acct-cancel') { wrap.remove(); }
+    else if (action === 'acct-add') {
+      const rows = wrap.querySelector('#acct-rows');
+      const holder = document.createElement('div');
+      holder.innerHTML = accountEditRowHtml({ id: genAccountId(), name: '' });
+      const node = holder.firstElementChild;
+      rows.appendChild(node);
+      node.querySelector('input')?.focus();
+    } else if (action === 'acct-remove') {
+      e.target.closest('.acct-edit-row')?.remove();
+    } else if (action === 'acct-save') {
+      const accounts = [];
+      const seenIds = new Set();
+      for (const r of wrap.querySelectorAll('.acct-edit-row')) {
+        const input = r.querySelector('.acct-name-input');
+        const name = (input?.value || '').trim();
+        if (!name) continue;
+        let id = input.dataset.accountId || genAccountId();
+        if (seenIds.has(id)) id = genAccountId();
+        seenIds.add(id);
+        accounts.push({ id, name });
+      }
+      if (accounts.length > 50) { showToast(t('Up to 50 accounts.'), 'error'); return; }
+      wrap.remove();
+      await saveMyAccounts(accounts);
+    }
+  });
+  root.appendChild(wrap);
+  wrap.querySelector('.acct-name-input')?.focus();
+}
+async function saveMyAccounts(accounts) {
+  if (state.accountsSaving) return;
+  state.accountsSaving = true;
+  try {
+    const result = await callUpdateMyAccounts({ teamId: state.teamId, accounts });
+    // The member-doc snapshot listener will also refresh this, but set it now
+    // so the UI updates immediately.
+    state.myAccounts = arr(result.data?.accounts);
+    showToast(t('Accounts saved.'), 'success');
+    render();
+  } catch (err) { showToast(err.message, 'error', 5000); }
+  finally { state.accountsSaving = false; }
+}
+
 function renderMeetingsPicker() {
   const f = state.formState;
   const hasDates = !!parseLocalDate(f.startDate) && !!parseLocalDate(f.endDate);
@@ -3547,8 +3931,13 @@ function renderMeetingsPicker() {
   `;
 }
 
+function postUsesMatrix() {
+  return activeAccounts().length >= 1;
+}
+
 function computeCurrentPostCost() {
   const f = state.formState;
+  if (postUsesMatrix()) return computeCostFromCells(f.selectedCells);
   if (f.selectedDayKeys.length > 0) return computeCostFromKeys(f.selectedDayKeys);
   return computeCoverageCost(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
 }
@@ -3556,10 +3945,13 @@ function computeCurrentPostCost() {
 // Shared so renderPostTab and syncFormStateFromDom's live patch stay in
 // the same language — the surgical re-render used to hardcode English,
 // flipping the preview to English on the first keystroke in ES mode.
-function renderCostPreviewInner(cost) {
+function renderCostPreviewInner(cost, isCells) {
+  const countLine = isCells
+    ? t('{n} account-days', { n: cost.days })
+    : t('{n} days', { n: cost.days });
   return cost.days > 0
     ? `<div class="cost"><strong>${cost.totalCoins}</strong><span>${esc(t('doubloons'))}</span></div>
-       <small>${esc(t('{n} days', { n: cost.days }))} · ${esc(t('{n} weekday', { n: cost.weekdays }))} · ${esc(t('{n} weekend', { n: cost.weekendDays }))}</small>`
+       <small>${esc(countLine)} · ${esc(t('{n} weekday', { n: cost.weekdays }))} · ${esc(t('{n} weekend', { n: cost.weekendDays }))}</small>`
     : `<small class="muted-light">${esc(t('Pick a window to preview the cost.'))}</small>`;
 }
 
@@ -3607,8 +3999,7 @@ function renderPostTab() {
             </div>
           </label>
           <div class="wide" id="day-picker-host">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Days to be covered · click to toggle'))}</span>
-            ${renderDayPicker()}
+            ${renderPickerHostInner()}
           </div>
 
           <div class="wide">
@@ -3641,7 +4032,7 @@ function renderPostTab() {
           <label class="wide"><span>${esc(t('What counts as a real emergency? (optional)'))}</span><textarea name="emergencyDef" rows="2" placeholder="${esc(t('“Wake me only if Acme’s production is down.”'))}">${esc(f.emergencyDef)}</textarea></label>
         </div>
         <div class="preview-row">
-          <div class="preview">${renderCostPreviewInner(cost)}</div>
+          <div class="preview">${renderCostPreviewInner(cost, postUsesMatrix())}</div>
           <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${esc(state.busy.postRequest ? t('Posting…') : t('Post bounty'))}</button>
         </div>
       </form>
@@ -4077,6 +4468,29 @@ document.addEventListener('click', async (e) => {
     const end = parseLocalDate(state.formState.endDate);
     state.formState.selectedDayKeys = allDayKeysInRange(start, end);
     render();
+  } else if (action === 'toggle-cell') {
+    e.preventDefault();
+    toggleCell(t.dataset.accountId, t.dataset.dayKey);
+    render();
+  } else if (action === 'matrix-row') {
+    e.preventDefault();
+    toggleMatrixRow(t.dataset.accountId);
+    render();
+  } else if (action === 'matrix-all') {
+    e.preventDefault();
+    setMatrixCells('all');
+    render();
+  } else if (action === 'matrix-weekdays') {
+    e.preventDefault();
+    setMatrixCells('weekdays');
+    render();
+  } else if (action === 'matrix-clear') {
+    e.preventDefault();
+    setMatrixCells('clear');
+    render();
+  } else if (action === 'manage-accounts') {
+    e.preventDefault();
+    showAccountsEditor();
   } else if (action === 'connect-calendar') {
     e.preventDefault();
     connectCalendarAction();
@@ -4239,11 +4653,14 @@ function syncFormStateFromDom(form) {
   f.startDate = data.get('startDate') || '';
   f.endDate = data.get('endDate') || '';
   const datesChanged = f.startDate !== prevStart || f.endDate !== prevEnd;
-  // When dates change, reset selectedDayKeys so the day picker rebuilds
+  // When dates change, reset selectedDayKeys (day picker) + selectedCells
+  // (matrix) so both rebuild to cover the new window.
   if (datesChanged) {
     const start = parseLocalDate(f.startDate);
     const end = parseLocalDate(f.endDate);
     f.selectedDayKeys = allDayKeysInRange(start, end);
+    f.selectedCells = [];
+    f.cellsTouched = false;
   }
   f.timezone = (data.get('timezone') || '').trim();
   f.sla = (data.get('sla') || '').trim();
@@ -4260,14 +4677,13 @@ function syncFormStateFromDom(form) {
     clearTimeout(syncFormStateFromDom._calTimer);
     syncFormStateFromDom._calTimer = setTimeout(() => refreshCalendarEvents(), 400);
   }
-  // Surgical re-render of the day picker + meetings picker on date change —
-  // a full render() would lose date-input focus mid-keystroke on Safari.
+  // Surgical re-render of the day/matrix picker + meetings picker on date
+  // change — a full render() would lose date-input focus mid-keystroke on
+  // Safari. Replacing #day-picker-host's innerHTML doesn't touch the date
+  // inputs (they live elsewhere in the form), so focus is preserved.
   if (datesChanged) {
     const dayHost = document.getElementById('day-picker-host');
-    if (dayHost) {
-      const old = dayHost.querySelector('.meetings-picker');
-      if (old) old.outerHTML = renderDayPicker();
-    }
+    if (dayHost) dayHost.innerHTML = renderPickerHostInner();
     const meetingHost = document.getElementById('meetings-picker-host');
     if (meetingHost) {
       const old = meetingHost.querySelector('.meetings-picker');
@@ -4277,7 +4693,7 @@ function syncFormStateFromDom(form) {
   const previewEl = document.querySelector('.preview');
   if (previewEl) {
     const cost = computeCurrentPostCost();
-    previewEl.innerHTML = renderCostPreviewInner(cost);
+    previewEl.innerHTML = renderCostPreviewInner(cost, postUsesMatrix());
   }
 }
 

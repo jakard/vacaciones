@@ -4,13 +4,33 @@ import { z } from 'zod';
 
 import { CALLABLE_OPTS } from '../options';
 import { recordLedgerEntries, type LedgerEntryInput } from '../services/wallet';
+import {
+  cellKey,
+  cellsCost,
+  claimIdFromCellKeys,
+  type Cell,
+} from '../services/cells';
 import { queueMail, wrapTemplate, BRAND_URL } from '../services/mail';
+
+const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 
 const AcceptSchema = z.object({
   teamId: z.string().trim().min(1),
   requestId: z.string().trim().min(1),
-  // Optional — crew-mode coverers can claim a subset of days. If omitted,
-  // claim everything that's still unclaimed (single-mode behaviour).
+  // New clients: the (account × day) cells this coverer is claiming. If
+  // omitted in crew mode, claim every still-open cell.
+  cellsToClaim: z
+    .array(
+      z.object({
+        accountId: z.string().regex(ACCOUNT_ID_RE),
+        dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    )
+    .min(1)
+    .max(2000)
+    .optional(),
+  // Legacy: crew-mode coverers claimed a subset of days. Used only for
+  // pre-account bounties (docs without `cells`).
   dayKeysToClaim: z
     .array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/))
     .min(1)
@@ -24,6 +44,8 @@ interface AcceptResult {
   claimedDayKeys: string[];
   allClaimed: boolean;
 }
+
+type Coverer = { uid: string; displayName: string; photoURL: string | null };
 
 function parseDateKey(key: string): Date {
   const [y, m, d] = key.split('-').map(Number);
@@ -45,7 +67,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
       throw new HttpsError('invalid-argument', parsed.error.message);
     }
 
-    const { teamId, requestId, dayKeysToClaim } = parsed.data;
+    const { teamId, requestId, dayKeysToClaim, cellsToClaim } = parsed.data;
     const uid = request.auth.uid;
     const token = request.auth.token;
     const db = getFirestore();
@@ -71,6 +93,8 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
         totalCoinsOffered: number;
         coverageMode?: 'single' | 'crew';
         selectedDayKeys?: string[];
+        cells?: Cell[];
+        cellCoverers?: Record<string, Coverer>;
         dayCoverers?: Record<string, {
           uid: string;
           displayName: string;
@@ -98,6 +122,161 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
       }
 
       const mode = req.coverageMode ?? 'single';
+
+      // ================= Account × day cell path (new bounties) ==========
+      if (Array.isArray(req.cells) && req.cells.length > 0) {
+        const allCells = req.cells;
+        const cellCoverersMap: Record<string, Coverer> = req.cellCoverers ?? {};
+        const coverer: Coverer = {
+          uid,
+          displayName: token.name ?? token.email ?? '',
+          photoURL: token.picture ?? null,
+        };
+
+        let cellsToTake: Cell[];
+        if (mode === 'single') {
+          if (req.status !== 'open') {
+            throw new HttpsError(
+              'failed-precondition',
+              `Bounty is ${req.status}, cannot accept.`,
+            );
+          }
+          cellsToTake = allCells.slice();
+        } else {
+          const allCellKeys = new Set(
+            allCells.map((c) => cellKey(c.accountId, c.dayKey)),
+          );
+          const openCells = allCells.filter(
+            (c) => !cellCoverersMap[cellKey(c.accountId, c.dayKey)],
+          );
+          if (openCells.length === 0) {
+            throw new HttpsError(
+              'failed-precondition',
+              'Every account is already covered.',
+            );
+          }
+          const requested =
+            cellsToClaim && cellsToClaim.length > 0 ? cellsToClaim : openCells;
+          const seen = new Set<string>();
+          cellsToTake = [];
+          for (const c of requested) {
+            const k = cellKey(c.accountId, c.dayKey);
+            if (!allCellKeys.has(k)) {
+              throw new HttpsError(
+                'invalid-argument',
+                'A picked account-day is not part of this bounty.',
+              );
+            }
+            if (cellCoverersMap[k]) {
+              throw new HttpsError(
+                'failed-precondition',
+                'An account-day you picked was just claimed by another crewmate.',
+              );
+            }
+            if (seen.has(k)) continue;
+            seen.add(k);
+            cellsToTake.push({ accountId: c.accountId, dayKey: c.dayKey });
+          }
+          if (cellsToTake.length === 0) {
+            throw new HttpsError('invalid-argument', 'No account-days to claim.');
+          }
+        }
+
+        const claimCost = cellsCost(cellsToTake);
+
+        const requesterUid = req.requesterUid;
+        const requesterWalletRef = db.doc(
+          `teams/${teamId}/wallets/${requesterUid}`,
+        );
+        const requesterWalletSnap = await tx.get(requesterWalletRef);
+        const requesterWallet = requesterWalletSnap.exists
+          ? (requesterWalletSnap.data() as {
+              earnedBalance: number;
+              stipendBalance: number;
+            })
+          : { earnedBalance: 0, stipendBalance: 0 };
+        const totalBalance =
+          requesterWallet.earnedBalance + requesterWallet.stipendBalance;
+        if (totalBalance < claimCost) {
+          throw new HttpsError(
+            'failed-precondition',
+            `Requester is out of doubloons for this claim (have ${totalBalance}, need ${claimCost}).`,
+          );
+        }
+
+        const fromStipend = Math.min(requesterWallet.stipendBalance, claimCost);
+        const fromEarned = claimCost - fromStipend;
+        const claimId = claimIdFromCellKeys(
+          cellsToTake.map((c) => cellKey(c.accountId, c.dayKey)),
+        );
+
+        const escrowEntries: LedgerEntryInput[] = [];
+        if (fromStipend > 0) {
+          escrowEntries.push({
+            uid: requesterUid,
+            type: 'escrowIn',
+            amountSigned: -fromStipend,
+            balanceBucket: 'stipend',
+            relatedRequestId: requestId,
+            idempotencyKey: `${requestId}_escrow_${uid}_${claimId}_stipend`,
+          });
+        }
+        if (fromEarned > 0) {
+          escrowEntries.push({
+            uid: requesterUid,
+            type: 'escrowIn',
+            amountSigned: -fromEarned,
+            balanceBucket: 'earned',
+            relatedRequestId: requestId,
+            idempotencyKey: `${requestId}_escrow_${uid}_${claimId}_earned`,
+          });
+        }
+        await recordLedgerEntries({ tx, db, teamId, entries: escrowEntries });
+
+        const nextCellCoverers: Record<string, Coverer> = { ...cellCoverersMap };
+        for (const c of cellsToTake) {
+          nextCellCoverers[cellKey(c.accountId, c.dayKey)] = coverer;
+        }
+        const existingCoverers = req.coverers ?? [];
+        const nextCoverers = existingCoverers.some((c) => c.uid === uid)
+          ? existingCoverers
+          : [...existingCoverers, coverer];
+        const allClaimed = allCells.every(
+          (c) => nextCellCoverers[cellKey(c.accountId, c.dayKey)],
+        );
+        const nextEscrowed = (req.coinsEscrowed ?? 0) + claimCost;
+        const claimedDayKeys = [
+          ...new Set(cellsToTake.map((c) => c.dayKey)),
+        ].sort();
+
+        const update: Record<string, unknown> = {
+          coverers: nextCoverers,
+          cellCoverers: nextCellCoverers,
+          coinsEscrowed: nextEscrowed,
+          status: allClaimed ? 'accepted' : 'open',
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        if (mode === 'single') {
+          update.covererUid = uid;
+          update.covererDisplayName = coverer.displayName;
+          update.covererPhotoURL = coverer.photoURL;
+        }
+        tx.update(requestRef, update);
+
+        return {
+          accepted: true,
+          coinsEscrowed: claimCost,
+          claimedDayKeys,
+          claimedCount: cellsToTake.length,
+          claimId,
+          allClaimed,
+          requesterUid: req.requesterUid,
+          windowStart: (req as { windowStart?: { toDate: () => Date } }).windowStart?.toDate?.()?.toISOString() ?? null,
+          windowEnd: (req as { windowEnd?: { toDate: () => Date } }).windowEnd?.toDate?.()?.toISOString() ?? null,
+        };
+      }
+
+      // ===================== Legacy per-day path ========================
       const allDayKeys = req.selectedDayKeys ?? [];
       const dayCoverers = req.dayCoverers ?? {};
 
@@ -323,19 +502,27 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
       const requesterEmail = (requesterSnap.data() as { email?: string })?.email;
       if (requesterEmail) {
         const covererName = token.name ?? token.email ?? 'A crewmate';
-        const dayCount = result.claimedDayKeys.length;
+        // Cells count account-days; legacy bounties count days. Either way
+        // this is "how much of your bounty did they just take".
+        const slotCount =
+          (result as { claimedCount?: number }).claimedCount ??
+          result.claimedDayKeys.length;
+        const emailScope =
+          (result as { claimId?: string }).claimId ??
+          result.claimedDayKeys[0] ??
+          'all';
         const subject = result.allClaimed
           ? `${covererName} is covering your time off`
-          : `${covererName} claimed ${dayCount} day${dayCount === 1 ? '' : 's'} of your bounty`;
+          : `${covererName} claimed ${slotCount} account-day${slotCount === 1 ? '' : 's'} of your bounty`;
         const html = wrapTemplate({
-          preheader: `${dayCount} day${dayCount === 1 ? '' : 's'} claimed.`,
+          preheader: `${slotCount} account-day${slotCount === 1 ? '' : 's'} claimed.`,
           title: subject,
           bodyHtml: `
             <p style="margin:0 0 12px;">Good news — <strong>${esc(covererName)}</strong> just claimed
-            ${dayCount} day${dayCount === 1 ? '' : 's'} of your time-off bounty.</p>
+            ${slotCount} account-day${slotCount === 1 ? '' : 's'} of your time-off bounty.</p>
             <p style="margin:0 0 12px;">${result.allClaimed
               ? 'Your bounty is fully covered. You can pack a bag.'
-              : 'Some days still need a coverer. Want to nudge the crew?'}</p>
+              : 'Some accounts still need a coverer. Want to nudge the crew?'}</p>
             <p style="margin:0;color:#7E7B73;font-size:13px;">${esc(formatWindow(result.windowStart, result.windowEnd))} · ${result.coinsEscrowed} doubloons</p>`,
           ctaLabel: 'View bounty',
           ctaUrl: `${BRAND_URL}/#/team/${encodeURIComponent(teamId)}`,
@@ -344,7 +531,7 @@ export const acceptCoverageRequest = onCall<unknown, Promise<AcceptResult>>(
           to: requesterEmail,
           subject,
           html,
-          idempotencyKey: `${requestId}_accepted_${uid}_${result.claimedDayKeys[0] ?? 'all'}`,
+          idempotencyKey: `${requestId}_accepted_${uid}_${emailScope}`,
           category: 'bounty-accepted',
         });
       }

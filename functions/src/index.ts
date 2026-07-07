@@ -27,6 +27,7 @@ export { createTeam } from './http/createTeam';
 export { joinTeam } from './http/joinTeam';
 export { createCoverageRequest } from './http/createCoverageRequest';
 export { acceptCoverageRequest } from './http/acceptCoverageRequest';
+export { updateMyAccounts } from './http/updateMyAccounts';
 export { getLeaderboard } from './http/getLeaderboard';
 export { sendScroll } from './http/sendScroll';
 export { setProfile } from './http/setProfile';

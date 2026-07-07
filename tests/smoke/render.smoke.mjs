@@ -73,7 +73,7 @@ const bridge = `
   showEditBountyModal, showDeleteAccountModal, showDisbandCrewModal,
   showManageCrewModal, showWelcomeModal, renderStanScene,
   startCrewClaim, confirmCancelBounty, closeAllModals, topUpGrantAction,
-  launchCoinShower, showToast,
+  launchCoinShower, showToast, showAccountsEditor,
 };
 `;
 
@@ -138,6 +138,8 @@ function seedState({ empty = false } = {}) {
   s.bountyFilter = 'all';
   s.bountyFilterText = '';
   s.myRole = 'manager';
+  // Book of business — drives the account × day matrix in the post form.
+  s.myAccounts = empty ? [] : [{ id: 'acme', name: 'Acme Corp' }, { id: 'globex', name: 'Globex' }];
   s.myTeams = [{ id: 'crew1', name: 'Equipo Andes', memberUids: ['me', 'ana', 'luis'], ownerUid: 'me', photoURL: null }];
   s.bellOpen = false;
   s.walletDoc = empty ? null : { earnedBalance: 137, stipendBalance: 11 };
@@ -201,6 +203,23 @@ function seedState({ empty = false } = {}) {
       selectedDayKeys: ['2026-06-20'], dayCoverers: {}, coverers: [],
       reachability: ['email-only-emergencies'], coverageKinds: [], coverageScope: null, sla: 'x', emergencyDef: null,
       meetings: [], createdAt: ts(-86400e3), updatedAt: ts(-3600e3) },
+    // Account-split bounty: 2 accounts × 3 days, one cell each already claimed.
+    { id: 'b7', status: 'open', requesterUid: 'luis', requesterDisplayName: 'Luis Pérez', requesterPhotoURL: null,
+      windowStart: ts(6 * 86400e3), windowEnd: ts(8 * 86400e3), timezone: 'UTC',
+      totalCoinsOffered: 30, coinsEscrowed: 10, coinsReleased: 0, coverageMode: 'crew',
+      accounts: [{ id: 'acme', name: 'Acme Corp' }, { id: 'globex', name: 'Globex' }],
+      cells: [
+        { accountId: 'acme', dayKey: '2026-06-26' }, { accountId: 'acme', dayKey: '2026-06-27' }, { accountId: 'acme', dayKey: '2026-06-28' },
+        { accountId: 'globex', dayKey: '2026-06-26' }, { accountId: 'globex', dayKey: '2026-06-27' }, { accountId: 'globex', dayKey: '2026-06-28' },
+      ],
+      cellCoverers: {
+        'acme__2026-06-26': { uid: 'me', displayName: U.displayName, photoURL: null },
+        'globex__2026-06-26': { uid: 'ana', displayName: OTHER.displayName, photoURL: null },
+      },
+      selectedDayKeys: ['2026-06-26', '2026-06-27', '2026-06-28'], dayCoverers: {},
+      coverers: [{ uid: 'me', displayName: U.displayName, photoURL: null }, { uid: 'ana', displayName: OTHER.displayName, photoURL: null }],
+      reachability: ['phone-emergencies'], coverageKinds: ['inbox'], coverageScope: null, sla: 'x', emergencyDef: null,
+      meetings: [], createdAt: ts(-3600e3), updatedAt: ts(-600e3) },
   ];
   s.scrolls = empty ? [] : [
     { id: 's1', fromUid: 'ana', fromDisplayName: OTHER.displayName, fromPhotoURL: null,
@@ -246,6 +265,7 @@ function seedState({ empty = false } = {}) {
     coverageScope: 'Acme', sla: 'P1 < 2h', emergencyDef: '',
     selectedDayKeys: ['2026-06-15', '2026-06-16', '2026-06-17', '2026-06-18', '2026-06-19'],
     coverageMode: 'single', meetings: [],
+    accountIds: [], selectedCells: [], cellsTouched: false,
   };
   s.calendarEvents = [];
   s.claim = s.claim || {};
@@ -406,6 +426,16 @@ for (const vlang of ['pirate:en', 'pirate:es', 'plain:en', 'plain:es']) {
   run(`${L} crew claim`, () => T.startCrewClaim('b2'));
   scan(`${L} crew claim`, modalRoot());
   run(`${L} crew claim close`, () => { modalRoot().innerHTML = ''; });
+
+  // Account-split UI (the account × day matrix post form is rendered by
+  // team/post above, since myAccounts is seeded).
+  openModalAndScan(`${L} bounty detail cells`, () => T.showBountyDetail('b7'));
+  run(`${L} crew claim cells`, () => T.startCrewClaim('b7'));
+  scan(`${L} crew claim cells`, modalRoot());
+  run(`${L} crew claim cells close`, () => { modalRoot().innerHTML = ''; });
+  run(`${L} accounts editor`, () => T.showAccountsEditor());
+  scan(`${L} accounts editor`, modalRoot());
+  run(`${L} accounts editor close`, () => { modalRoot().innerHTML = ''; });
 
   // Cinematic (every rank, incl. Commodore golden variant)
   for (const rank of T.RANKS) {

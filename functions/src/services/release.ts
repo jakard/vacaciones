@@ -2,6 +2,7 @@ import { FieldValue, Firestore } from 'firebase-admin/firestore';
 import { ECONOMY } from '../_shared';
 
 import { recordLedgerEntry } from './wallet';
+import { cellKey, dayCostForKey, type Cell } from './cells';
 
 /**
  * Coverage-release engine — extracted from the dailyCoverageRelease
@@ -66,15 +67,11 @@ export function enumerateDayKeysInTz(
   return out;
 }
 
-/** Doubloons released for one covered day (weekend pays the multiplier). */
+/** Doubloons released for one covered account-day (weekend pays the
+ * multiplier). Delegates to the canonical cost function so create / accept /
+ * release / force-complete can never disagree on price. */
 export function dailyReleaseAmountForKey(dayKey: string): number {
-  // YYYY-MM-DD interpreted as UTC midnight — getUTCDay() returns the
-  // day-of-week for that calendar date with no timezone ambiguity.
-  const [y, m, d] = dayKey.split('-').map(Number);
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return dow === 0 || dow === 6
-    ? ECONOMY.COVERAGE_PRICE_PER_DAY * ECONOMY.WEEKEND_MULTIPLIER
-    : ECONOMY.COVERAGE_PRICE_PER_DAY;
+  return dayCostForKey(dayKey);
 }
 
 export interface ReleaseArgs {
@@ -91,6 +88,11 @@ export interface ReleaseArgs {
   /** Days the requester kept billable; null = every day in the window. */
   selectedDayKeys: string[] | null;
   timeZone: string;
+  /** Account × day cells needing coverage. When present, coverage is
+   * released per cell and `cellCoverers` maps the claimant; `dayCoverers`/
+   * `selectedDayKeys` are the pre-account fallback for legacy bounties. */
+  cells?: Cell[] | null;
+  cellCoverers?: Record<string, { uid: string }> | null;
 }
 
 /**
@@ -101,7 +103,7 @@ export interface ReleaseArgs {
 export async function releaseDaysUpToLocal(args: ReleaseArgs): Promise<void> {
   const {
     db, teamId, requestId, fallbackCovererUid, dayCoverers,
-    windowStart, windowEnd, now, selectedDayKeys, timeZone,
+    windowStart, windowEnd, now, selectedDayKeys, timeZone, cells, cellCoverers,
   } = args;
 
   const todayKey = startOfDayInTz(now, timeZone);
@@ -109,6 +111,44 @@ export async function releaseDaysUpToLocal(args: ReleaseArgs): Promise<void> {
   const endKey = startOfDayInTz(windowEnd, timeZone);
   if (todayKey < startKey) return;
   const releaseUpToKey = todayKey < endKey ? todayKey : endKey;
+
+  // ---- Account × day cell path (new bounties) -------------------------
+  // Each cell releases independently under `${requestId}_release_${accountId}_${dayKey}`.
+  if (cells && cells.length > 0) {
+    const coverers = cellCoverers ?? {};
+    for (const c of cells) {
+      if (c.dayKey < startKey || c.dayKey > releaseUpToKey) continue;
+      const dayUid = coverers[cellKey(c.accountId, c.dayKey)]?.uid ?? fallbackCovererUid;
+      if (!dayUid) continue;
+      const amount = dayCostForKey(c.dayKey);
+      await db.runTransaction(async (tx) => {
+        const result = await recordLedgerEntry({
+          tx,
+          db,
+          teamId,
+          uid: dayUid,
+          type: 'coverageRelease',
+          amountSigned: amount,
+          balanceBucket: 'earned',
+          relatedRequestId: requestId,
+          idempotencyKey: `${requestId}_release_${c.accountId}_${c.dayKey}`,
+        });
+        if (result.applied) {
+          const requestRef = db.doc(
+            `teams/${teamId}/coverageRequests/${requestId}`,
+          );
+          tx.update(requestRef, {
+            coinsReleased: FieldValue.increment(amount),
+            status: 'active',
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    }
+    return;
+  }
+
+  // ---- Legacy per-day path (pre-account bounties) --------------------
   const selectedSet = selectedDayKeys ? new Set(selectedDayKeys) : null;
 
   for (const dayKey of enumerateDayKeysInTz(windowStart, windowEnd, timeZone)) {

@@ -37,7 +37,14 @@ export const dailyCoverageRelease = onSchedule(
       const fallbackCovererUid = data['covererUid'] as string | null | undefined;
       const dayCoverers =
         (data['dayCoverers'] as Record<string, { uid: string }> | undefined) ?? {};
-      const hasAnyCoverer = !!fallbackCovererUid || Object.keys(dayCoverers).length > 0;
+      const cells =
+        (data['cells'] as Array<{ accountId: string; dayKey: string }> | undefined) ?? null;
+      const cellCoverers =
+        (data['cellCoverers'] as Record<string, { uid: string }> | undefined) ?? {};
+      const hasAnyCoverer =
+        !!fallbackCovererUid ||
+        Object.keys(dayCoverers).length > 0 ||
+        Object.keys(cellCoverers).length > 0;
       if (!hasAnyCoverer) continue;
 
       const selectedDayKeys =
@@ -64,6 +71,8 @@ export const dailyCoverageRelease = onSchedule(
           now,
           selectedDayKeys,
           timeZone: bountyTz,
+          cells,
+          cellCoverers,
         });
         // Complete once "today in TZ" has passed the window's last day.
         if (todayInTz > windowEndInTz) {

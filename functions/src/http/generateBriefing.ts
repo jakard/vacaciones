@@ -75,6 +75,13 @@ export const generateBriefing = onCall<unknown, Promise<BriefingResult>>(
     const windowStart = (bounty['windowStart'] as Timestamp | undefined)?.toDate();
     const windowEnd = (bounty['windowEnd'] as Timestamp | undefined)?.toDate();
     const scope = (bounty['coverageScope'] as string | null) ?? '(not specified)';
+    const accountsArr =
+      (bounty['accounts'] as Array<{ id: string; name: string }> | undefined) ?? [];
+    const accountNames = accountsArr
+      .map((a) => a.name)
+      .filter((n) => n && n.trim() !== '');
+    const accountsLine =
+      accountNames.length > 0 ? accountNames.join(', ') : scope;
     const sla = (bounty['sla'] as string | null) ?? '';
     const emergencyDef = (bounty['emergencyDef'] as string | null) ?? '';
     const reachArr = (bounty['reachability'] as string[] | undefined) ?? [];
@@ -99,7 +106,8 @@ export const generateBriefing = onCall<unknown, Promise<BriefingResult>>(
 
 BOUNTY CONTEXT
 - Vacation window: ${windowStart?.toISOString() ?? '(unspecified)'} to ${windowEnd?.toISOString() ?? '(unspecified)'}
-- Coverage scope (accounts / responsibilities): ${scope}
+- Accounts to cover: ${accountsLine}
+- Coverage scope / extra notes: ${scope}
 - Reachability while away: ${reachLabels}
 - Types of work to cover: ${kindLabels}
 - SLA the coverer must hold: ${sla || '(unspecified)'}

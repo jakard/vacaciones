@@ -8,6 +8,7 @@ import {
   dailyReleaseAmountForKey,
   enumerateDayKeysInTz,
 } from '../services/release';
+import { cellKey, dayCostForKey } from '../services/cells';
 import { ECONOMY } from '../_shared';
 
 const Schema = z.object({
@@ -57,6 +58,8 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         windowEnd?: Timestamp;
         selectedDayKeys?: string[];
         dayCoverers?: Record<string, { uid: string }>;
+        cells?: Array<{ accountId: string; dayKey: string }>;
+        cellCoverers?: Record<string, { uid: string }>;
       };
       if (req.status === 'completed') {
         throw new HttpsError('failed-precondition', 'Already completed.');
@@ -74,10 +77,24 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
       const dayCoverers = req.dayCoverers ?? {};
       const billableSet = req.selectedDayKeys ? new Set(req.selectedDayKeys) : null;
 
-      const releases: Array<{ uid: string; amount: number; dayKey: string }> = [];
-      if (req.windowStart && req.windowEnd) {
-        // Enumerate day keys in the bounty's own timezone so they line up
-        // with selectedDayKeys / dayCoverers exactly like the daily cron.
+      // Each release carries its own idempotency key so re-running (or racing
+      // the daily cron) can never double-pay.
+      const releases: Array<{ uid: string; amount: number; key: string }> = [];
+      if (req.cells && req.cells.length > 0) {
+        // Account × day cell path — mirror releaseDaysUpToLocal's keys.
+        const coverers = req.cellCoverers ?? {};
+        for (const c of req.cells) {
+          const dayUid = coverers[cellKey(c.accountId, c.dayKey)]?.uid ?? fallbackCovererUid;
+          if (!dayUid) continue;
+          releases.push({
+            uid: dayUid,
+            amount: dayCostForKey(c.dayKey),
+            key: `${requestId}_release_${c.accountId}_${c.dayKey}`,
+          });
+        }
+      } else if (req.windowStart && req.windowEnd) {
+        // Legacy per-day path. Enumerate day keys in the bounty's own timezone
+        // so they line up with selectedDayKeys / dayCoverers like the cron.
         const tz = req.timezone || 'UTC';
         for (const dayKey of enumerateDayKeysInTz(
           req.windowStart.toDate(),
@@ -91,7 +108,7 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
           releases.push({
             uid: dayUid,
             amount: dailyReleaseAmountForKey(dayKey),
-            dayKey,
+            key: `${requestId}_release_${dayKey}`,
           });
         }
       }
@@ -110,7 +127,7 @@ export const forceCompleteBounty = onCall<unknown, Promise<ForceCompleteResult>>
         amountSigned: r.amount,
         balanceBucket: 'earned' as const,
         relatedRequestId: requestId,
-        idempotencyKey: `${requestId}_release_${r.dayKey}`,
+        idempotencyKey: r.key,
       }));
       entries.push({
         uid: feeBurnUid,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { recordLedgerEntries, recordLedgerEntry } from '../../src/services/wallet';
+import { releaseDaysUpToLocal } from '../../src/services/release';
 import { HAS_EMULATOR, emulatorDb } from './helpers';
 
 const d = HAS_EMULATOR ? describe : describe.skip;
@@ -150,5 +151,64 @@ describe('recordLedgerEntries — multiple entries in one transaction (emulator)
     const b = await db.doc(`teams/${teamId}/wallets/bob`).get();
     expect(a.data()?.earnedBalance).toBe(10);
     expect(b.data()?.earnedBalance).toBe(9); // 10 − 1
+  });
+});
+
+d('releaseDaysUpToLocal — account × day cells (emulator)', () => {
+  const db = emulatorDb('demo-cells-release');
+  const teamId = 'crew1';
+  const requestId = 'reqCells1';
+
+  it('releases each cell to its own coverer, idempotently', async () => {
+    // Window Mon 2026-07-06 → Tue 2026-07-07 (both weekdays, 5 each).
+    const windowStart = new Date('2026-07-06T00:00:00Z');
+    const windowEnd = new Date('2026-07-07T00:00:00Z');
+    const cells = [
+      { accountId: 'acme', dayKey: '2026-07-06' },
+      { accountId: 'acme', dayKey: '2026-07-07' },
+      { accountId: 'globex', dayKey: '2026-07-06' },
+    ];
+    const cellCoverers = {
+      'acme__2026-07-06': { uid: 'alice' },
+      'acme__2026-07-07': { uid: 'alice' },
+      'globex__2026-07-06': { uid: 'bob' },
+    };
+    await db.doc(`teams/${teamId}/coverageRequests/${requestId}`).set({
+      status: 'accepted',
+      coinsReleased: 0,
+    });
+
+    const args = {
+      db,
+      teamId,
+      requestId,
+      fallbackCovererUid: null,
+      dayCoverers: {},
+      windowStart,
+      windowEnd,
+      now: new Date('2026-07-20T12:00:00Z'), // well past the window
+      selectedDayKeys: ['2026-07-06', '2026-07-07'],
+      timeZone: 'UTC',
+      cells,
+      cellCoverers,
+    };
+
+    await releaseDaysUpToLocal(args);
+    // alice covers acme on both days (5+5=10); bob covers globex Monday (5).
+    let alice = await db.doc(`teams/${teamId}/wallets/alice`).get();
+    let bob = await db.doc(`teams/${teamId}/wallets/bob`).get();
+    expect(alice.data()?.earnedBalance).toBe(10);
+    expect(bob.data()?.earnedBalance).toBe(5);
+
+    // Re-run must not double-pay (per-cell idempotency key).
+    await releaseDaysUpToLocal(args);
+    alice = await db.doc(`teams/${teamId}/wallets/alice`).get();
+    bob = await db.doc(`teams/${teamId}/wallets/bob`).get();
+    expect(alice.data()?.earnedBalance).toBe(10);
+    expect(bob.data()?.earnedBalance).toBe(5);
+
+    const req = await db.doc(`teams/${teamId}/coverageRequests/${requestId}`).get();
+    expect(req.data()?.coinsReleased).toBe(15);
+    expect(req.data()?.status).toBe('active');
   });
 });

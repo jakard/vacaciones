@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { computeCoverageCost } from '../_shared';
 
 import { CALLABLE_OPTS } from '../options';
+import { IMPLICIT_ACCOUNT_ID, cellsCost, type Cell } from '../services/cells';
 
 const REACHABILITY = [
   'unreachable',
@@ -39,16 +40,32 @@ const MeetingSchema = z.object({
 
 const COVERAGE_MODE = ['single', 'crew'] as const;
 
+const ACCOUNT_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+
+const AccountSchema = z.object({
+  id: z.string().regex(ACCOUNT_ID_RE),
+  name: z.string().trim().min(1).max(80),
+});
+
+const CellSchema = z.object({
+  accountId: z.string().regex(ACCOUNT_ID_RE),
+  dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
 const CreateCoverageRequestSchema = z.object({
   teamId: z.string().trim().min(1),
   windowStartIso: z.string().datetime(),
   windowEndIso: z.string().datetime(),
   timezone: z.string().trim().min(1),
-  // YYYY-MM-DD keys for the specific days the coverer needs to be on the
-  // hook. Optional — if omitted, falls back to every day in the window.
+  // Accounts this OOO needs covered (the poster's book of business snapshot)
+  // and the billable (account × day) cells. New clients always send these.
+  accounts: z.array(AccountSchema).min(1).max(50).optional(),
+  cells: z.array(CellSchema).min(1).max(2000).optional(),
+  // Legacy: YYYY-MM-DD keys for the specific days the coverer needs to be on
+  // the hook. Used only when accounts/cells are absent (old clients).
   selectedDayKeys: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).max(366).optional(),
-  // 'single' = one coverer takes all days. 'crew' = multiple coverers
-  // can each claim a subset of days. Default 'single' for back-compat.
+  // 'single' = one coverer takes everything. 'crew' = multiple coverers
+  // can each claim a subset of cells. Default 'single' for back-compat.
   coverageMode: z.enum(COVERAGE_MODE).optional(),
   reachability: z.array(z.enum(REACHABILITY)).min(1).max(REACHABILITY.length),
   coverageKinds: z.array(z.enum(COVERAGE_KIND)).max(COVERAGE_KIND.length).optional(),
@@ -60,16 +77,6 @@ const CreateCoverageRequestSchema = z.object({
 
 function formatDateKey(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-}
-
-function parseDateKey(key: string): Date {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-}
-
-function dayCost(d: Date): number {
-  const dow = d.getUTCDay();
-  return dow === 0 || dow === 6 ? 10 : 5;
 }
 
 function allDaysInWindow(start: Date, end: Date): string[] {
@@ -112,6 +119,8 @@ export const createCoverageRequest = onCall<
     sla,
     emergencyDef,
     meetings,
+    accounts,
+    cells,
     selectedDayKeys,
     coverageMode,
   } = parsed.data;
@@ -133,24 +142,61 @@ export const createCoverageRequest = onCall<
     throw new HttpsError('invalid-argument', `Invalid timezone: ${timezone}`);
   }
 
-  // Determine which days are billable. Default = every day in the window.
+  // Resolve the billable (account × day) cells. New clients send explicit
+  // accounts + cells; legacy clients send selectedDayKeys (or nothing), which
+  // maps to a single implicit account covering those days.
   const allKeys = allDaysInWindow(start, end);
-  const billableKeys =
-    selectedDayKeys && selectedDayKeys.length > 0
-      ? selectedDayKeys.filter((k) => allKeys.includes(k))
-      : allKeys;
+  const inWindow = new Set(allKeys);
+  const usingAccounts = !!(accounts && accounts.length && cells && cells.length);
 
-  if (billableKeys.length === 0) {
-    throw new HttpsError('invalid-argument', 'At least one day must be selected.');
+  let finalAccounts: Array<{ id: string; name: string }>;
+  let finalCells: Cell[];
+
+  if (usingAccounts) {
+    const accountIds = new Set(accounts!.map((a) => a.id));
+    if (accountIds.size !== accounts!.length) {
+      throw new HttpsError('invalid-argument', 'Duplicate account ids.');
+    }
+    const seen = new Set<string>();
+    finalCells = [];
+    for (const c of cells!) {
+      if (!accountIds.has(c.accountId)) {
+        throw new HttpsError(
+          'invalid-argument',
+          `Cell references unknown account ${c.accountId}.`,
+        );
+      }
+      if (!inWindow.has(c.dayKey)) continue; // drop out-of-window cells
+      const k = `${c.accountId}__${c.dayKey}`;
+      if (seen.has(k)) continue; // de-dupe
+      seen.add(k);
+      finalCells.push({ accountId: c.accountId, dayKey: c.dayKey });
+    }
+    finalAccounts = accounts!.map((a) => ({ id: a.id, name: a.name.trim() }));
+  } else {
+    const billableKeys =
+      selectedDayKeys && selectedDayKeys.length > 0
+        ? selectedDayKeys.filter((k) => inWindow.has(k))
+        : allKeys;
+    finalAccounts = [{ id: IMPLICIT_ACCOUNT_ID, name: '' }];
+    finalCells = billableKeys.map((dayKey) => ({
+      accountId: IMPLICIT_ACCOUNT_ID,
+      dayKey,
+    }));
   }
 
-  const coinsOffered = billableKeys.reduce((sum, k) => sum + dayCost(parseDateKey(k)), 0);
+  if (finalCells.length === 0) {
+    throw new HttpsError('invalid-argument', 'At least one account-day must be selected.');
+  }
 
-  // Keep the shared helper around as a sanity check for "all-days" cases.
-  if (!selectedDayKeys || selectedDayKeys.length === 0) {
+  const coinsOffered = cellsCost(finalCells);
+  const distinctDayKeys = [...new Set(finalCells.map((c) => c.dayKey))].sort();
+
+  // Legacy sanity check: for a plain "all days, one implicit account" bounty
+  // the shared helper must agree with the per-cell sum.
+  if (!usingAccounts && (!selectedDayKeys || selectedDayKeys.length === 0)) {
     const fromHelper = computeCoverageCost(start, end);
     if (fromHelper.totalCoins !== coinsOffered) {
-      // Should never happen; keeps the legacy contract intact.
       throw new HttpsError('internal', 'Cost calc mismatch.');
     }
   }
@@ -196,7 +242,10 @@ export const createCoverageRequest = onCall<
       coverageKinds: coverageKinds ?? [],
       coverageScope: coverageScope?.trim() ? coverageScope.trim() : null,
       coverageMode: mode,
-      selectedDayKeys: billableKeys,
+      accounts: finalAccounts,
+      cells: finalCells,
+      cellCoverers: {},
+      selectedDayKeys: distinctDayKeys,
       dayCoverers: {},
       coverers: [],
       meetings: meetings ?? [],

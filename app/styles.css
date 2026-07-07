@@ -1895,6 +1895,78 @@ label {
 .day-card:active { transform: translate(1px, 1px); }
 
 /* ============================================================
+   Coverage matrix (account × day)
+   ============================================================ */
+.matrix-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--wood-dark);
+  background: var(--parchment-bright);
+  box-shadow: inset 1px 1px 0 var(--parchment-bright), inset -1px -1px 0 var(--parchment-dim);
+}
+.coverage-matrix {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+.coverage-matrix th,
+.coverage-matrix td { border: 1px solid var(--parchment-dim); padding: 0; text-align: center; }
+.coverage-matrix thead th {
+  padding: 4px 6px;
+  font-size: 11px;
+  color: var(--ink-pure);
+  background: var(--parchment-dim);
+  white-space: nowrap;
+}
+.coverage-matrix thead th.weekend { background: #F4E3B4; }
+.coverage-matrix thead th span { display: block; font-weight: 700; }
+.coverage-matrix thead th small { display: block; font-size: 10px; color: var(--ink-faded); font-weight: 400; }
+.cm-corner { text-align: left !important; }
+.cm-acct {
+  text-align: left;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-pure);
+  background: var(--parchment-dim);
+  white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cm-acct-btn {
+  background: none; border: 0; font: inherit; color: inherit;
+  cursor: pointer; padding: 0; text-align: left; max-width: 154px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cm-cell {
+  display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box; width: 100%; min-width: 46px; height: 42px;
+  padding: 0; margin: 0; border: 0; background: transparent;
+  font-family: 'Silkscreen', monospace; font-size: 12px;
+  color: var(--brass-deep); cursor: pointer;
+}
+.cm-cell small { font-family: 'Inter', system-ui, sans-serif; font-size: 9px; }
+.cm-cell.off { opacity: 0.32; }
+.cm-cell.on { background: var(--brass); color: var(--cream); box-shadow: inset 1px 1px 0 var(--brass-bright), inset -1px -1px 0 var(--brass-deep); }
+.cm-cell.on.weekend { background: var(--lechuck-red); }
+.cm-cell.claimed { background: var(--parchment-dim); color: var(--ink-faded); cursor: not-allowed; }
+.cm-cell.mine { background: #2E7D32; color: var(--cream); cursor: not-allowed; }
+.cm-cell.na { cursor: default; opacity: 0.5; background: repeating-linear-gradient(45deg, transparent, transparent 5px, var(--parchment-dim) 5px, var(--parchment-dim) 7px); }
+.cm-cell:not(:disabled):hover { outline: 2px solid var(--brass-deep); outline-offset: -2px; }
+.cm-cell:not(:disabled):active { transform: translate(1px, 1px); }
+
+/* ============================================================
+   Book of business editor
+   ============================================================ */
+.acct-edit-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.acct-edit-row .acct-name-input { flex: 1; }
+.acct-edit-row .acct-remove { flex: 0 0 auto; padding: 6px 10px; }
+
+/* ============================================================
    Meetings picker + meeting cards
    ============================================================ */
 
