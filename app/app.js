@@ -169,7 +169,8 @@ const callDisbandCrew = httpsCallableFromURL(functions, callableURL('disbandCrew
    ============================================================ */
 
 const SKIN_OPTIONS = [
-  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Inter. Pirate vibe, regular legible font.' },
+  { id: 'unplugged', label: 'Unplugged (Light)', desc: 'The calm default — sage & paper, Bricolage + Hanken type, soft cards, pill buttons.' },
+  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'The original pixel-art parchment personality theme. Opt-in.' },
   { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
   { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
   { id: 'dark-knight', label: 'Dark Knight', desc: 'Warm dark theme with amber accents and Geist + Geist Mono fonts. Ultra legible.' },
@@ -210,9 +211,11 @@ document.documentElement.lang = lang.current();
 // wording). Orthogonal to language: plain mode overlays the PLAIN map on
 // top of the same EN/ES lookup. Toggled in the Profile sheet.
 const voice = {
-  current() { return localStorage.getItem('vacaciones.voice') === 'plain' ? 'plain' : 'pirate'; },
+  // Default is now PLAIN professional wording (the Unplugged direction).
+  // Pirate voice is opt-in via the Profile toggle.
+  current() { return localStorage.getItem('vacaciones.voice') === 'pirate' ? 'pirate' : 'plain'; },
   isPirate() { return this.current() === 'pirate'; },
-  set(v) { localStorage.setItem('vacaciones.voice', v === 'plain' ? 'plain' : 'pirate'); },
+  set(v) { localStorage.setItem('vacaciones.voice', v === 'pirate' ? 'pirate' : 'plain'); },
 };
 
 function t(text, params) {
@@ -247,11 +250,9 @@ const skin = {
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         return 'dark-knight';
       }
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        return 'basic';
-      }
     } catch (_) { /* no matchMedia */ }
-    return 'dark-knight';
+    // Calm editorial light theme is the default (Unplugged direction).
+    return 'unplugged';
   },
   set(id) {
     if (!SKIN_OPTIONS.some((s) => s.id === id)) return;
@@ -265,7 +266,7 @@ document.documentElement.dataset.skin = skin.current();
 try {
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (ev) => {
     if (!localStorage.getItem('vacaciones.skin')) {
-      document.documentElement.dataset.skin = ev.matches ? 'dark-knight' : 'basic';
+      document.documentElement.dataset.skin = ev.matches ? 'dark-knight' : 'unplugged';
     }
   });
 } catch (_) { /* older browsers, ignore */ }
@@ -875,19 +876,14 @@ const SVG = {
     'phone': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="4" height="3" fill="#1A0E08"/><rect x="3" y="4" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="5" width="2" height="2" fill="#1A0E08"/><rect x="6" y="7" width="2" height="2" fill="#1A0E08"/><rect x="8" y="9" width="2" height="2" fill="#1A0E08"/><rect x="10" y="10" width="4" height="3" fill="#1A0E08"/><rect x="11" y="11" width="2" height="1" fill="#5BC9D1"/></svg>`,
     'daily-check-in': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="9" width="1" height="2" fill="#3A6B2C"/><rect x="6" y="10" width="1" height="2" fill="#3A6B2C"/><rect x="7" y="9" width="1" height="2" fill="#4A8A38"/><rect x="8" y="8" width="1" height="2" fill="#4A8A38"/><rect x="9" y="7" width="1" height="2" fill="#4A8A38"/></svg>`,
   },
-  doubloon: `<svg viewBox="0 0 16 16" aria-hidden="true">
-    <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
-    <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
-    <rect x="1" y="3" width="14" height="10" fill="#5A3A1F"/>
-    <rect x="2" y="13" width="12" height="1" fill="#5A3A1F"/>
-    <rect x="3" y="14" width="10" height="1" fill="#5A3A1F"/>
-    <rect x="3" y="3" width="10" height="10" fill="#FFCB47"/>
-    <rect x="4" y="4" width="8" height="8" fill="#E0A93B"/>
-    <rect x="6" y="5" width="1" height="6" fill="#8C6418"/>
-    <rect x="9" y="5" width="1" height="6" fill="#8C6418"/>
-    <rect x="6" y="7" width="4" height="1" fill="#8C6418"/>
-    <rect x="6" y="9" width="4" height="1" fill="#8C6418"/>
-    <rect x="4" y="4" width="2" height="1" fill="#FFD86B"/>
+  // Unplugged doubloon — a clean brass coin with an engraved power glyph.
+  // Var-driven so every skin (incl. pirate) colours it natively. The dashed
+  // highlight ring is dropped for legibility at the small sizes used inline.
+  doubloon: `<svg class="coin-svg" viewBox="0 0 160 160" aria-hidden="true">
+    <circle cx="80" cy="80" r="72" fill="var(--brass)"/>
+    <circle cx="80" cy="80" r="58" fill="none" stroke="var(--brass-bright)" stroke-width="5" stroke-dasharray="2 9" opacity="0.65"/>
+    <circle cx="80" cy="80" r="30" fill="none" stroke="var(--brass-deep)" stroke-width="9"/>
+    <rect x="74.5" y="33" width="11" height="33" rx="5.5" fill="var(--brass-deep)"/>
   </svg>`,
   flag: `<svg viewBox="0 0 32 32" aria-hidden="true">
     <rect x="6" y="3" width="2" height="26" fill="#5A3A1F"/>
@@ -2975,8 +2971,8 @@ function renderLogin() {
     <div class="login-screen">
       ${renderHarborBg()}
       <div class="login-content">
-        <h1 class="login-title">TIME OFF</h1>
-        <p class="login-tagline">${esc(t('Tales of Monkey Coverage'))}</p>
+        <h1 class="login-title">Time Off</h1>
+        <p class="login-tagline">${esc(t("When you're off, you're fully off."))}</p>
         <p class="login-pitch">${esc(t('Going on vacation? Post a bounty. A crewmate covers your accounts — with your briefing in hand — and earns doubloons for it.'))}</p>
         <div class="login-card">
           <button class="btn btn-google" data-action="sign-in" ${busy ? 'disabled' : ''}>

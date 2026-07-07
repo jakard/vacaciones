@@ -4539,3 +4539,246 @@ label {
   }
   .mascot-sprite, .loading-doubloon { animation: none !important; }
 }
+
+/* ============================================================
+   UNPLUGGED — calm editorial rebrand · the new default (Light)
+   Sage/pine/clay on paper, Bricolage + Hanken type, pill buttons,
+   3-tier elevation, "one loud element per screen". Dark = dark-knight,
+   High-contrast = hc, Pirate = opt-in. See design_handoff_unplugged.
+   ============================================================ */
+
+/* The brass coin must render smooth in EVERY skin (the global reset
+   forces crispEdges/pixelated for the pixel-art era). */
+.coin-svg { shape-rendering: geometricPrecision; image-rendering: auto; }
+
+[data-skin="unplugged"] {
+  --color-primary: #5F6E51;
+  --color-primary-hover: #4c5940;
+  --color-primary-soft: #f2f4ec;
+  --color-bg: #EDE4D6;
+  --color-surface: #FBF8F1;
+  --color-border: rgba(36, 32, 26, 0.16);
+  --color-text: #24201A;
+  --color-muted: #8a8172;
+
+  --ink-abyss: #24201A;
+  --ink-sea: #EDE4D6;
+  --parchment: #FBF8F1;
+  --parchment-bright: #FBF8F1;
+  --parchment-dim: #E7DECE;
+  --wood-dark: rgba(36, 32, 26, 0.16);
+  --ink-pure: #24201A;
+  --ink-faded: #6b6459;
+  --cream: #24201A;
+  --brass: #C88A3C;
+  --brass-bright: #E7B968;
+  --brass-deep: #4a3416;
+  --doubloon: #C88A3C;
+  --elaine-cyan: #5F6E51;
+  --lechuck-red: #C46A43;
+  --moonbeam: #E7DECE;
+  --shadow-deep: rgba(36, 32, 26, 0.12);
+  --voodoo-violet: #5F6E51;
+
+  --font-body: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Hanken Grotesk', system-ui, sans-serif;
+  --line-body: 1.5;
+  --panel-radius: 16px;
+  --btn-radius: 100px;
+
+  --fs-hero: 40px;
+  --fs-h1: 26px;
+  --fs-h2: 18px;
+  --fs-button: 14px;
+  --fs-body-lg: 17px;
+  --fs-body: 15px;
+  --fs-meta: 13px;
+  --fs-coin: 18px;
+}
+[data-skin="unplugged"] body { image-rendering: auto; background: #EDE4D6; color: #24201A; text-rendering: optimizeLegibility; }
+[data-skin="unplugged"] svg:not(.coin-svg):not(.px) { shape-rendering: geometricPrecision; }
+[data-skin="unplugged"] h1, [data-skin="unplugged"] h2, [data-skin="unplugged"] h3, [data-skin="unplugged"] h4 {
+  font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; text-transform: none;
+}
+/* Kill every pirate uppercase/letterspacing treatment. */
+[data-skin="unplugged"] .login-title, [data-skin="unplugged"] .brand-name, [data-skin="unplugged"] .btn,
+[data-skin="unplugged"] .tab, [data-skin="unplugged"] .filter-chip, [data-skin="unplugged"] .status-badge,
+[data-skin="unplugged"] .mode-pill, [data-skin="unplugged"] .mine-pill, [data-skin="unplugged"] .own-tag,
+[data-skin="unplugged"] .badge-name, [data-skin="unplugged"] .podium-rank, [data-skin="unplugged"] .wof-rank-num,
+[data-skin="unplugged"] .taken-by-label, [data-skin="unplugged"] .rank-name, [data-skin="unplugged"] .rank-chip,
+[data-skin="unplugged"] .role-badge, [data-skin="unplugged"] .modal-title, [data-skin="unplugged"] .setting-info strong,
+[data-skin="unplugged"] .day-card strong, [data-skin="unplugged"] button {
+  text-transform: none; letter-spacing: 0;
+}
+[data-skin="unplugged"] .brand-name { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; font-size: 18px; }
+[data-skin="unplugged"] a { color: #5F6E51; }
+[data-skin="unplugged"] a:hover { color: #34402E; text-decoration: none; }
+[data-skin="unplugged"] code { font-family: var(--font-mono); background: #E7DECE; border: 1px solid var(--color-border); color: #24201A; }
+
+/* Shell */
+[data-skin="unplugged"] #header { background: #FBF8F1; border-bottom: 1px solid var(--color-border); box-shadow: none; }
+[data-skin="unplugged"] .brand { color: #24201A; }
+[data-skin="unplugged"] .brand-logo { color: #5F6E51; width: 26px; height: 26px; }
+[data-skin="unplugged"] main { color: #24201A; }
+[data-skin="unplugged"] .breadcrumb { color: #8a8172; }
+[data-skin="unplugged"] .breadcrumb a { color: #5F6E51; }
+[data-skin="unplugged"] .team-header h1 { font-family: var(--font-display); }
+[data-skin="unplugged"] .profile-head, [data-skin="unplugged"] .profile-section { border-color: rgba(36, 32, 26, 0.10); }
+
+/* Cards — tier 2 (soft shadow); list rows tier 1 (border only). */
+[data-skin="unplugged"] .panel, [data-skin="unplugged"] .team-card, [data-skin="unplugged"] .create-card,
+[data-skin="unplugged"] .wallet-panel, [data-skin="unplugged"] .empty-card, [data-skin="unplugged"] .scroll,
+[data-skin="unplugged"] .member-card, [data-skin="unplugged"] .podium-place, [data-skin="unplugged"] .modal,
+[data-skin="unplugged"] .meetings-picker, [data-skin="unplugged"] .matrix-wrap {
+  background: #FBF8F1; color: #24201A; border: 1px solid rgba(36, 32, 26, 0.10);
+  border-radius: 16px; box-shadow: 0 4px 14px rgba(36, 32, 26, 0.06); border-image: none;
+}
+[data-skin="unplugged"] .bounty {
+  background: #FBF8F1; color: #24201A; border: 1px solid rgba(36, 32, 26, 0.10);
+  border-radius: 16px; box-shadow: none; border-image: none;
+  transition: box-shadow 120ms cubic-bezier(0.22,1,0.36,1), transform 120ms cubic-bezier(0.22,1,0.36,1);
+}
+[data-skin="unplugged"] .bounty:hover { box-shadow: 0 4px 14px rgba(36, 32, 26, 0.06); transform: translateY(-1px); }
+[data-skin="unplugged"] .panel-title {
+  background: transparent; color: #5F6E51; font-family: var(--font-body);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 0; margin: 0 0 12px; box-shadow: none;
+}
+[data-skin="unplugged"] .modal-title { font-family: var(--font-display); font-weight: 600; text-transform: none; letter-spacing: -0.01em; }
+[data-skin="unplugged"] .modal-scrim { background: rgba(36, 32, 26, 0.40); }
+
+/* Buttons — pills. */
+[data-skin="unplugged"] .btn {
+  background: #5F6E51; color: #F1EADE; border: 0; border-radius: 100px;
+  box-shadow: none; font-weight: 600; padding: 11px 20px;
+}
+[data-skin="unplugged"] .btn:hover:not([disabled]) { filter: brightness(1.06); }
+[data-skin="unplugged"] .btn:active { transform: scale(0.97); }
+[data-skin="unplugged"] .btn-secondary { background: transparent; color: #24201A; border: 1px solid rgba(36, 32, 26, 0.22); box-shadow: none; }
+[data-skin="unplugged"] .btn-secondary:hover:not([disabled]) { background: #E7DECE; filter: none; }
+[data-skin="unplugged"] .btn-ghost { background: transparent; color: #5F6E51; border: 0; box-shadow: none; font-weight: 600; }
+[data-skin="unplugged"] .btn-ghost:hover:not([disabled]) { color: #34402E; background: transparent; filter: none; }
+[data-skin="unplugged"] .btn-danger { background: #C46A43; color: #F1EADE; box-shadow: none; }
+[data-skin="unplugged"] .btn-large { padding: 13px 26px; font-size: 15px; }
+[data-skin="unplugged"] .btn-google { background: #fff; color: #24201A; border: 1px solid rgba(36, 32, 26, 0.16); border-radius: 100px; box-shadow: 0 1px 2px rgba(36, 32, 26, 0.06); }
+[data-skin="unplugged"] .btn-google:hover:not([disabled]) { background: #fbfaf6; }
+
+/* Inputs */
+[data-skin="unplugged"] input, [data-skin="unplugged"] textarea, [data-skin="unplugged"] select {
+  background: #fff; border: 1px solid rgba(36, 32, 26, 0.16); border-radius: 12px; box-shadow: none; color: #24201A; font-family: var(--font-body);
+}
+[data-skin="unplugged"] input:focus, [data-skin="unplugged"] textarea:focus, [data-skin="unplugged"] select:focus {
+  outline: 2px solid #5F6E51; outline-offset: 1px; border-color: #5F6E51;
+}
+[data-skin="unplugged"] *:focus-visible { outline: 2px solid #5F6E51; outline-offset: 2px; }
+
+/* Tabs — clean underline nav. */
+[data-skin="unplugged"] .tabs { border-bottom: 1px solid rgba(36, 32, 26, 0.12); }
+[data-skin="unplugged"] .tab { background: transparent; color: #6b6459; box-shadow: none; border: 0; border-bottom: 2px solid transparent; font-weight: 600; }
+[data-skin="unplugged"] .tab:hover { color: #24201A; }
+[data-skin="unplugged"] .tab.active { background: transparent; color: #34402E; border-bottom: 2px solid #5F6E51; box-shadow: none; }
+[data-skin="unplugged"] .tab-count { background: #5F6E51; color: #F1EADE; border-radius: 100px; }
+
+/* Filter chips */
+[data-skin="unplugged"] .filter-chip { background: #FBF8F1; color: #6b6459; border: 1px solid rgba(36, 32, 26, 0.16); border-radius: 100px; box-shadow: none; font-weight: 600; }
+[data-skin="unplugged"] .filter-chip.active { background: #5F6E51; color: #F1EADE; border-color: #5F6E51; }
+
+/* Status pills — calm; clay reserved for the loud moments. */
+[data-skin="unplugged"] .status-badge { border-radius: 100px; font-weight: 600; box-shadow: none; border: 0; padding: 3px 10px; font-size: 11px; }
+[data-skin="unplugged"] .status-open { background: #E7DECE; color: #5b5446; }
+[data-skin="unplugged"] .status-accepted, [data-skin="unplugged"] .status-taken { background: #e6ecdd; color: #5F6E51; }
+[data-skin="unplugged"] .status-active { background: #e6ecdd; color: #5F6E51; }
+[data-skin="unplugged"] .status-completed, [data-skin="unplugged"] .status-done { background: #EDE4D6; color: #8a8172; }
+[data-skin="unplugged"] .status-cancelled { background: #f6e6dd; color: #C46A43; }
+
+/* Pills / tags */
+[data-skin="unplugged"] .mode-pill { background: #e6ecdd; color: #5F6E51; border-radius: 100px; box-shadow: none; }
+[data-skin="unplugged"] .mine-pill { background: #f6e6dd; color: #C46A43; border-radius: 100px; box-shadow: none; }
+[data-skin="unplugged"] .own-tag { color: #8a8172; }
+[data-skin="unplugged"] .rank-chip { background: #e6ecdd; color: #34402E; border-radius: 100px; box-shadow: none; }
+[data-skin="unplugged"] .role-badge.manager { background: #e6ecdd; color: #5F6E51; box-shadow: none; }
+[data-skin="unplugged"] .role-badge.member { background: #EDE4D6; color: #8a8172; box-shadow: none; }
+[data-skin="unplugged"] .coin-pill { background: #E7DECE; color: #7a5312; border-radius: 100px; box-shadow: none; padding: 4px 12px; font-weight: 600; }
+
+/* Toast — pine pill. */
+[data-skin="unplugged"] .toast { background: #34402E; color: #F1EADE; border-radius: 100px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 0; font-weight: 600; }
+[data-skin="unplugged"] .toast.success { background: #5F6E51; }
+[data-skin="unplugged"] .toast.error { background: #C46A43; }
+
+/* Wallet / chest */
+[data-skin="unplugged"] .bucket { background: #fff; border: 1px solid rgba(36, 32, 26, 0.12); box-shadow: none; border-radius: 12px; }
+[data-skin="unplugged"] .bucket.total { background: #34402E; border: 0; box-shadow: none; }
+[data-skin="unplugged"] .bucket.total strong { color: #F1EADE; }
+[data-skin="unplugged"] .bucket.total small { color: #9db08c; }
+[data-skin="unplugged"] .rank-hero { background: linear-gradient(180deg, #5F6E51 0%, #34402E 100%); border: 0; box-shadow: 0 10px 26px rgba(52, 64, 46, 0.28); color: #F1EADE; }
+[data-skin="unplugged"] .rank-emblem { background: #FBF8F1; color: #5F6E51; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+
+/* Day picker + matrix */
+[data-skin="unplugged"] .day-card { background: #fff; border: 1px solid rgba(36, 32, 26, 0.16); border-radius: 12px; box-shadow: none; color: #24201A; }
+[data-skin="unplugged"] .day-card strong, [data-skin="unplugged"] .day-card .day-date { color: #24201A; }
+[data-skin="unplugged"] .day-card.weekend { background: #f3ece0; }
+[data-skin="unplugged"] .day-card.selected { background: #5F6E51; border-color: #5F6E51; box-shadow: none; }
+[data-skin="unplugged"] .day-card.selected strong, [data-skin="unplugged"] .day-card.selected .day-date, [data-skin="unplugged"] .day-card.selected .day-cost { color: #F1EADE; }
+[data-skin="unplugged"] .day-card.selected.weekend { background: #4c5940; }
+[data-skin="unplugged"] .day-card.off { opacity: 0.4; }
+[data-skin="unplugged"] .coverage-matrix thead th { background: #E7DECE; color: #24201A; }
+[data-skin="unplugged"] .coverage-matrix thead th.weekend { background: #efe6d6; }
+[data-skin="unplugged"] .cm-acct { background: #E7DECE; color: #24201A; }
+[data-skin="unplugged"] .cm-cell { color: #7a5312; }
+[data-skin="unplugged"] .cm-cell.on { background: #5F6E51; color: #F1EADE; box-shadow: none; }
+[data-skin="unplugged"] .cm-cell.on.weekend { background: #4c5940; }
+[data-skin="unplugged"] .cm-cell.mine { background: #5F6E51; color: #F1EADE; }
+[data-skin="unplugged"] .cm-cell.claimed { background: #E7DECE; color: #8a8172; }
+
+/* Checkboxes */
+[data-skin="unplugged"] .check-pixel { background: #fff; border: 1px solid rgba(36, 32, 26, 0.16); box-shadow: none; border-radius: 10px; }
+[data-skin="unplugged"] .check-box { background: #fff; border: 2px solid rgba(36, 32, 26, 0.22); box-shadow: none; border-radius: 5px; }
+[data-skin="unplugged"] .check-pixel input:checked + .check-box::after { background: #5F6E51; box-shadow: none; border-radius: 2px; }
+
+/* AI briefing block — inset sand panel, sage label. */
+[data-skin="unplugged"] .ai-briefing { background: #EDE4D6; color: #24201A; border-left: 0; border: 1px solid rgba(36, 32, 26, 0.08); border-radius: 12px; }
+[data-skin="unplugged"] .ai-briefing h4 { color: #5F6E51; }
+[data-skin="unplugged"] .ai-content { color: #4a4438; }
+[data-skin="unplugged"] .ai-content strong { color: #5F6E51; }
+
+/* Login */
+[data-skin="unplugged"] .login-screen { background: #EDE4D6; }
+[data-skin="unplugged"] .login-bg { display: none; }
+[data-skin="unplugged"] .login-title { color: #24201A; text-shadow: none; font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; }
+[data-skin="unplugged"] .login-tagline { color: #6b6459; text-transform: none; letter-spacing: 0; font-weight: 400; }
+[data-skin="unplugged"] .mascot-floater, [data-skin="unplugged"] .mascot-sprite { display: none; }
+
+/* ---- Unplugged polish pass (visual QA fixes) ---- */
+/* Buttons & interactive labels are sentence case; eyebrow labels stay uppercase. */
+[data-skin="unplugged"] .btn, [data-skin="unplugged"] .btn-ghost, [data-skin="unplugged"] .btn-secondary,
+[data-skin="unplugged"] .btn-large, [data-skin="unplugged"] .btn-google, [data-skin="unplugged"] .btn-danger,
+[data-skin="unplugged"] .tab, [data-skin="unplugged"] .check-label, [data-skin="unplugged"] .filter-chip,
+[data-skin="unplugged"] .status-badge, [data-skin="unplugged"] .mode-pill, [data-skin="unplugged"] .mine-pill,
+[data-skin="unplugged"] .role-badge, [data-skin="unplugged"] .own-tag, [data-skin="unplugged"] .invite-actions button,
+[data-skin="unplugged"] .rank-chip, [data-skin="unplugged"] .tab-count {
+  text-transform: none !important; letter-spacing: 0 !important;
+}
+/* Amounts render in Bricolage, not the pixel face (overrides inline Silkscreen). */
+[data-skin="unplugged"] [style*="Silkscreen"], [data-skin="unplugged"] .bucket strong,
+[data-skin="unplugged"] .b-price strong, [data-skin="unplugged"] .coin-amount,
+[data-skin="unplugged"] .hero-balance, [data-skin="unplugged"] .wof-days, [data-skin="unplugged"] .podium-days {
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif !important;
+  font-weight: 700 !important; letter-spacing: -0.01em !important;
+}
+/* Titles read ink, not brass. */
+[data-skin="unplugged"] .team-header h1, [data-skin="unplugged"] .modal-title,
+[data-skin="unplugged"] .bd-section h4, [data-skin="unplugged"] .login-title,
+[data-skin="unplugged"] h1, [data-skin="unplugged"] h2 { color: #24201A; }
+[data-skin="unplugged"] .bd-section { border-left-color: #5F6E51; }
+/* Rank / generic progress fills = sage. */
+[data-skin="unplugged"] .rank-progress-fill, [data-skin="unplugged"] .progress-fill,
+[data-skin="unplugged"] .rank-bar > span, [data-skin="unplugged"] .progress > span,
+[data-skin="unplugged"] .rank-hero .bar > span { background: #5F6E51 !important; }
+/* Login — clean centred card on sand; drop the pirate harbor + scrim. */
+[data-skin="unplugged"] .login-screen { background: #EDE4D6 !important; }
+[data-skin="unplugged"] .login-screen::after, [data-skin="unplugged"] .login-screen::before { display: none !important; content: none !important; }
+[data-skin="unplugged"] .login-content { background: transparent !important; box-shadow: none !important; }
+[data-skin="unplugged"] .login-card { background: transparent !important; box-shadow: none !important; border: 0 !important; }
+[data-skin="unplugged"] .login-title { font-size: 52px; }
+[data-skin="unplugged"] .login-pitch { color: #6b6459; }

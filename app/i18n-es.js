@@ -440,6 +440,9 @@ export const ES = {
   // — Skins —
   'Pirate (Monkey Island)': 'Pirate (Monkey Island)',
   'Pixel-art parchment + Inter. Pirate vibe, regular legible font.': 'Pergamino pixel-art + Inter. Aire pirata, tipografía legible.',
+  'Unplugged (Light)': 'Unplugged (Claro)',
+  'The calm default — sage & paper, Bricolage + Hanken type, soft cards, pill buttons.': 'El tema por defecto, sereno: salvia y papel, tipografías Bricolage + Hanken, tarjetas suaves y botones tipo píldora.',
+  'The original pixel-art parchment personality theme. Opt-in.': 'El tema de personalidad original en pixel-art sobre pergamino. Opcional.',
   'Basic': 'Basic',
   'Clean modern. Inter font, soft shadows, rounded corners.': 'Limpio y moderno. Inter, sombras suaves, esquinas redondeadas.',
   'High Contrast': 'High Contrast',
@@ -576,4 +579,7 @@ export const ES = {
   '{n} account-days still open.': '{n} cuentas-día aún libres.',
   '{n} accounts': '{n} cuentas',
   '{n} saved': '{n} guardadas',
+
+  // ---- Unplugged rebrand ----
+  "When you're off, you're fully off.": 'Cuando estás fuera, estás del todo fuera.',
 };

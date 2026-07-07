@@ -139,6 +139,7 @@ export const PLAIN = {
   'Claim accounts to cover': { en: 'Choose accounts to cover', es: 'Elige las cuentas a cubrir' },
   'Claim ({n} left)': { en: 'Cover ({n} left)', es: 'Cubrir ({n} libres)' },
   'Tap the account-days you can cover. Claimed cells are locked.': { en: 'Select the account-days you can cover. Taken cells are locked.', es: 'Selecciona las cuentas-día que puedes cubrir. Las celdas tomadas están bloqueadas.' },
+  '{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.': { en: '{x}× on Saturdays and Sundays. Credits leave your wallet and sit in escrow until a teammate covers.', es: '{x}× los sábados y domingos. Los créditos salen de tu cartera y quedan en depósito hasta que un compañero cubre.' },
   'Earned {n} doubloons by covering.': { en: 'Earned {n} credits by covering.', es: 'Ganaste {n} créditos cubriendo.' },
   'Welcome chest opened (+{n} doubloons).': { en: 'Welcome grant received (+{n} credits).', es: 'Bono de bienvenida recibido (+{n} créditos).' },
   "Crown's stipend: +{n} doubloons (expires monthly).": { en: 'Monthly allowance: +{n} credits (expires monthly).', es: 'Asignación mensual: +{n} créditos (caduca cada mes).' },
@@ -189,7 +190,6 @@ export const PLAIN = {
   'Several crewmates can split the days. Long vacations get covered faster.': { en: 'Several teammates can split the days. Long time off gets covered faster.', es: 'Varios compañeros se reparten los días. El tiempo libre largo se cubre antes.' },
 
   // ---- Login / onboarding ----
-  'Tales of Monkey Coverage': { en: 'Coverage, made simple', es: 'Cobertura, sin complicaciones' },
   'Going on vacation? Post a bounty. A crewmate covers your accounts — with your briefing in hand — and earns doubloons for it.': { en: 'Going on vacation? Post a request. A teammate covers your accounts — with your briefing in hand — and earns credits for it.', es: '¿Te vas de vacaciones? Publica una solicitud. Un compañero cubre tus cuentas — con tu briefing en mano — y gana créditos por ello.' },
   'Going out? Post a bounty with your days, reachability, and context.': { en: 'Going out? Post a request with your days, reachability, and context.', es: '¿Te vas? Publica una solicitud con tus días, disponibilidad y contexto.' },
   'A crewmate claims it and gets your briefing — accounts, meetings, SLA.': { en: 'A teammate claims it and gets your briefing — accounts, meetings, SLA.', es: 'Un compañero la reclama y recibe tu briefing — cuentas, reuniones, SLA.' },
@@ -216,7 +216,6 @@ export const PLAIN = {
   'Female pirate': { en: 'Avatar', es: 'Avatar' },
   'Pick a pirate to wear as your face. You can change it any time.': { en: 'Pick an avatar. You can change it any time.', es: 'Elige un avatar. Puedes cambiarlo cuando quieras.' },
   'Pirate (Monkey Island)': { en: 'Pirate (Monkey Island)', es: 'Pirata (Monkey Island)' },
-  'Pixel-art parchment + Inter. Pirate vibe, regular legible font.': { en: 'Pixel-art parchment + Inter. Playful look, legible font.', es: 'Pergamino pixel-art + Inter. Aspecto lúdico, tipografía legible.' },
 
   // ---- Misc leftovers ----
   'Unreachable — true shore leave': { en: 'Unreachable — fully off', es: 'Ilocalizable — desconexión total' },
