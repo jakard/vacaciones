@@ -4867,3 +4867,11 @@ label {
   [data-skin="unplugged"] .topbar-search { min-width: 0; }
   [data-skin="unplugged"] .topbar-search > span:first-of-type, [data-skin="unplugged"] .topbar-search .kbd { display: none; }
 }
+
+/* Initials avatars — clean, no pixel border. */
+[data-skin="unplugged"] .avatar-img, [data-skin="unplugged"] .avatar-mini, [data-skin="unplugged"] .avatar-fallback, [data-skin="unplugged"] .avatar-slot img {
+  box-shadow: none; border: 0; image-rendering: auto; object-fit: cover;
+}
+[data-skin="unplugged"] .avatar-img, [data-skin="unplugged"] .avatar-slot img { border-radius: 50%; }
+[data-skin="unplugged"] .avatar-mini { border-radius: 8px; }
+[data-skin="unplugged"] .avatar-mini-blank { background: #E7DECE; border-radius: 8px; box-shadow: none; }

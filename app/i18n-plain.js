@@ -209,9 +209,6 @@ export const PLAIN = {
   '"Doubloons jingle softly."': { en: '"Your balance is ready."', es: '"Tu saldo está listo."' },
 
   // ---- Avatar / skins ----
-  'Male pirate': { en: 'Avatar', es: 'Avatar' },
-  'Female pirate': { en: 'Avatar', es: 'Avatar' },
-  'Pick a pirate to wear as your face. You can change it any time.': { en: 'Pick an avatar. You can change it any time.', es: 'Elige un avatar. Puedes cambiarlo cuando quieras.' },
   'Pirate (Monkey Island)': { en: 'Pirate (Monkey Island)', es: 'Pirata (Monkey Island)' },
 
   // ---- Misc leftovers ----

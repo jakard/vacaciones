@@ -725,16 +725,23 @@ function formatMeetingDate(startMs, endMs) {
 // avatarId (read live from /users/{uid}); for others, fall back to the
 // denormalized photoURL stored on the relevant doc; finally fall back to
 // initials in a parchment-dim tile.
+// Unplugged avatars: the user's Google photo, else a colour-coded initials
+// tile (rounded square) — sage / clay / neutral / pine, hashed from the id.
+function avatarColor(seed) {
+  const palette = ['#5F6E51', '#C46A43', '#8a8172', '#34402E'];
+  const str = String(seed || '?');
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
 function renderAvatar({ uid, photoURL, name, size = 32, klass = 'avatar-img' }) {
-  const isMe = uid && uid === state.user?.uid;
-  const myAvatar = state.userDoc?.avatarId;
-  if (isMe && myAvatar && SVG.avatars[myAvatar]) {
-    return `<span class="${klass}" style="width:${size}px;height:${size}px;display:inline-block;">${SVG.avatars[myAvatar]}</span>`;
-  }
   if (photoURL) {
     return `<img class="${klass}" src="${esc(photoURL)}" alt="${esc(name ?? '')}" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;" />`;
   }
-  return `<span class="${klass} avatar-fallback" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:10px;">${esc(initials(name))}</span>`;
+  const bg = avatarColor(uid || name);
+  const fs = Math.max(10, Math.round(size * 0.4));
+  const radius = Math.max(6, Math.round(size * 0.28));
+  return `<span class="${klass} avatar-fallback" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;background:${bg};color:#F1EADE;font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:600;font-size:${fs}px;border-radius:${radius}px;">${esc(initials(name))}</span>`;
 }
 
 /* ============================================================
@@ -1723,14 +1730,6 @@ function showAvatarPicker() {
   const totalBalance = wallet ? (wallet.earnedBalance ?? 0) + (wallet.stipendBalance ?? 0) : null;
   const stats = state.teamId ? computeStats() : null;
   const rank = stats ? computeRank(stats) : null;
-  const grid = AVATAR_LIST.map((id) => {
-    const isMale = id.startsWith('m');
-    const isSelected = id === current;
-    return `<button class="avatar-tile ${isSelected ? 'selected' : ''}" data-action="pick-avatar" data-id="${id}" title="${esc(isMale ? t('Male pirate') : t('Female pirate'))}">
-      <span class="avatar-tile-art">${SVG.avatars[id]}</span>
-      <span class="avatar-tile-label">${isMale ? 'M' : 'F'}${id.slice(1)}</span>
-    </button>`;
-  }).join('');
   const body = `
     <div class="profile-head">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 48, klass: 'avatar-img' })}
@@ -1745,11 +1744,6 @@ function showAvatarPicker() {
         </span>` : ''}
     </div>
 
-    <div class="profile-section">
-      <p style="margin: 0 0 12px;">${esc(t('Pick a pirate to wear as your face. You can change it any time.'))}</p>
-      <div class="avatar-grid">${grid}</div>
-      ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">${esc(t('Use Google photo'))}</button></p>` : ''}
-    </div>
 
     <div class="profile-section">
       <div class="profile-row">
