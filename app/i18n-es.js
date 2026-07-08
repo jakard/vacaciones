@@ -193,7 +193,6 @@ export const ES = {
   'Paste the invite link a crew manager shared.': 'Pega el enlace de invitación que compartió un manager.',
   'Invite link': 'Enlace de invitación',
   'Join': 'Unirme',
-  'Crew ID (internal reference — invites use manager-shared links)': 'ID de la tripulación (referencia interna — las invitaciones usan enlaces del manager)',
   'Crew not found': 'Tripulación no encontrada',
   'You may have been pressed elsewhere, or the crew ID is wrong.': 'Quizá te movieron de barco, o el ID es incorrecto.',
   'Back to your crews': 'Volver a tus tripulaciones',

@@ -41,7 +41,7 @@
   /* Skin-level tokens (used by the 3 skins via [data-skin=...]) */
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'Silkscreen', monospace;
+  --font-mono: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   --line-body: 1.55;
   --panel-radius: 0;
   --btn-radius: 0;
@@ -82,11 +82,11 @@ html, body {
   color: var(--cream);
   background: var(--ink-sea);
   text-rendering: geometricPrecision;
-  image-rendering: pixelated;
+  image-rendering: auto;
   min-height: 100vh;
 }
 
-svg { shape-rendering: crispEdges; image-rendering: pixelated; }
+svg { shape-rendering: geometricPrecision; image-rendering: auto; }
 
 button {
   font-family: var(--font-body);
@@ -120,7 +120,7 @@ a {
 a:hover { color: var(--brass-bright); text-decoration: underline; }
 
 code {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: var(--fs-meta);
   background: var(--parchment-dim);
   color: var(--ink-pure);
@@ -175,7 +175,7 @@ code {
   box-shadow:
     0 0 0 2px var(--brass),
     0 0 0 4px var(--shadow-deep);
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .who {
   display: flex;
@@ -199,7 +199,7 @@ code {
   padding: 4px 10px;
   background: var(--ink-abyss);
   color: var(--doubloon);
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: var(--fs-coin);
   font-weight: 700;
   box-shadow:
@@ -475,7 +475,7 @@ label {
   height: 100%;
   pointer-events: none;
   z-index: 0;
-  image-rendering: pixelated;
+  image-rendering: auto;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
@@ -674,7 +674,7 @@ label {
   color: var(--ink-faded);
 }
 .team-id-chip {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 14px;
   background: var(--ink-abyss);
   color: var(--brass);
@@ -763,7 +763,7 @@ label {
     0 2px 0 var(--parchment);
 }
 .tab-count {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 12px;
   background: var(--wood-dark);
   color: var(--brass);
@@ -829,7 +829,7 @@ label {
   width: 20px;
   height: 20px;
   box-shadow: 0 0 0 1px var(--wood-dark);
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .requester-chip {
   display: inline-flex;
@@ -1028,9 +1028,9 @@ label {
 .icon-16 svg, svg.px {
   width: 100%;
   height: 100%;
-  image-rendering: pixelated;
+  image-rendering: auto;
   image-rendering: crisp-edges;
-  shape-rendering: crispEdges;
+  shape-rendering: geometricPrecision;
 }
 
 /* ============================================================
@@ -1097,7 +1097,7 @@ label {
 }
 .bucket strong {
   display: block;
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 28px;
   font-weight: 700;
   color: var(--ink-pure);
@@ -1162,7 +1162,7 @@ label {
   color: var(--ink-faded);
 }
 .amount {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-weight: 700;
   font-size: var(--fs-coin);
 }
@@ -1266,7 +1266,7 @@ label {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
 }
 .preview .cost strong {
   font-size: 28px;
@@ -1346,7 +1346,7 @@ label {
   z-index: 50;
 }
 #coin-shower .pop {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-weight: 700;
   font-size: 22px;
   color: var(--doubloon);
@@ -1412,8 +1412,8 @@ label {
 .rank-emblem svg {
   width: 72%;
   height: 72%;
-  image-rendering: pixelated;
-  shape-rendering: crispEdges;
+  image-rendering: auto;
+  shape-rendering: geometricPrecision;
 }
 .rank-info { display: flex; flex-direction: column; gap: 6px; }
 .rank-name {
@@ -1526,7 +1526,7 @@ label {
   width: 48px;
   height: 48px;
   box-shadow: 0 0 0 2px var(--wood-dark), 0 0 0 4px var(--brass);
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .podium-avatar-fallback {
   width: 48px; height: 48px;
@@ -1546,7 +1546,7 @@ label {
   margin-top: 4px;
 }
 .podium-score {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 22px;
   color: var(--ink-pure);
   display: inline-flex;
@@ -1594,7 +1594,7 @@ label {
 }
 .wof-name small { color: var(--ink-faded); font-size: 14px; }
 .wof-score {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 18px;
   color: var(--ink-pure);
   display: inline-flex;
@@ -1639,7 +1639,7 @@ label {
   top: -6px; right: -6px;
   background: var(--lechuck-red);
   color: var(--cream);
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 10px;
   font-weight: 700;
   min-width: 16px;
@@ -1867,7 +1867,7 @@ label {
   font-weight: 600;
 }
 .day-card .day-cost {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: var(--fs-meta);
   color: var(--ink-pure);
   display: inline-flex;
@@ -1946,7 +1946,7 @@ label {
   display: flex; align-items: center; justify-content: center;
   box-sizing: border-box; width: 100%; min-width: 46px; height: 42px;
   padding: 0; margin: 0; border: 0; background: transparent;
-  font-family: 'Silkscreen', monospace; font-size: 12px;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif; font-size: 12px;
   color: var(--brass-deep); cursor: pointer;
 }
 .cm-cell small { font-family: 'Inter', system-ui, sans-serif; font-size: 9px; }
@@ -2107,7 +2107,7 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 18px;
   color: var(--ink-pure);
 }
@@ -2182,7 +2182,7 @@ label {
   box-shadow: inset 1px 1px 0 var(--brass-bright), inset -1px -1px 0 var(--brass-deep), 0 0 0 1px var(--shadow-deep);
 }
 .react-count {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 11px;
   font-weight: 700;
 }
@@ -2256,7 +2256,7 @@ label {
   margin-bottom: 4px;
 }
 .setting-status code {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 13px;
 }
 
@@ -2278,7 +2278,7 @@ label {
 .avatar-img {
   display: inline-block;
   box-shadow: 0 0 0 2px var(--brass);
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .avatar-slot:hover .avatar-img { box-shadow: 0 0 0 2px var(--brass-bright), 0 0 0 4px var(--shadow-deep); }
 
@@ -2312,7 +2312,7 @@ label {
   width: 56px;
   height: 56px;
   display: inline-block;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .avatar-tile-label {
   font-family: var(--font-display);
@@ -2430,7 +2430,7 @@ label {
 .stan-portrait {
   width: 96px;
   height: 96px;
-  image-rendering: pixelated;
+  image-rendering: auto;
   background: var(--moonbeam);
   box-shadow:
     inset 2px 2px 0 var(--cream),
@@ -2593,7 +2593,7 @@ label {
 }
 .scroll-target strong { font-weight: 400; }
 .scroll-char-count {
-  font-family: 'Silkscreen', monospace;
+  font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif;
   font-size: 11px;
   color: var(--ink-faded);
   text-align: right;
@@ -4373,7 +4373,7 @@ label {
   animation: cine-sail 3.2s steps(16) both;
   filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.5));
 }
-.cine-ship svg { width: 100%; height: 100%; image-rendering: pixelated; }
+.cine-ship svg { width: 100%; height: 100%; image-rendering: auto; }
 @keyframes cine-sail {
   from { transform: translateX(0); }
   to { transform: translateX(calc(100vw + 160px)); }
@@ -4432,8 +4432,8 @@ label {
 .cine-emblem svg {
   width: 72%;
   height: 72%;
-  image-rendering: pixelated;
-  shape-rendering: crispEdges;
+  image-rendering: auto;
+  shape-rendering: geometricPrecision;
 }
 @keyframes cine-emblem-in {
   from { transform: scale(0.1) translateY(60px); opacity: 0; }
@@ -4778,7 +4778,7 @@ label {
 /* Login — clean centred card on sand; drop the pirate harbor + scrim. */
 [data-skin="unplugged"] .login-screen { background: #EDE4D6 !important; }
 [data-skin="unplugged"] .login-screen::after, [data-skin="unplugged"] .login-screen::before { display: none !important; content: none !important; }
-[data-skin="unplugged"] .login-content { background: transparent !important; box-shadow: none !important; }
+[data-skin="unplugged"] .login-content { background: transparent !important; box-shadow: none !important; border: 0 !important; }
 [data-skin="unplugged"] .login-card { background: transparent !important; box-shadow: none !important; border: 0 !important; }
 [data-skin="unplugged"] .login-title { font-size: 52px; }
 [data-skin="unplugged"] .login-pitch { color: #6b6459; }
@@ -4886,3 +4886,29 @@ label {
 [data-skin="unplugged"] .onb-progress { display: flex; justify-content: center; gap: 6px; margin-top: 22px; }
 [data-skin="unplugged"] .onb-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(36,32,26,.18); transition: width 200ms var(--u-ease, ease), background 200ms; }
 [data-skin="unplugged"] .onb-dot.active { background: #5F6E51; width: 20px; border-radius: 100px; }
+
+/* ---- Unplugged home: teams list rows + empty states ---- */
+[data-skin="unplugged"] .team-card {
+  padding: 12px 14px; gap: 12px;
+  transition: box-shadow 120ms cubic-bezier(0.22,1,0.36,1), transform 120ms cubic-bezier(0.22,1,0.36,1);
+}
+[data-skin="unplugged"] .team-card:hover { background: #FBF8F1; box-shadow: 0 6px 18px rgba(36,32,26,0.09); transform: translateY(-1px); }
+[data-skin="unplugged"] .team-card:active { transform: translateY(0); box-shadow: 0 4px 14px rgba(36,32,26,0.06); }
+[data-skin="unplugged"] .team-tile {
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 600; font-size: 16px;
+  color: #F1EADE; object-fit: cover; letter-spacing: 0; overflow: hidden;
+}
+[data-skin="unplugged"] .team-main strong {
+  font-family: var(--font-display); font-weight: 600; font-size: 16px;
+  letter-spacing: -0.01em; color: #24201A;
+}
+[data-skin="unplugged"] .team-main small { color: #8a8172; font-size: 13px; letter-spacing: 0; }
+[data-skin="unplugged"] .team-go { color: #b3a992; display: inline-flex; align-items: center; transition: color 120ms, transform 120ms; }
+[data-skin="unplugged"] .team-card:hover .team-go { color: #5F6E51; transform: translateX(2px); }
+
+/* Empty states — quiet outline mark, muted sage, calm title. */
+[data-skin="unplugged"] .empty-mascot { width: 72px; height: 72px; color: #b8ae9a; }
+[data-skin="unplugged"] .empty-mascot svg { width: 100%; height: 100%; }
+[data-skin="unplugged"] .empty-card p strong { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: #24201A; }
