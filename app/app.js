@@ -211,11 +211,10 @@ document.documentElement.lang = lang.current();
 // wording). Orthogonal to language: plain mode overlays the PLAIN map on
 // top of the same EN/ES lookup. Toggled in the Profile sheet.
 const voice = {
-  // Default is now PLAIN professional wording (the Unplugged direction).
-  // Pirate voice is opt-in via the Profile toggle.
-  current() { return localStorage.getItem('vacaciones.voice') === 'pirate' ? 'pirate' : 'plain'; },
-  isPirate() { return this.current() === 'pirate'; },
-  set(v) { localStorage.setItem('vacaciones.voice', v === 'pirate' ? 'pirate' : 'plain'); },
+  // Unplugged is plain professional English, period. (Pirate voice retired.)
+  current() { return 'plain'; },
+  isPirate() { return false; },
+  set() { /* no-op — voice is fixed */ },
 };
 
 function t(text, params) {
@@ -240,36 +239,12 @@ const tr = t;
 // Dictionaries live in their own modules (one per language).
 const TRANSLATIONS = { es: TRANSLATIONS_ES };
 
+// Unplugged is THE design — one theme, no picker. (Skins retired.)
 const skin = {
-  current() {
-    const stored = localStorage.getItem('vacaciones.skin');
-    if (stored && SKIN_OPTIONS.some((s) => s.id === stored)) return stored;
-    // First visit (no localStorage): follow OS preference.
-    // Dark OS → Dark Knight, Light OS → Basic. Pirate is opt-in.
-    try {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark-knight';
-      }
-    } catch (_) { /* no matchMedia */ }
-    // Calm editorial light theme is the default (Unplugged direction).
-    return 'unplugged';
-  },
-  set(id) {
-    if (!SKIN_OPTIONS.some((s) => s.id === id)) return;
-    localStorage.setItem('vacaciones.skin', id);
-    document.documentElement.dataset.skin = id;
-  },
+  current() { return 'unplugged'; },
+  set() { /* no-op — theme is fixed */ },
 };
-document.documentElement.dataset.skin = skin.current();
-// Live-update if user changes OS theme while the app is open and they haven't
-// explicitly picked a skin yet.
-try {
-  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (ev) => {
-    if (!localStorage.getItem('vacaciones.skin')) {
-      document.documentElement.dataset.skin = ev.matches ? 'dark-knight' : 'unplugged';
-    }
-  });
-} catch (_) { /* older browsers, ignore */ }
+document.documentElement.dataset.skin = 'unplugged';
 
 const audio = {
   ctx: null,
@@ -1776,20 +1751,6 @@ function showAvatarPicker() {
       </div>
       <label class="profile-row" style="cursor: pointer;">
         <span>
-          <strong style="display: block;">${esc(t('Pirate mode'))}</strong>
-          <small class="muted">${esc(t('Playful wording (doubloons, crew, bounties). Off = plain corporate wording (credits, team, requests).'))}</small>
-        </span>
-        <input type="checkbox" data-action="toggle-voice" ${voice.isPirate() ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
-      </label>
-      <div class="profile-row">
-        <span>
-          <strong style="display: block;">${esc(t('Theme'))}</strong>
-          <small class="muted">${esc(t('Pirate, Basic, High Contrast, or Dark Knight.'))}</small>
-        </span>
-        <button class="btn btn-secondary" data-action="open-skin-picker" type="button">🎨 ${esc(t('Choose a skin'))}</button>
-      </div>
-      <label class="profile-row" style="cursor: pointer;">
-        <span>
           <strong style="display: block;">${esc(t('Sound effects'))}</strong>
           <small class="muted">${esc(t('Clicks, coins, and toast chimes.'))}</small>
         </span>
@@ -3284,6 +3245,17 @@ function renderHome() {
    Team page (tabs)
    ============================================================ */
 
+// Line icons for the left sidebar (stroke = currentColor, recolours by state).
+const NAV_ICONS = {
+  board: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg>',
+  fame: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM8 21h8M12 15v6"/></svg>',
+  crew: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.18V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .38-1.9V15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.9.38H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.38 1.9V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+};
+
 function renderTeam() {
   const team = state.myTeams.find((t) => t.id === state.teamId);
   if (!team) {
@@ -3306,34 +3278,49 @@ function renderTeam() {
   else if (tab === 'members') body = renderMembersTab();
   else body = renderBountyBoardTab();
 
+  const ic = NAV_ICONS;
+  const balance = state.walletDoc ? (state.walletDoc.earnedBalance ?? 0) + (state.walletDoc.stipendBalance ?? 0) : null;
+  const base = `#/team/${esc(team.id)}`;
+  const link = (id, href, label, icon, count) => `
+    <a href="${href}" class="side-link ${tab === id ? 'active' : ''}" ${tab === id ? 'aria-current="page"' : ''}>
+      <span class="side-ic" aria-hidden="true">${icon}</span>
+      <span class="side-label">${esc(label)}</span>
+      ${count ? `<span class="side-count">${count}</span>` : ''}
+    </a>`;
   return `
-    <nav class="breadcrumb">
-      <a href="#/">${esc(t('Crews'))}</a><span class="sep">/</span><span class="current">${esc(team.name)}</span>
-    </nav>
-    <header class="team-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        ${team.photoURL
-          ? `<img src="${esc(team.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 48px; height: 48px; box-shadow: 0 0 0 2px var(--wood-dark); image-rendering: pixelated;" />`
-          : `<span style="width: 48px; height: 48px; display: inline-block;">${SVG.flag}</span>`}
-        <div>
-          <h1>${esc(team.name)}</h1>
-          <small>${esc(t('{n} crewmates', { n: team.memberUids?.length || 0 }))} · ID: <code>${esc(team.id)}</code></small>
+    <div class="shell">
+      <aside class="side" aria-label="${esc(t('Primary'))}">
+        <a class="side-back" href="#/">${ic.back}<span>${esc(t('All teams'))}</span></a>
+        <nav class="side-nav">
+          ${link('bounties', base, t('Board'), ic.board, openCount || '')}
+          ${link('chest', `${base}/chest`, t('Wallet'), ic.wallet)}
+          ${link('wof', `${base}/wof`, t('Wall of Fame'), ic.fame)}
+          ${link('members', `${base}/members`, t('Crew'), ic.crew)}
+          ${state.myRole === 'manager' ? link('settings', `${base}/settings`, t('Settings'), ic.settings) : ''}
+        </nav>
+        <div class="side-foot">
+          <a class="btn side-post ${tab === 'post' ? 'active' : ''}" href="${base}/post">${ic.plus}<span>${esc(t('Post a request'))}</span></a>
+          ${balance !== null ? `
+          <div class="side-coin">
+            <div class="side-coin-lbl">${esc(t('Your doubloons'))}</div>
+            <div class="side-coin-val"><span class="coin-16">${SVG.doubloon}</span><strong>${balance}</strong></div>
+          </div>` : ''}
         </div>
+      </aside>
+      <div class="main">
+        <div class="main-head">
+          <div>
+            <h1 class="main-title">${esc(team.name)}</h1>
+            <div class="main-sub">${esc(t('{n} crewmates', { n: team.memberUids?.length || 0 }))}</div>
+          </div>
+          <div class="main-actions">
+            ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">${esc(t('Manage'))}</button>` : ''}
+            ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">${esc(t('Share invite'))}</button>` : ''}
+          </div>
+        </div>
+        ${body}
       </div>
-      <div class="invite-actions">
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">✏ ${esc(t('Manage'))}</button>` : ''}
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 ${esc(t('Share invite'))}</button>` : ''}
-      </div>
-    </header>
-    <nav class="tabs" aria-label="${esc(t('Crew navigation'))}">
-      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}" ${tab === 'bounties' ? 'aria-current="page"' : ''}>${esc(t('Bounty Board'))} ${openCount > 0 ? `<span class="tab-count" aria-label="${esc(t('{n} open', { n: openCount }))}">${openCount}</span>` : ''}</a>
-      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}" ${tab === 'chest' ? 'aria-current="page"' : ''}>${esc(t('Treasure Chest'))}</a>
-      <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}" ${tab === 'wof' ? 'aria-current="page"' : ''}>${esc(t('Wall of Fame'))}</a>
-      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}" ${tab === 'members' ? 'aria-current="page"' : ''}>${esc(t('Crew'))}</a>
-      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}" ${tab === 'post' ? 'aria-current="page"' : ''}>${esc(t('Post Bounty'))}</a>
-      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}" ${tab === 'settings' ? 'aria-current="page"' : ''}><span aria-hidden="true">⚙ </span>${esc(t('Settings'))}</a>` : ''}
-    </nav>
-    ${body}
+    </div>
   `;
 }
 

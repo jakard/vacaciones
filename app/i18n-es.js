@@ -582,4 +582,10 @@ export const ES = {
 
   // ---- Unplugged rebrand ----
   "When you're off, you're fully off.": 'Cuando estás fuera, estás del todo fuera.',
+  'All teams': 'Todos los equipos',
+  'Board': 'Tablón',
+  'Post a request': 'Publicar una solicitud',
+  'Primary': 'Principal',
+  'Wallet': 'Cartera',
+  'Your doubloons': 'Tus doblones',
 };

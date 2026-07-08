@@ -339,16 +339,14 @@ function openModalAndScan(label, opener) {
 // ---------------------------------------------------------------------
 // Language canaries prove translations actually flow end-to-end (a false
 // pass from rendering stale/english content in ES mode gets caught here).
+// Unplugged is plain-voice only + a restructured shell (sidebar nav). Voice is
+// fixed, so the pirate/plain iterations render identically — both canary sets
+// point at the current plain labels.
+const C_EN = { login: 'Sign in with Google', home: 'Your Teams', bounties: 'Post a request', chest: 'Wallet', wof: 'Leaderboard', members: 'Team', post: 'Post a request', settings: 'Team settings', help: 'credit' };
+const C_ES = { login: 'Iniciar sesión con Google', home: 'Tus equipos', bounties: 'Publicar una solicitud', chest: 'Cartera', wof: 'Clasificación', members: 'Equipo', post: 'Publicar una solicitud', settings: 'Ajustes del equipo', help: 'crédito' };
 const CANARY = {
-  pirate: {
-    en: { login: 'Sign in with Google', home: 'Your Crews', bounties: 'Bounty Board', chest: 'Your treasure chest', wof: 'Top covers', members: 'aboard', post: 'Post a bounty', settings: 'Crew settings', help: 'doubloon' },
-    es: { login: 'Iniciar sesión con Google', home: 'Tus tripulaciones', bounties: 'Tablón de botines', chest: 'Tu cofre del tesoro', wof: 'Mejores coberturas', members: 'a bordo', post: 'Publicar un botín', settings: 'Ajustes de la tripulación', help: 'doblón' },
-  },
-  // Plain / corporate voice canaries — prove the PLAIN overlay flows.
-  plain: {
-    en: { login: 'Sign in with Google', home: 'Your Teams', bounties: 'Requests', chest: 'Your wallet', wof: 'Top covers', members: 'aboard', post: 'Post a request', settings: 'Team settings', help: 'credit' },
-    es: { login: 'Iniciar sesión con Google', home: 'Tus equipos', bounties: 'Solicitudes', chest: 'Tu cartera', wof: 'Mejores coberturas', members: 'a bordo', post: 'Publicar una solicitud', settings: 'Ajustes del equipo', help: 'crédito' },
-  },
+  pirate: { en: C_EN, es: C_ES },
+  plain: { en: C_EN, es: C_ES },
 };
 
 for (const vlang of ['pirate:en', 'pirate:es', 'plain:en', 'plain:es']) {
