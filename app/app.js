@@ -306,6 +306,8 @@ const state = {
   ledger: [],
   prevLedgerIds: new Set(),
   bounties: [],
+  bountiesLoaded: false,
+  bountiesError: null,
   scrolls: [],
   userDoc: null,
   myRole: null,
@@ -1035,11 +1037,31 @@ function subscribeMyTeams() {
   );
 }
 
+// Map a Firebase/callable error to a friendly, localized message for inline
+// error UI and toasts (instead of surfacing a raw SDK message or a false-empty).
+function friendlyFirebaseError(err) {
+  switch (err?.code || '') {
+    case 'permission-denied':
+      return t("You don't have access to this crew's board.");
+    case 'unavailable':
+    case 'deadline-exceeded':
+      return t('You appear to be offline. Trying to reconnect…');
+    case 'failed-precondition':
+      return t('The board is still warming up. Try again in a moment.');
+    case 'unauthenticated':
+      return t('Your session expired — please sign in again.');
+    default:
+      return t('Something went wrong loading the board. Please retry.');
+  }
+}
+
 function subscribeTeam(teamId) {
   if (!state.user || !teamId) return;
   state.walletDoc = null;
   state.ledger = [];
   state.bounties = [];
+  state.bountiesLoaded = false;
+  state.bountiesError = null;
   state.prevLedgerIds = new Set();
   state.leaderboard = null;
   state.myRole = null;
@@ -1099,9 +1121,15 @@ function subscribeTeam(teamId) {
       state.bounties = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((b) => b.status !== 'cancelled');
+      state.bountiesLoaded = true;
+      state.bountiesError = null;
       render();
     },
-    (err) => console.error('bounties query failed', err),
+    (err) => {
+      console.error('bounties query failed', err);
+      state.bountiesError = friendlyFirebaseError(err);
+      render();
+    },
   );
 
   unsubScrolls = onSnapshot(
@@ -2513,7 +2541,7 @@ function showBountyDetail(bountyId) {
     <div class="bd-section">
       <h4>${esc(t('Requester'))}</h4>
       <div style="display: flex; align-items: center; gap: 8px;">
-        ${b.requesterPhotoURL ? `<img class="avatar-mini" src="${esc(b.requesterPhotoURL)}" alt="" referrerpolicy="no-referrer" style="width: 32px; height: 32px;" />` : ''}
+        ${renderAvatar({ uid: b.requesterUid, photoURL: b.requesterPhotoURL, name: b.requesterDisplayName, size: 32, klass: 'avatar-mini' })}
         <span class="bd-value">${esc(b.requesterDisplayName || t('A crewmate'))}${mine ? ` (${t('you')})` : ''}</span>
       </div>
     </div>
@@ -2559,7 +2587,7 @@ function showBountyDetail(bountyId) {
             <h4>${esc(t('Crew coverers'))} (${coverers.length})</h4>
             <ul class="coverer-list">
               ${coverers.map((c) => `<li>
-                  ${c.photoURL ? `<img class="avatar-mini" src="${esc(c.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 28px; height: 28px;" />` : ''}
+                  ${renderAvatar({ uid: c.uid, photoURL: c.photoURL, name: c.displayName, size: 28, klass: 'avatar-mini' })}
                   <span>${esc(shortName(c.displayName || t('A crewmate')))}${c.uid === state.user?.uid ? ` (${t('you')})` : ''}</span>
                   <small>${esc(unitFor(countFor(c.uid)))}</small>
                 </li>`).join('')}
@@ -2575,7 +2603,7 @@ function showBountyDetail(bountyId) {
           <div class="bd-section">
             <h4>${esc(t('Covered by'))}</h4>
             <div style="display: flex; align-items: center; gap: 8px;">
-              ${b.covererPhotoURL ? `<img class="avatar-mini" src="${esc(b.covererPhotoURL)}" alt="" referrerpolicy="no-referrer" style="width: 32px; height: 32px;" />` : ''}
+              ${b.covererUid ? renderAvatar({ uid: b.covererUid, photoURL: b.covererPhotoURL, name: b.covererDisplayName, size: 32, klass: 'avatar-mini' }) : ''}
               <span class="bd-value">${esc(b.covererDisplayName || t('A crewmate'))}${b.covererUid === state.user?.uid ? ` (${t('you')})` : ''}</span>
             </div>
           </div>
@@ -2743,7 +2771,7 @@ function renderUserInfo() {
     <button class="topbar-search" data-action="topbar-search" aria-label="${esc(t('Search the board'))}">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <span>${esc(t('Search the board'))}</span>
-      <span class="kbd" aria-hidden="true">⌘K</span>
+      <span class="kbd" aria-hidden="true">${/Mac|iPhone|iPad|iPod/.test(navigator.platform || '') ? '⌘K' : 'Ctrl K'}</span>
     </button>` : ''}
     <button class="bell" data-action="bell" title="${esc(t('Notifications'))}" aria-label="${esc(unread > 0 ? t('Notifications, {n} unread', { n: unread }) : t('Notifications'))}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
@@ -3115,7 +3143,18 @@ function renderBountyBoardTab() {
         ${state.bountyFilterText ? `<button class="btn-ghost" data-action="clear-search">${esc(t('Clear'))}</button>` : ''}
         <button class="btn-ghost density-toggle" data-action="toggle-density" title="${esc(state.density === 'compact' ? t('Switch to comfortable rows') : t('Switch to compact rows'))}" aria-pressed="${state.density === 'compact' ? 'true' : 'false'}" aria-label="${esc(state.density === 'compact' ? t('Switch to comfortable rows') : t('Switch to compact rows'))}">${esc(state.density === 'compact' ? t('Comfortable') : t('Compact'))}</button>
       </div>
-      ${list.length === 0 ? `
+      ${state.bountiesError ? `
+        <div class="empty-card board-error" role="alert">
+          <div class="empty-mascot" style="color:#C46A43;"><svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 9 6 40h36z"/><path d="M24 20v9M24 34h.02"/></svg></div>
+          <p><strong>${esc(t("Couldn't load the board"))}</strong></p>
+          <p class="muted">${esc(state.bountiesError)}</p>
+          <div style="margin-top: 16px;"><button class="btn" data-action="retry-bounties">${esc(t('Retry'))}</button></div>
+        </div>
+      ` : (!state.bountiesLoaded && state.bounties.length === 0) ? `
+        <div class="loading" role="status" aria-live="polite">
+          <span class="loading-doubloon" aria-hidden="true">${SVG.doubloon}</span>${esc(t('Loading the board…'))}
+        </div>
+      ` : list.length === 0 ? `
         <div class="empty-card">
           <div class="empty-mascot">${SVG.turtle}</div>
           <p><strong>${esc(filter === 'all' ? t('The bounty board is empty.') : t('Nothing matches this filter.'))}</strong></p>
@@ -3211,7 +3250,7 @@ function renderBountyCard(b) {
   return `
     <li class="bounty bounty-${status}" data-bounty-id="${esc(b.id)}" role="button" tabindex="0" aria-label="${esc(t('Bounty from {name}, {status}, {n} doubloons', { name: b.requesterDisplayName ?? t('A crewmate'), status: statusLabel, n: b.totalCoinsOffered ?? 0 }))}" style="cursor: pointer;">
       <div class="b-row1">
-        ${reqPhoto ? `<img class="avatar-mini" src="${esc(reqPhoto)}" alt="" referrerpolicy="no-referrer" />` : `<span class="avatar-mini avatar-mini-blank"></span>`}
+        ${renderAvatar({ uid: b.requesterUid, photoURL: reqPhoto, name: reqName, size: 20, klass: 'avatar-mini' })}
         <strong class="b-name" title="${esc(b.requesterDisplayName ?? '')}">${esc(shortName(reqName))}</strong>
         <span class="status-badge status-${status}">${esc(statusLabel)}</span>
         ${isCrew ? `<span class="mode-pill" title="${esc(t('{a}/{b} claimed', { a: prog.claimed, b: prog.total }))}">${esc(t('Crew'))} ${prog.claimed}/${prog.total}</span>` : ''}
@@ -3771,9 +3810,7 @@ function renderWofTab() {
         ${rest.map((entry, i) => `
           <li class="wof-row ${entry.displayName === meName ? 'you' : ''}">
             <span class="wof-rank-num">#${i + 4}</span>
-            ${entry.photoURL
-              ? `<img class="avatar-mini" src="${esc(entry.photoURL)}" alt="" referrerpolicy="no-referrer" />`
-              : `<span class="avatar-mini" style="background: var(--parchment-dim); display: inline-block;"></span>`}
+            ${renderAvatar({ uid: entry.uid, photoURL: entry.photoURL, name: entry.displayName, size: 28, klass: 'avatar-mini' })}
             <div class="wof-name">${esc(shortName(entry.displayName))}${entry.displayName === meName ? ` (${t('you')})` : ''}<br><small>${esc(t('{n} voyages', { n: entry.voyages }))}</small></div>
             <span class="wof-score">${SVG.doubloon}${entry.earnedInWindow}</span>
             ${entry.uid !== state.user?.uid
@@ -3991,10 +4028,10 @@ function renderTavern() {
             return `
               <li class="scroll">
                 <div class="scroll-head">
-                  ${s.fromPhotoURL ? `<img class="avatar-mini" src="${esc(s.fromPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
+                  ${renderAvatar({ uid: s.fromUid, photoURL: s.fromPhotoURL, name: s.fromDisplayName, size: 20, klass: 'avatar-mini' })}
                   <strong>${esc(shortName(s.fromDisplayName))}</strong>
                   <span class="arrow">→</span>
-                  ${s.toPhotoURL ? `<img class="avatar-mini" src="${esc(s.toPhotoURL)}" alt="" referrerpolicy="no-referrer" />` : ''}
+                  ${renderAvatar({ uid: s.toUid, photoURL: s.toPhotoURL, name: s.toDisplayName, size: 20, klass: 'avatar-mini' })}
                   <strong>${esc(shortName(s.toDisplayName))}</strong>
                   <small>${esc(timeAgo(s.createdAt?.toDate?.() ?? new Date()))}</small>
                 </div>
@@ -4151,6 +4188,9 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'add-meetings') {
     e.preventDefault();
     addAllBountyMeetings(t.dataset.bountyId);
+  } else if (action === 'retry-bounties') {
+    e.preventDefault();
+    if (state.teamId) subscribeTeam(state.teamId);
   } else if (action === 'clear-search') {
     e.preventDefault();
     state.bountyFilterText = '';
