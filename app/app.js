@@ -776,6 +776,16 @@ function persistAchievements(unlocked) {
   }
 }
 
+// Clean line icons for the activity bell (stroke = currentColor).
+const NOTIF_ICONS = {
+  coin: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.6a2.6 2 0 0 0-5 .2c0 2.6 5 1.1 5 3.8a2.6 2 0 0 1-5 .2M12 7v10"/></svg>',
+  grant: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="17" height="11.5" rx="1.5"/><path d="M3.5 13h17M12 9v11.5M12 9S10.3 4.5 8 5.2 9.4 9 12 9m0 0s1.7-4.5 4-3.8S14.6 9 12 9"/></svg>',
+  stipend: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3.5V8h-4.5M21 12a9 9 0 0 1-15 6.7L3 16M3 20.5V16h4.5"/></svg>',
+  fee: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/></svg>',
+  bounty: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M8.5 13h7M8.5 16.5h4"/></svg>',
+  taken: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.5 2.5 4.9-5.4"/></svg>',
+};
+
 function computeNotifications() {
   // Derive from ledger + bounties. Each notif has { kind, icon, text, meta, time }
   const notifs = [];
@@ -783,13 +793,13 @@ function computeNotifications() {
     const when = entry.createdAt?.toDate?.();
     if (!when) continue;
     if (entry.type === 'coverageRelease') {
-      notifs.push({ kind: 'coin', icon: '🪙', text: t('Earned {n} doubloons by covering.', { n: entry.amountSigned }), time: when });
+      notifs.push({ kind: 'coin', icon: NOTIF_ICONS.coin, text: t('Earned {n} doubloons by covering.', { n: entry.amountSigned }), time: when });
     } else if (entry.type === 'grant') {
-      notifs.push({ kind: 'grant', icon: '🎁', text: t('Welcome chest opened (+{n} doubloons).', { n: entry.amountSigned }), time: when });
+      notifs.push({ kind: 'grant', icon: NOTIF_ICONS.grant, text: t('Welcome chest opened (+{n} doubloons).', { n: entry.amountSigned }), time: when });
     } else if (entry.type === 'stipendMint') {
-      notifs.push({ kind: 'stipend', icon: '👑', text: t("Crown's stipend: +{n} doubloons (expires monthly).", { n: entry.amountSigned }), time: when });
+      notifs.push({ kind: 'stipend', icon: NOTIF_ICONS.stipend, text: t("Crown's stipend: +{n} doubloons (expires monthly).", { n: entry.amountSigned }), time: when });
     } else if (entry.type === 'feeBurn') {
-      notifs.push({ kind: 'fee', icon: '🔥', text: t('Harbour fee: {n} doubloons.', { n: entry.amountSigned }), time: when });
+      notifs.push({ kind: 'fee', icon: NOTIF_ICONS.fee, text: t('Harbour fee: {n} doubloons.', { n: entry.amountSigned }), time: when });
     }
   }
   // Recent open bounties from other crewmates
@@ -798,7 +808,7 @@ function computeNotifications() {
     if (!when) continue;
     notifs.push({
       kind: 'bounty',
-      icon: '📜',
+      icon: NOTIF_ICONS.bounty,
       text: t('{name} posted a {n}-doubloon bounty.', { name: shortName(b.requesterDisplayName || t('A crewmate')), n: b.totalCoinsOffered }),
       meta: t('Open'),
       time: when,
@@ -810,7 +820,7 @@ function computeNotifications() {
     if (!when) continue;
     notifs.push({
       kind: 'taken',
-      icon: '⚓',
+      icon: NOTIF_ICONS.taken,
       text: t('{name} took your {n}-doubloon bounty.', { name: shortName(b.covererDisplayName || t('A crewmate')), n: b.totalCoinsOffered }),
       time: when,
     });
@@ -861,35 +871,16 @@ const SVG = {
     <circle cx="80" cy="80" r="30" fill="none" stroke="var(--brass-deep)" stroke-width="9"/>
     <rect x="74.5" y="33" width="11" height="33" rx="5.5" fill="var(--brass-deep)"/>
   </svg>`,
-  flag: `<svg viewBox="0 0 32 32" aria-hidden="true">
-    <rect x="6" y="3" width="2" height="26" fill="#5A3A1F"/>
-    <rect x="8" y="5" width="18" height="12" fill="#C8362D"/>
-    <rect x="8" y="5" width="18" height="2" fill="#E25347"/>
-    <rect x="11" y="9" width="4" height="4" fill="#F7E7C2"/>
-    <rect x="11" y="13" width="2" height="2" fill="#1A0E08"/>
-    <rect x="14" y="13" width="2" height="2" fill="#1A0E08"/>
-    <rect x="12" y="11" width="3" height="1" fill="#1A0E08"/>
-    <rect x="17" y="11" width="6" height="2" fill="#1A0E08"/>
+  // Clean line pennant (used in the rank-up cinematic). Inherits currentColor.
+  flag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5 22V3"/>
+    <path d="M5 4h11l-2.2 3.4L16 11H5z"/>
   </svg>`,
-  turtle: `<svg viewBox="0 0 32 32" aria-hidden="true">
-    <rect x="8" y="11" width="16" height="9" fill="#5A3A1F"/>
-    <rect x="7" y="12" width="18" height="7" fill="#8C6418"/>
-    <rect x="8" y="13" width="16" height="5" fill="#A57B36"/>
-    <rect x="10" y="14" width="2" height="2" fill="#5A3A1F"/>
-    <rect x="14" y="14" width="2" height="2" fill="#5A3A1F"/>
-    <rect x="18" y="14" width="2" height="2" fill="#5A3A1F"/>
-    <rect x="20" y="14" width="2" height="2" fill="#5A3A1F"/>
-    <rect x="4" y="14" width="4" height="4" fill="#2A6A1E"/>
-    <rect x="3" y="15" width="1" height="2" fill="#2A6A1E"/>
-    <rect x="5" y="15" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="6" y="15" width="1" height="1" fill="#1A0E08"/>
-    <rect x="4" y="12" width="6" height="2" fill="#1A0E08"/>
-    <rect x="3" y="13" width="8" height="1" fill="#1A0E08"/>
-    <rect x="6" y="11" width="2" height="1" fill="#1A0E08"/>
-    <rect x="5" y="13" width="1" height="1" fill="#E0A93B"/>
-    <rect x="9" y="20" width="2" height="3" fill="#2A6A1E"/>
-    <rect x="21" y="20" width="2" height="3" fill="#2A6A1E"/>
-    <rect x="24" y="14" width="2" height="2" fill="#2A6A1E"/>
+  // Calm empty-state mark: a steaming cup — "nothing pending, take a breath".
+  turtle: `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M34 18h3a5 5 0 0 1 0 10h-3"/>
+    <path d="M8 18h26v12a8 8 0 0 1-8 8H16a8 8 0 0 1-8-8z"/>
+    <path d="M16 6c-1.2 1.5-1.2 3 0 4.5M23 5c-1.4 1.7-1.4 3.3 0 5M30 6c-1.2 1.5-1.2 3 0 4.5"/>
   </svg>`,
 };
 
@@ -1517,7 +1508,7 @@ async function addCoverageMarker(bountyId, requesterName, windowStartMs, windowE
   const endDateInclusive = new Date(windowEndMs).toISOString().slice(0, 10);
   const endDate = new Date(new Date(endDateInclusive).getTime() + 86400000).toISOString().slice(0, 10);
   const body = {
-    summary: `🏴‍☠️ Covering for ${requesterName}`,
+    summary: `Covering for ${requesterName}`,
     description: `You're covering ${requesterName}'s shore leave through Time Off.\n\nBounty: ${location.origin}/#/team/${encodeURIComponent(state.teamId || '')}`,
     start: { date: startDate },
     end: { date: endDate },
@@ -2138,12 +2129,12 @@ function showMemberAdminModal(member) {
       <p style="margin: 0 0 12px;">${t('Pick an admin action for <strong>{name}</strong>.', { name: esc(member.displayName || t('this crewmate')) })}</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         ${isMe ? `<p class="muted" style="font-size: var(--fs-meta);">${esc(t("Some actions disabled — that's you."))}</p>` : ''}
-        <button class="btn btn-secondary" data-action="adm-bonus" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">💰 ${esc(t('Grant bonus doubloons'))}</button>
+        <button class="btn btn-secondary" data-action="adm-bonus" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">${esc(t('Grant bonus doubloons'))}</button>
         ${targetRole === 'member'
-          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">⬆ ${esc(t('Promote to manager'))}</button>`
-          : `<button class="btn btn-secondary" data-action="adm-demote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${isOwner ? `disabled title="${esc(t('Owner cannot be demoted'))}"` : ''}>⬇ ${esc(t('Demote to member'))}</button>`
+          ? `<button class="btn btn-secondary" data-action="adm-promote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}">${esc(t('Promote to manager'))}</button>`
+          : `<button class="btn btn-secondary" data-action="adm-demote" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${isOwner ? `disabled title="${esc(t('Owner cannot be demoted'))}"` : ''}>${esc(t('Demote to member'))}</button>`
         }
-        <button class="btn btn-danger" data-action="adm-remove" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${(isOwner || isMe) ? `disabled title="${esc(t('Cannot remove owner / yourself'))}"` : ''}>🗑 ${esc(t('Remove from crew'))}</button>
+        <button class="btn btn-danger" data-action="adm-remove" data-uid="${esc(member.uid)}" data-name="${esc(member.displayName || '')}" ${(isOwner || isMe) ? `disabled title="${esc(t('Cannot remove owner / yourself'))}"` : ''}>${esc(t('Remove from crew'))}</button>
       </div>
     `,
     primaryLabel: t('Close'),
@@ -2337,7 +2328,7 @@ function showToast(message, kind = 'info', ttl = 3500) {
     toastEl.setAttribute('aria-live', 'polite');
     toastEl.setAttribute('aria-atomic', 'true');
   }
-  const icon = kind === 'success' ? '✓' : kind === 'error' ? '!' : '⚓';
+  const icon = kind === 'success' ? '✓' : kind === 'error' ? '!' : 'i';
   const srPrefix = kind === 'success' ? 'Success: ' : kind === 'error' ? 'Error: ' : '';
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
@@ -2513,7 +2504,7 @@ function showBountyDetail(bountyId) {
   const body = `
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
       <span class="status-badge status-${status}">${esc(t(STATUS_LABEL[status] || status))}</span>
-      <span style="font-family: 'Silkscreen', monospace; font-size: 22px; color: var(--brass-deep); display: inline-flex; align-items: center; gap: 4px;">
+      <span style="font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif; font-size: 22px; color: var(--brass-deep); display: inline-flex; align-items: center; gap: 4px;">
         ${SVG.doubloon}${b.totalCoinsOffered ?? 0}
         <span style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">${esc(t('doubloons'))}</span>
       </span>
@@ -2630,16 +2621,16 @@ function showBountyDetail(bountyId) {
 
     ${b.aiBriefing ? `
       <div class="bd-section ai-briefing">
-        <h4>✨ ${esc(t('AI briefing'))}</h4>
+        <h4>${esc(t('AI briefing'))}</h4>
         <div class="ai-content markdown">${renderMarkdown(b.aiBriefing.content || '')}</div>
         <small class="muted" style="display: block; margin-top: 8px;">${esc(t('Generated by Gemini'))} · ${esc(timeAgo(new Date(b.aiBriefing.generatedAtMs || 0)))}</small>
       </div>` : ''}
     ${mine && (b.status === 'open' || b.status === 'accepted' || b.status === 'active') ? `
       <div style="margin-top: var(--sp-3); display: flex; gap: 8px; flex-wrap: wrap;">
         <button class="btn btn-secondary" data-action="gen-briefing" data-bounty-id="${esc(b.id)}" ${state.briefingLoading ? 'disabled' : ''}>
-          ${esc(state.briefingLoading ? t('Generating…') : (b.aiBriefing ? '✨ ' + t('Regenerate briefing') : '✨ ' + t('Generate AI briefing')))}
+          ${esc(state.briefingLoading ? t('Generating…') : (b.aiBriefing ? t('Regenerate briefing') : t('Generate AI briefing')))}
         </button>
-        ${b.status === 'open' ? `<button class="btn btn-secondary" data-action="edit-bounty" data-bounty-id="${esc(b.id)}">✏ ${esc(t('Edit details'))}</button>` : ''}
+        ${b.status === 'open' ? `<button class="btn btn-secondary" data-action="edit-bounty" data-bounty-id="${esc(b.id)}">${esc(t('Edit details'))}</button>` : ''}
       </div>
     ` : ''}
 
@@ -2653,11 +2644,11 @@ function showBountyDetail(bountyId) {
                 <strong>${esc(m.summary)}</strong>
                 <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${esc(t('{n} attendees', { n: m.attendees.length }))}` : ''}</small>
                 <span class="meeting-links">
-                  ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">📹 Meet</a>` : ''}
-                  ${arr(m.conferenceLinks).map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">🔗 ${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('')}
-                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 ${esc(t('In Calendar'))}</a>` : ''}
+                  ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">Meet</a>` : ''}
+                  ${arr(m.conferenceLinks).map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('')}
+                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">${esc(t('In Calendar'))}</a>` : ''}
                 </span>
-                ${m.location ? `<small class="meeting-loc">📍 ${esc(m.location)}</small>` : ''}
+                ${m.location ? `<small class="meeting-loc">${esc(m.location)}</small>` : ''}
               </div>
             </li>
           `).join('')}
@@ -2670,8 +2661,8 @@ function showBountyDetail(bountyId) {
           const label = allDone
             ? t('All added to your calendar')
             : !markerAdded && remaining === 0
-              ? '📅 ' + t('Add coverage marker to my calendar')
-              : '📅 ' + (remaining > 0 ? t('Add coverage marker + {n} meetings to my calendar', { n: remaining }) : t('Add coverage marker to my calendar'));
+              ? t('Add coverage marker to my calendar')
+              : (remaining > 0 ? t('Add coverage marker + {n} meetings to my calendar', { n: remaining }) : t('Add coverage marker to my calendar'));
           return `<div style="margin-top: 12px;">
             <button class="btn btn-secondary" data-action="add-meetings" data-bounty-id="${esc(b.id)}" ${allDone ? 'disabled' : ''}>${esc(label)}</button>
           </div>`;
@@ -2706,7 +2697,7 @@ function showBountyDetail(bountyId) {
       title: t('Bounty detail'),
       body,
       wide: true,
-      primaryLabel: '🪶 ' + t('Send Thank-You Scroll'),
+      primaryLabel: t('Send Thank-You Scroll'),
       secondaryLabel: t('Close'),
       onPrimary: () => showSendScrollModal(b.covererUid, b.covererDisplayName, b.id),
     });
@@ -2720,14 +2711,14 @@ function showBountyDetail(bountyId) {
     // Append force-complete button into body for managers
     let bodyWithAdmin = body;
     if (canForceComplete) {
-      bodyWithAdmin += `<div style="margin-top: 12px;"><button class="btn btn-danger" data-action="force-complete" data-bounty-id="${esc(bountyId)}">🏁 ${esc(t('Force complete'))}</button></div>`;
+      bodyWithAdmin += `<div style="margin-top: 12px;"><button class="btn btn-danger" data-action="force-complete" data-bounty-id="${esc(bountyId)}">${esc(t('Force complete'))}</button></div>`;
     }
     showModal({
       title: t('Bounty detail'),
       body: bodyWithAdmin,
       wide: true,
       primaryLabel: t('Close'),
-      secondaryLabel: canCancel ? '🗑 ' + t('Cancel bounty') : undefined,
+      secondaryLabel: canCancel ? t('Cancel bounty') : undefined,
       onSecondary: canCancel ? () => { confirmCancelBounty(bountyId); return false; } : undefined,
     });
   }
@@ -2823,21 +2814,21 @@ function renderHelp() {
     </header>
     <div class="panel">
       <div class="panel-title">${esc(t('The doubloon economy'))}</div>
-      <h3 style="margin-top: 12px;">🪙 ${esc(t("Your purse, your starter chest, the Crown's stipend"))}</h3>
+      <h3 style="margin-top: 12px;">${esc(t("Your purse, your starter chest, the Crown's stipend"))}</h3>
       <p>${t('Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend doubloons expire at the end of each month, so spend them or lose them. Earned doubloons (the ones you got by covering crewmates) never expire.')}</p>
-      <h3>📅 ${esc(t('What a day of coverage costs'))}</h3>
+      <h3>${esc(t('What a day of coverage costs'))}</h3>
       <p>${t("One day costs <strong>5 doubloons</strong> (Mon–Fri). Weekend days cost <strong>10</strong>. Holidays don't have special rates yet — they cost what their weekday says.")}</p>
-      <h3>🏴‍☠️ ${esc(t('Posting a bounty'))}</h3>
+      <h3>${esc(t('Posting a bounty'))}</h3>
       <p>${t("Pick a date range, pick which days you actually want covered (toggle weekends off if you're not asking for them), set how reachable you'll be, what kinds of work need covering, and an SLA. Costs come straight from your wallet (stipend first, then earned). Single coverer mode is the default — one crewmate takes everything. Crew mode lets multiple crewmates split days; the bounty stays open until every day is claimed.")}</p>
-      <h3>⚓ ${esc(t('Covering a bounty'))}</h3>
+      <h3>${esc(t('Covering a bounty'))}</h3>
       <p>${t('Browse the Bounty Board. Click any open bounty to see the full briefing. In crew mode you pick which days you can cover; in single mode you take the whole window. Doubloons release to you one day at a time as the days pass, paid out by a daily cron.')}</p>
-      <h3>🏆 ${esc(t('Voyage Rank + Wall of Fame'))}</h3>
+      <h3>${esc(t('Voyage Rank + Wall of Fame'))}</h3>
       <p>${t("Your rank (Cabin Boy → Commodore) is based on lifetime doubloons earned by covering. The Wall of Fame ranks crewmates by what they earned in the last 90 days, so old salts can't sit on their laurels.")}</p>
-      <h3>🪶 ${esc(t('Thank-You Scrolls'))}</h3>
+      <h3>${esc(t('Thank-You Scrolls'))}</h3>
       <p>${t("Recognition that isn't tied to doubloons. Send a scroll to a crewmate who covered you well, or tip your hat to anyone on the Wall of Fame.")}</p>
-      <h3>📅 Google Calendar</h3>
+      <h3>Google Calendar</h3>
       <p>${t('Optional. Connect Calendar in the post form to pick which meetings the coverer should attend. When you accept a bounty you can add a coverage marker + the meetings to your own Calendar with one click.')}</p>
-      <h3>🤖 ${esc(t('Gemini briefing (manager-configured)'))}</h3>
+      <h3>${esc(t('Gemini briefing (manager-configured)'))}</h3>
       <p>${t('If your crew has a Gemini API key in Settings, the requester can hit "✨ Generate briefing" on their bounty and Gemini will draft a structured briefing (orientation, accounts, what to do, emergency protocol, open questions). The coverer reads it inside the bounty detail.')}</p>
     </div>
   `;
@@ -2873,229 +2864,8 @@ function renderLogin() {
 }
 
 function renderHarborBg() {
-  return `<svg class="login-bg" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#1A0E40"/>
-        <stop offset="30%" stop-color="#5B3A8C"/>
-        <stop offset="55%" stop-color="#C8362D"/>
-        <stop offset="75%" stop-color="#E0A93B"/>
-        <stop offset="100%" stop-color="#FFCB47"/>
-      </linearGradient>
-      <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#5BC9D1"/>
-        <stop offset="50%" stop-color="#1E5A6B"/>
-        <stop offset="100%" stop-color="#0F2A38"/>
-      </linearGradient>
-      <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#F7E7C2"/>
-        <stop offset="60%" stop-color="#E0A93B"/>
-        <stop offset="100%" stop-color="#8C6418"/>
-      </linearGradient>
-    </defs>
-
-    <!-- Sky -->
-    <rect width="320" height="125" fill="url(#sky)"/>
-    <!-- Stars (top of sky) -->
-    <rect x="20" y="10" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="48" y="22" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="80" y="8" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="140" y="18" width="1" height="1" fill="#F7E7C2" opacity="0.8"/>
-    <rect x="260" y="6" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="298" y="24" width="1" height="1" fill="#F7E7C2" opacity="0.7"/>
-    <rect x="225" y="14" width="1" height="1" fill="#F7E7C2" opacity="0.6"/>
-
-    <!-- Sun setting -->
-    <circle cx="160" cy="90" r="22" fill="#FFD86B"/>
-    <circle cx="160" cy="90" r="18" fill="#FFCB47"/>
-    <circle cx="160" cy="90" r="10" fill="#FFE7A0"/>
-    <!-- Sun beams reflecting on water -->
-    <rect x="158" y="115" width="4" height="40" fill="#FFCB47" opacity="0.35"/>
-    <rect x="155" y="118" width="10" height="2" fill="#FFCB47" opacity="0.25"/>
-    <rect x="152" y="125" width="16" height="2" fill="#FFCB47" opacity="0.2"/>
-    <rect x="149" y="135" width="22" height="2" fill="#FFCB47" opacity="0.15"/>
-
-    <!-- Distant pirate ship -->
-    <rect x="240" y="108" width="28" height="6" fill="#1A0E08"/>
-    <rect x="244" y="106" width="20" height="2" fill="#3D2418"/>
-    <rect x="252" y="92" width="1" height="14" fill="#1A0E08"/>
-    <rect x="247" y="94" width="11" height="10" fill="#E8D7A8" opacity="0.9"/>
-    <rect x="248" y="98" width="9" height="4" fill="#C8362D" opacity="0.7"/>
-    <rect x="252" y="90" width="1" height="3" fill="#1A0E08"/>
-    <rect x="249" y="89" width="6" height="2" fill="#C8362D"/>
-
-    <!-- Ocean -->
-    <rect x="0" y="125" width="320" height="35" fill="url(#ocean)"/>
-    <!-- Ocean waves -->
-    <rect x="0" y="125" width="320" height="1" fill="#A6C2E8" opacity="0.6"/>
-    <rect x="10" y="130" width="8" height="1" fill="#A6C2E8" opacity="0.6"/>
-    <rect x="40" y="134" width="14" height="1" fill="#A6C2E8" opacity="0.5"/>
-    <rect x="90" y="132" width="10" height="1" fill="#A6C2E8" opacity="0.55"/>
-    <rect x="115" y="138" width="20" height="1" fill="#A6C2E8" opacity="0.45"/>
-    <rect x="200" y="135" width="18" height="1" fill="#A6C2E8" opacity="0.4"/>
-    <rect x="240" y="140" width="22" height="1" fill="#A6C2E8" opacity="0.4"/>
-    <rect x="280" y="143" width="14" height="1" fill="#A6C2E8" opacity="0.35"/>
-    <rect x="20" y="146" width="30" height="1" fill="#A6C2E8" opacity="0.3"/>
-
-    <!-- Beach -->
-    <rect x="0" y="160" width="320" height="40" fill="url(#sand)"/>
-    <!-- Sand sparkles -->
-    <rect x="30" y="170" width="1" height="1" fill="#FFFFFF" opacity="0.6"/>
-    <rect x="80" y="175" width="1" height="1" fill="#FFFFFF" opacity="0.5"/>
-    <rect x="160" y="172" width="1" height="1" fill="#FFFFFF" opacity="0.6"/>
-    <rect x="220" y="178" width="1" height="1" fill="#FFFFFF" opacity="0.5"/>
-    <rect x="280" y="174" width="1" height="1" fill="#FFFFFF" opacity="0.6"/>
-
-    <!-- Left palm tree (big) -->
-    <rect x="22" y="78" width="3" height="82" fill="#3D2418"/>
-    <rect x="20" y="85" width="1" height="20" fill="#5A3A1F"/>
-    <rect x="26" y="90" width="1" height="30" fill="#5A3A1F"/>
-    <!-- Palm fronds -->
-    <rect x="6" y="74" width="18" height="2" fill="#3A6B2C"/>
-    <rect x="4" y="76" width="20" height="2" fill="#4A8A38"/>
-    <rect x="2" y="78" width="20" height="2" fill="#3A6B2C"/>
-    <rect x="25" y="74" width="18" height="2" fill="#3A6B2C"/>
-    <rect x="25" y="76" width="22" height="2" fill="#4A8A38"/>
-    <rect x="25" y="78" width="24" height="2" fill="#3A6B2C"/>
-    <rect x="12" y="68" width="2" height="8" fill="#3A6B2C"/>
-    <rect x="14" y="66" width="2" height="8" fill="#4A8A38"/>
-    <rect x="32" y="68" width="2" height="8" fill="#3A6B2C"/>
-    <rect x="34" y="66" width="2" height="8" fill="#4A8A38"/>
-    <!-- Coconuts -->
-    <rect x="20" y="80" width="3" height="3" fill="#3D2418"/>
-    <rect x="26" y="82" width="3" height="3" fill="#3D2418"/>
-
-    <!-- Right palm tree (big) -->
-    <rect x="290" y="72" width="3" height="88" fill="#3D2418"/>
-    <rect x="288" y="80" width="1" height="22" fill="#5A3A1F"/>
-    <rect x="294" y="84" width="1" height="28" fill="#5A3A1F"/>
-    <rect x="272" y="68" width="20" height="2" fill="#3A6B2C"/>
-    <rect x="270" y="70" width="22" height="2" fill="#4A8A38"/>
-    <rect x="268" y="72" width="22" height="2" fill="#3A6B2C"/>
-    <rect x="293" y="68" width="20" height="2" fill="#3A6B2C"/>
-    <rect x="293" y="70" width="22" height="2" fill="#4A8A38"/>
-    <rect x="293" y="72" width="24" height="2" fill="#3A6B2C"/>
-    <rect x="280" y="62" width="2" height="8" fill="#3A6B2C"/>
-    <rect x="282" y="60" width="2" height="8" fill="#4A8A38"/>
-    <rect x="300" y="62" width="2" height="8" fill="#3A6B2C"/>
-    <rect x="302" y="60" width="2" height="8" fill="#4A8A38"/>
-    <rect x="288" y="74" width="3" height="3" fill="#3D2418"/>
-    <rect x="294" y="76" width="3" height="3" fill="#3D2418"/>
-
-    <!-- Parrot on right palm -->
-    <rect x="304" y="78" width="5" height="3" fill="#C8362D"/>
-    <rect x="303" y="79" width="1" height="2" fill="#C8362D"/>
-    <rect x="305" y="76" width="3" height="2" fill="#3A6B2C"/>
-    <rect x="306" y="75" width="2" height="1" fill="#FFCB47"/>
-    <rect x="308" y="78" width="1" height="1" fill="#1A0E08"/>
-    <rect x="304" y="81" width="2" height="2" fill="#5B3A8C"/>
-
-    <!-- Beach umbrella (between palms, mid-left) -->
-    <rect x="78" y="148" width="1" height="20" fill="#1A0E08"/>
-    <rect x="68" y="140" width="22" height="2" fill="#C8362D"/>
-    <rect x="64" y="142" width="30" height="2" fill="#FFCB47"/>
-    <rect x="60" y="144" width="38" height="2" fill="#C8362D"/>
-    <rect x="58" y="146" width="42" height="2" fill="#FFCB47"/>
-    <rect x="56" y="148" width="46" height="2" fill="#C8362D"/>
-    <rect x="76" y="138" width="3" height="2" fill="#FFCB47"/>
-
-    <!-- Beach chair under umbrella with pirate + laptop -->
-    <!-- Chair frame -->
-    <rect x="62" y="156" width="34" height="2" fill="#3D2418"/>
-    <rect x="62" y="158" width="2" height="6" fill="#3D2418"/>
-    <rect x="94" y="158" width="2" height="6" fill="#3D2418"/>
-    <rect x="92" y="148" width="2" height="10" fill="#3D2418"/>
-    <rect x="64" y="150" width="30" height="6" fill="#5BC9D1"/>
-    <rect x="64" y="150" width="30" height="1" fill="#A6E5E8"/>
-
-    <!-- Pirate body on chair -->
-    <rect x="70" y="146" width="14" height="10" fill="#1A0E08"/>
-    <rect x="72" y="148" width="10" height="2" fill="#FFCB47"/>
-    <rect x="72" y="151" width="10" height="5" fill="#1A0E08"/>
-    <!-- Pirate head -->
-    <rect x="72" y="138" width="10" height="8" fill="#E0A93B"/>
-    <rect x="73" y="140" width="2" height="1" fill="#1A0E08"/>
-    <rect x="79" y="140" width="2" height="1" fill="#1A0E08"/>
-    <!-- Eyepatch -->
-    <rect x="78" y="139" width="4" height="3" fill="#1A0E08"/>
-    <rect x="76" y="140" width="2" height="1" fill="#1A0E08"/>
-    <!-- Mouth/beard -->
-    <rect x="74" y="143" width="6" height="1" fill="#1A0E08"/>
-    <rect x="74" y="144" width="2" height="2" fill="#F7E7C2"/>
-    <rect x="78" y="144" width="2" height="2" fill="#F7E7C2"/>
-    <!-- Pirate hat (tricorn) -->
-    <rect x="68" y="134" width="18" height="3" fill="#1A0E08"/>
-    <rect x="70" y="131" width="14" height="3" fill="#1A0E08"/>
-    <rect x="74" y="129" width="6" height="2" fill="#1A0E08"/>
-    <rect x="76" y="132" width="2" height="2" fill="#F7E7C2"/>
-    <rect x="78" y="132" width="2" height="2" fill="#1A0E08"/>
-    <rect x="76" y="133" width="2" height="1" fill="#F7E7C2"/>
-    <rect x="80" y="132" width="1" height="1" fill="#F7E7C2"/>
-
-    <!-- Pirate's laptop -->
-    <rect x="68" y="153" width="12" height="1" fill="#3D2418"/>
-    <rect x="68" y="146" width="12" height="7" fill="#1A0E08"/>
-    <rect x="69" y="147" width="10" height="5" fill="#5BC9D1"/>
-    <rect x="71" y="148" width="2" height="1" fill="#FFCB47"/>
-    <rect x="74" y="148" width="4" height="1" fill="#F7E7C2"/>
-    <rect x="71" y="150" width="6" height="1" fill="#F7E7C2"/>
-
-    <!-- Second pirate further right with laptop -->
-    <!-- Towel -->
-    <rect x="180" y="170" width="40" height="4" fill="#C8362D"/>
-    <rect x="180" y="171" width="40" height="1" fill="#E25347"/>
-    <rect x="184" y="170" width="2" height="4" fill="#FFCB47"/>
-    <rect x="200" y="170" width="2" height="4" fill="#FFCB47"/>
-    <rect x="216" y="170" width="2" height="4" fill="#FFCB47"/>
-    <!-- Pirate 2 sitting body -->
-    <rect x="192" y="160" width="14" height="10" fill="#3D2418"/>
-    <rect x="194" y="162" width="10" height="2" fill="#F7E7C2"/>
-    <!-- Pirate 2 head -->
-    <rect x="194" y="152" width="10" height="8" fill="#C4A86B"/>
-    <rect x="195" y="154" width="2" height="1" fill="#1A0E08"/>
-    <rect x="201" y="154" width="2" height="1" fill="#1A0E08"/>
-    <rect x="196" y="157" width="6" height="1" fill="#1A0E08"/>
-    <!-- Bandana -->
-    <rect x="192" y="148" width="14" height="4" fill="#C8362D"/>
-    <rect x="192" y="149" width="14" height="1" fill="#E25347"/>
-    <rect x="190" y="150" width="2" height="3" fill="#C8362D"/>
-    <rect x="206" y="150" width="2" height="3" fill="#C8362D"/>
-    <!-- Pirate 2 laptop -->
-    <rect x="190" y="167" width="14" height="1" fill="#3D2418"/>
-    <rect x="190" y="160" width="14" height="7" fill="#1A0E08"/>
-    <rect x="191" y="161" width="12" height="5" fill="#5BC9D1"/>
-    <rect x="193" y="162" width="3" height="1" fill="#FFCB47"/>
-    <rect x="197" y="162" width="5" height="1" fill="#F7E7C2"/>
-    <rect x="193" y="164" width="8" height="1" fill="#F7E7C2"/>
-
-    <!-- Treasure chest in foreground -->
-    <rect x="120" y="172" width="22" height="14" fill="#3D2418"/>
-    <rect x="120" y="170" width="22" height="2" fill="#5A3A1F"/>
-    <rect x="122" y="174" width="18" height="10" fill="#5A3A1F"/>
-    <rect x="124" y="176" width="2" height="6" fill="#FFCB47"/>
-    <rect x="136" y="176" width="2" height="6" fill="#FFCB47"/>
-    <rect x="130" y="174" width="2" height="3" fill="#1A0E08"/>
-    <rect x="131" y="175" width="1" height="1" fill="#FFCB47"/>
-    <rect x="124" y="184" width="2" height="2" fill="#FFCB47"/>
-    <rect x="138" y="184" width="2" height="2" fill="#FFCB47"/>
-    <!-- Coins spilling out -->
-    <rect x="143" y="184" width="3" height="3" fill="#FFCB47"/>
-    <rect x="147" y="186" width="3" height="3" fill="#FFCB47"/>
-    <rect x="150" y="185" width="2" height="2" fill="#FFD86B"/>
-    <rect x="116" y="186" width="3" height="3" fill="#FFCB47"/>
-    <rect x="113" y="187" width="2" height="2" fill="#FFD86B"/>
-
-    <!-- Small crab on the right beach -->
-    <rect x="252" y="186" width="6" height="3" fill="#C8362D"/>
-    <rect x="251" y="187" width="1" height="1" fill="#C8362D"/>
-    <rect x="258" y="187" width="1" height="1" fill="#C8362D"/>
-    <rect x="253" y="185" width="1" height="1" fill="#1A0E08"/>
-    <rect x="256" y="185" width="1" height="1" fill="#1A0E08"/>
-    <rect x="250" y="186" width="1" height="1" fill="#C8362D"/>
-    <rect x="259" y="186" width="1" height="1" fill="#C8362D"/>
-    <rect x="252" y="189" width="1" height="1" fill="#C8362D"/>
-    <rect x="257" y="189" width="1" height="1" fill="#C8362D"/>
-  </svg>`;
+  // Unplugged hides the login background; no pixel scene to render.
+  return '';
 }
 
 /* ============================================================
@@ -3123,14 +2893,13 @@ function renderHome() {
             <li>
               <a href="#/team/${esc(tm.id)}" class="team-card">
                 ${tm.photoURL
-                  ? `<img class="team-flag" src="${esc(tm.photoURL)}" alt="" referrerpolicy="no-referrer" />`
-                  : `<span class="team-flag">${SVG.flag}</span>`}
+                  ? `<img class="team-tile" src="${esc(tm.photoURL)}" alt="" referrerpolicy="no-referrer" />`
+                  : `<span class="team-tile" style="background:${avatarColor(tm.id)}">${esc(initials(tm.name))}</span>`}
                 <div class="team-main">
                   <strong>${esc(tm.name)}</strong>
                   <small>${esc(t('{n} crewmates', { n: tm.memberUids?.length || 0 }))}</small>
                 </div>
-                <code class="team-id-chip" title="${esc(t('Crew ID (internal reference — invites use manager-shared links)'))}">${esc(tm.id)}</code>
-                <span class="arrow">▶</span>
+                <span class="team-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
               </a>
             </li>
           `).join('')}
@@ -3353,7 +3122,7 @@ function renderBountyBoardTab() {
           <p class="muted">${esc(filter === 'all' ? t('Post one yourself — your crewmates earn doubloons by covering you.') : t('Switch the filter above to see other bounties.'))}</p>
           ${filter === 'all' ? `
             <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-              <button class="btn" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+              <button class="btn" data-action="preset-next-week">${esc(t("I'm out next week"))}</button>
               <a href="#/team/${esc(state.teamId)}/post" class="btn-ghost">${esc(t('Post a bounty'))}</a>
             </div>` : ''}
         </div>
@@ -3513,7 +3282,7 @@ function renderChestTab() {
 
       <div style="margin: 12px 0 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
         <h3 style="margin: 0;">${esc(t('Captain’s log'))}</h3>
-        ${state.ledger.length > 0 ? `<button class="btn-ghost" data-action="export-csv">📥 ${esc(t('Download CSV'))}</button>` : ''}
+        ${state.ledger.length > 0 ? `<button class="btn-ghost" data-action="export-csv">${esc(t('Download CSV'))}</button>` : ''}
       </div>
       ${state.ledger.length === 0 ? `<p class="muted">${esc(t('Your ledger is empty for now.'))}</p>` : `
         <ul class="ledger">
@@ -3775,7 +3544,7 @@ function renderMeetingsPicker() {
   if (!calendar.isConnected()) {
     return `
       <div class="meetings-picker">
-        <button type="button" class="btn btn-secondary" data-action="connect-calendar">📅 ${esc(t('Connect Google Calendar'))}</button>
+        <button type="button" class="btn btn-secondary" data-action="connect-calendar">${esc(t('Connect Google Calendar'))}</button>
         <p class="muted" style="margin: 8px 0 0; font-size: var(--fs-meta);">${esc(t('Optional. Lets you pick which meetings the coverer should attend, with Meet/Teams/Zoom links included.'))}</p>
       </div>
     `;
@@ -3817,11 +3586,11 @@ function renderMeetingsPicker() {
                 <strong>${esc(m.summary)}</strong>
                 <small>${esc(formatMeetingDate(m.startMs, m.endMs))}${m.attendees?.length ? ` · ${esc(t('{n} attendees', { n: m.attendees.length }))}` : ''}</small>
                 <span class="meeting-links">
-                  ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">📹 Meet</a>` : ''}
-                  ${m.conferenceLinks?.map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">🔗 ${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('') || ''}
-                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">📅 ${esc(t('In Calendar'))}</a>` : ''}
+                  ${m.hangoutLink ? `<a href="${esc(m.hangoutLink)}" target="_blank" rel="noopener">Meet</a>` : ''}
+                  ${m.conferenceLinks?.map((l) => `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l.match(/teams|zoom|whereby/i)?.[0] || 'Link')}</a>`).join('') || ''}
+                  ${m.htmlLink ? `<a href="${esc(m.htmlLink)}" target="_blank" rel="noopener" class="cal-link">${esc(t('In Calendar'))}</a>` : ''}
                 </span>
-                ${m.location ? `<small class="meeting-loc">📍 ${esc(m.location)}</small>` : ''}
+                ${m.location ? `<small class="meeting-loc">${esc(m.location)}</small>` : ''}
               </span>
             </label>
           </li>
@@ -3864,7 +3633,7 @@ function renderPostTab() {
     <div class="create-card">
       <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
         <span>${esc(t('Post a bounty'))}</span>
-        <button type="button" class="btn-ghost" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+        <button type="button" class="btn-ghost" data-action="preset-next-week">${esc(t("I'm out next week"))}</button>
       </div>
       <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
         ${esc(t('{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.', { x: ECONOMY.WEEKEND_MULTIPLIER }))}
@@ -3908,14 +3677,14 @@ function renderPostTab() {
               <label class="mode-option">
                 <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
                 <div>
-                  <strong>👤 ${esc(t('Single coverer'))}</strong>
+                  <strong>${esc(t('Single coverer'))}</strong>
                   <small>${esc(t('One crewmate takes the whole window. Some clients want only one person on the rotation.'))}</small>
                 </div>
               </label>
               <label class="mode-option">
                 <input type="radio" name="coverageMode" value="crew" ${f.coverageMode === 'crew' ? 'checked' : ''} />
                 <div>
-                  <strong>🏴‍☠️ ${esc(t('Crew coverage'))}</strong>
+                  <strong>${esc(t('Crew coverage'))}</strong>
                   <small>${esc(t('Several crewmates can split the days. Long vacations get covered faster.'))}</small>
                 </div>
               </label>
@@ -3970,9 +3739,9 @@ function renderWofTab() {
     return '';
   };
   const podiumEmoji = (entry) => {
-    if (entry === top3[0]) return '🏴‍☠️';
-    if (entry === top3[1]) return '⚓';
-    if (entry === top3[2]) return '🦜';
+    if (entry === top3[0]) return '🥇';
+    if (entry === top3[1]) return '🥈';
+    if (entry === top3[2]) return '🥉';
     return '';
   };
 
@@ -4008,7 +3777,7 @@ function renderWofTab() {
             <div class="wof-name">${esc(shortName(entry.displayName))}${entry.displayName === meName ? ` (${t('you')})` : ''}<br><small>${esc(t('{n} voyages', { n: entry.voyages }))}</small></div>
             <span class="wof-score">${SVG.doubloon}${entry.earnedInWindow}</span>
             ${entry.uid !== state.user?.uid
-              ? `<button class="tip-hat" data-action="tip-hat" data-to-uid="${esc(entry.uid)}" data-to-name="${esc(entry.displayName)}">🪶 ${esc(t('Tip hat'))}</button>`
+              ? `<button class="tip-hat" data-action="tip-hat" data-to-uid="${esc(entry.uid)}" data-to-name="${esc(entry.displayName)}">${esc(t('Tip hat'))}</button>`
               : ''}
           </li>
         `).join('')}
@@ -4116,7 +3885,7 @@ function renderSettingsTab() {
     <div class="panel" style="margin-top: var(--sp-4);">
       <div class="panel-title">${esc(t('Crew identity'))}</div>
       <p class="muted" style="margin: 0 0 var(--sp-2); font-size: var(--fs-meta);">${esc(t('Rename the crew or set its photo.'))}</p>
-      <button class="btn btn-secondary" data-action="manage-crew">✏ ${esc(t('Manage crew'))}</button>
+      <button class="btn btn-secondary" data-action="manage-crew">${esc(t('Manage crew'))}</button>
     </div>
 
     <div class="panel" style="margin-top: var(--sp-4);">
@@ -4124,7 +3893,7 @@ function renderSettingsTab() {
       <p class="muted" style="font-size: var(--fs-meta); margin-bottom: var(--sp-2);">
         ${esc(t("The starter chest used to be 20 doubloons; it's now 125 (covers 25 business days). Top up any existing crewmate who got the old grant so everyone starts on the new floor."))}
       </p>
-      <button class="btn btn-secondary" data-action="topup-grant">💰 ${esc(t('Top up to 125'))}</button>
+      <button class="btn btn-secondary" data-action="topup-grant">${esc(t('Top up to 125'))}</button>
     </div>
 
     <div class="panel" style="margin-top: var(--sp-4);">
@@ -4214,7 +3983,7 @@ function renderTavern() {
               counts[emo] = (counts[emo] || 0) + 1;
               if (reactUid === state.user?.uid) myReact = emo;
             }
-            const reactionBar = ['🪙','🍻','🏴‍☠️','⚓','🦜'].map((emo) => {
+            const reactionBar = ['🪙','👏','🎉','🙌','💪'].map((emo) => {
               const cnt = counts[emo] || 0;
               const mine = myReact === emo;
               return `<button class="react-btn ${mine ? 'mine' : ''}" data-action="react-scroll" data-scroll-id="${esc(s.id)}" data-emoji="${esc(emo)}" data-mine="${mine ? '1' : '0'}" aria-pressed="${mine ? 'true' : 'false'}" aria-label="${esc(t('React with {emoji}', { emoji: emo }))}${cnt > 0 ? `, ${cnt}` : ''}"><span aria-hidden="true">${emo}</span>${cnt > 0 ? ` <span class="react-count" aria-hidden="true">${cnt}</span>` : ''}</button>`;

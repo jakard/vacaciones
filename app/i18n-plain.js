@@ -99,7 +99,6 @@ export const PLAIN = {
   'Only the crew manager can edit settings.': { en: 'Only the team manager can edit settings.', es: 'Solo el manager del equipo puede editar los ajustes.' },
   'Ask a crew manager to share an invite link.': { en: 'Ask a team manager to share an invite link.', es: 'Pide a un manager del equipo un enlace de invitación.' },
   'Paste the invite link a crew manager shared.': { en: 'Paste the invite link a team manager shared.', es: 'Pega el enlace de invitación que compartió un manager.' },
-  'Crew ID (internal reference — invites use manager-shared links)': { en: 'Team ID (internal reference — invites use manager-shared links)', es: 'ID del equipo (referencia interna — las invitaciones usan enlaces del manager)' },
   'Crew name cannot be empty.': { en: 'Team name cannot be empty.', es: 'El nombre del equipo no puede estar vacío.' },
   'Crew name does not match.': { en: 'Team name does not match.', es: 'El nombre del equipo no coincide.' },
   'Crew updated.': { en: 'Team updated.', es: 'Equipo actualizado.' },
