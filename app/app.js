@@ -1336,7 +1336,7 @@ function showCrewClaimModal() {
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <p style="margin: 12px 0 0; font-family: 'Inter', system-ui, sans-serif;">
+      <p style="margin: 12px 0 0; font-family: var(--font-body);">
         <strong>${esc(t('{n} account-days', { n: state.claim.selectedCells.length }))}</strong> ·
         <strong style="color: var(--brass-deep);">${esc(t('{n} doubloons', { n: cost.totalCoins }))}</strong>
       </p>`;
@@ -1379,7 +1379,7 @@ function showCrewClaimModal() {
           `;
         }).join('')}
       </ul>
-      <p style="margin: 12px 0 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;">
+      <p style="margin: 12px 0 0; font-family: var(--font-body);">
         <strong>${esc(t('{n} days', { n: state.claim.selectedDayKeys.length }))}</strong> ·
         <strong style="color: var(--brass-deep);">${esc(t('{n} doubloons', { n: cost.totalCoins }))}</strong>
       </p>
@@ -1816,7 +1816,7 @@ function showManageCrewModal(team) {
         <input id="${inputPhoto}" type="text" value="${esc(team.photoURL ?? '')}" placeholder="https://…" />
       </label>
     </div>
-    <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 16px; margin: 8px 0 0;">${esc(t('Paste a square image URL. Leave blank to use the default flag.'))}</p>
+    <p class="muted" style="font-family: var(--font-body); font-size: 16px; margin: 8px 0 0;">${esc(t('Paste a square image URL. Leave blank to use the default flag.'))}</p>
   `;
   showModal({
     title: t('Manage crew'),
@@ -1944,11 +1944,11 @@ function showEditBountyModal(bountyId) {
       <label class="wide"><span>${esc(t('Coverage scope'))}</span><input id="${scopeId}" type="text" value="${esc(b.coverageScope || '')}" /></label>
       <label class="wide"><span>${esc(t('Emergency definition'))}</span><textarea id="${emergId}" rows="2">${esc(b.emergencyDef || '')}</textarea></label>
       <div class="wide">
-        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(t('Reachability'))}</span>
+        <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(t('Reachability'))}</span>
         <div class="check-group">${reachChecks}</div>
       </div>
       <div class="wide">
-        <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(t('Coverage kinds'))}</span>
+        <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(t('Coverage kinds'))}</span>
         <div class="check-group">${kindChecks}</div>
       </div>
     </div>
@@ -2534,7 +2534,7 @@ function showBountyDetail(bountyId) {
       <span class="status-badge status-${status}">${esc(t(STATUS_LABEL[status] || status))}</span>
       <span style="font-family: 'Bricolage Grotesque', -apple-system, system-ui, sans-serif; font-size: 22px; color: var(--brass-deep); display: inline-flex; align-items: center; gap: 4px;">
         ${SVG.doubloon}${b.totalCoinsOffered ?? 0}
-        <span style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">${esc(t('doubloons'))}</span>
+        <span style="font-family: var(--font-body); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-faded); margin-left: 4px;">${esc(t('doubloons'))}</span>
       </span>
     </div>
 
@@ -2937,7 +2937,7 @@ function renderHome() {
     <section class="actions">
       <div class="panel">
         <div class="panel-title">${esc(t('Form a crew'))}</div>
-        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">${esc(t('You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.'))}</p>
+        <p class="muted" style="font-family: var(--font-body); font-size: 18px; margin: 0 0 12px;">${esc(t('You become the quartermaster. Every crewmate starts with 125 doubloons — enough to cover 25 business days right away.'))}</p>
         <div class="row">
           <input id="new-team-name" type="text" placeholder="${esc(t('Crew name'))}" maxlength="100" ${state.busy.createTeam ? 'disabled' : ''} />
           <button class="btn" data-action="create-team" ${state.busy.createTeam ? 'disabled' : ''}>${esc(state.busy.createTeam ? t('Creating…') : t('Create crew'))}</button>
@@ -2945,7 +2945,7 @@ function renderHome() {
       </div>
       <div class="panel">
         <div class="panel-title">${esc(t('Sign on with a crew'))}</div>
-        <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 12px;">${esc(t('Paste the invite link a crew manager shared.'))}</p>
+        <p class="muted" style="font-family: var(--font-body); font-size: 18px; margin: 0 0 12px;">${esc(t('Paste the invite link a crew manager shared.'))}</p>
         <div class="row">
           <input id="join-team-id" type="text" placeholder="${esc(t('Invite link'))}" ${state.busy.joinTeam ? 'disabled' : ''} />
           <button class="btn" data-action="join-team" ${state.busy.joinTeam ? 'disabled' : ''}>${esc(state.busy.joinTeam ? t('Joining…') : t('Join'))}</button>
@@ -3488,7 +3488,7 @@ function renderPickerHostInner() {
     : t('Days to be covered · click to toggle');
   return `
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
-      <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px;">${esc(label)}</span>
+      <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px;">${esc(label)}</span>
       <button type="button" class="btn-ghost" data-action="manage-accounts">${esc(t('Manage accounts'))}</button>
     </div>
     ${useMatrix ? renderCoverageMatrix() : renderDayPicker()}
@@ -3674,7 +3674,7 @@ function renderPostTab() {
         <span>${esc(t('Post a bounty'))}</span>
         <button type="button" class="btn-ghost" data-action="preset-next-week">${esc(t("I'm out next week"))}</button>
       </div>
-      <p class="muted" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 18px; margin: 0 0 14px;">
+      <p class="muted" style="font-family: var(--font-body); font-size: 18px; margin: 0 0 14px;">
         ${esc(t('{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.', { x: ECONOMY.WEEKEND_MULTIPLIER }))}
       </p>
       <form id="create-form" autocomplete="off">
@@ -3711,7 +3711,7 @@ function renderPostTab() {
           </div>
 
           <div class="wide">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Coverage mode'))}</span>
+            <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Coverage mode'))}</span>
             <div class="mode-toggle">
               <label class="mode-option">
                 <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
@@ -3733,7 +3733,7 @@ function renderPostTab() {
           <label class="wide"><span>${esc(t('Coverage scope · which accounts / responsibilities'))}</span><input type="text" name="coverageScope" placeholder="${esc(t('e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp'))}" value="${esc(f.coverageScope)}" /></label>
 
           <div class="wide" id="meetings-picker-host">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Meetings to be covered'))}</span>
+            <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Meetings to be covered'))}</span>
             ${renderMeetingsPicker()}
           </div>
           <label class="wide"><span>${esc(t('SLA the coverer should hold'))}</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
@@ -3909,7 +3909,7 @@ function renderSettingsTab() {
 
       <div style="margin-top: var(--sp-3);">
         <label>
-          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(s.hasGeminiKey ? t('Replace the key') : t('Set the key'))}</span>
+          <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${esc(s.hasGeminiKey ? t('Replace the key') : t('Set the key'))}</span>
           <input type="password" id="${inputId}" placeholder="AIza..." autocomplete="off" />
         </label>
         <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap;">
