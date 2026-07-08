@@ -116,15 +116,28 @@ const RANKS = [
 
 // Achievement definitions (tested against derived stats)
 const ACHIEVEMENTS = [
-  { id: 'set-sail',         name: 'Set Sail',         icon: '🌅', test: (s) => s.voyages >= 1 },
-  { id: 'old-salt',         name: 'Old Salt',         icon: '⚓', test: (s) => s.voyages >= 10 },
-  { id: 'captain-hat',      name: "Captain's Hat",    icon: '🎩', test: (s) => s.lifetimeEarned >= 100 },
-  { id: 'treasure-hunter',  name: 'Treasure Hunter',  icon: '💎', test: (s) => s.lifetimeEarned >= 500 },
-  { id: 'weekend-warrior',  name: 'Weekend Warrior',  icon: '🌊', test: (s) => s.weekendCovers >= 1 },
-  { id: 'generous',         name: 'Generous Sea Dog', icon: '📜', test: (s) => s.bountiesPosted >= 5 },
-  { id: 'free-spirit',      name: 'Live Free',        icon: '🔥', test: (s) => s.stipendExpired >= 1 },
-  { id: 'loyal-crew',       name: 'Loyal Crew',       icon: '🏴', test: (s) => s.crewCount >= 2 },
+  { id: 'set-sail',         name: 'Set Sail',         test: (s) => s.voyages >= 1 },
+  { id: 'old-salt',         name: 'Old Salt',         test: (s) => s.voyages >= 10 },
+  { id: 'captain-hat',      name: "Captain's Hat",    test: (s) => s.lifetimeEarned >= 100 },
+  { id: 'treasure-hunter',  name: 'Treasure Hunter',  test: (s) => s.lifetimeEarned >= 500 },
+  { id: 'weekend-warrior',  name: 'Weekend Warrior',  test: (s) => s.weekendCovers >= 1 },
+  { id: 'generous',         name: 'Generous Sea Dog', test: (s) => s.bountiesPosted >= 5 },
+  { id: 'free-spirit',      name: 'Live Free',        test: (s) => s.stipendExpired >= 1 },
+  { id: 'loyal-crew',       name: 'Loyal Crew',       test: (s) => s.crewCount >= 2 },
 ];
+// Achievement icons — line SVGs (no emoji), kept out of the array above so the
+// i18n dict-check only scans the names. Keyed by achievement id.
+const _achSvg = (inner, fill) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="${fill || 'none'}" stroke="${fill ? 'none' : 'currentColor'}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+const ACH_ICON = {
+  'set-sail': _achSvg('<path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="M22 4 12 14l-3-3"/>'),
+  'old-salt': _achSvg('<circle cx="12" cy="8" r="6"/><path d="M8.2 13 7 22l5-3 5 3-1.2-9"/>'),
+  'captain-hat': _achSvg('<path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/>', 'currentColor'),
+  'treasure-hunter': _achSvg('<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M12 3 8 9l4 12 4-12-4-6"/>'),
+  'weekend-warrior': _achSvg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  'generous': _achSvg('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>'),
+  'free-spirit': _achSvg('<path d="M8.5 14.5A4 4 0 0 0 12 21a4 4 0 0 0 4-4c0-3-2-5-2-8 0 0-3 1-3 4 0-2-1-3-1-3s-1.5 2-1.5 4.5z"/>'),
+  'loyal-crew': _achSvg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.3a4 4 0 0 1 0 7.4"/>'),
+};
 
 /* ============================================================
    Firebase
@@ -829,27 +842,26 @@ const SVG = {
   // OS emoji stay only on celebratory copy, never structural UI.
   // ----------------------------------------------------------------
   icons: {
-    // — Ranks —
-    'cabin-boy': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="2" width="8" height="1" fill="#8C6418"/><rect x="3" y="3" width="1" height="2" fill="#8C6418"/><rect x="12" y="3" width="1" height="2" fill="#8C6418"/><rect x="4" y="5" width="8" height="8" fill="#5A3A1F"/><rect x="5" y="5" width="6" height="1" fill="#8C6418"/><rect x="5" y="6" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="8" width="8" height="1" fill="#8C6418"/><rect x="5" y="13" width="6" height="1" fill="#1A0E08"/></svg>`,
-    'deckhand': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="1" width="2" height="1" fill="#E0A93B"/><rect x="6" y="2" width="1" height="2" fill="#E0A93B"/><rect x="9" y="2" width="1" height="2" fill="#E0A93B"/><rect x="7" y="4" width="2" height="1" fill="#E0A93B"/><rect x="7" y="5" width="2" height="7" fill="#E0A93B"/><rect x="4" y="6" width="8" height="1" fill="#8C6418"/><rect x="3" y="10" width="1" height="2" fill="#E0A93B"/><rect x="12" y="10" width="1" height="2" fill="#E0A93B"/><rect x="4" y="12" width="3" height="1" fill="#E0A93B"/><rect x="9" y="12" width="3" height="1" fill="#E0A93B"/><rect x="6" y="13" width="4" height="1" fill="#8C6418"/></svg>`,
-    'mate': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3" width="4" height="1" fill="#E0A93B"/><rect x="3" y="4" width="1" height="4" fill="#E0A93B"/><rect x="8" y="4" width="1" height="4" fill="#E0A93B"/><rect x="4" y="8" width="4" height="1" fill="#E0A93B"/><rect x="8" y="7" width="4" height="1" fill="#FFCB47"/><rect x="7" y="8" width="1" height="4" fill="#FFCB47"/><rect x="12" y="8" width="1" height="4" fill="#FFCB47"/><rect x="8" y="12" width="4" height="1" fill="#FFCB47"/><rect x="8" y="8" width="1" height="1" fill="#E0A93B"/></svg>`,
-    'bosun': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="8" width="2" height="2" fill="#8C6418"/><rect x="4" y="7" width="6" height="1" fill="#FFD86B"/><rect x="4" y="8" width="6" height="2" fill="#E0A93B"/><rect x="10" y="6" width="2" height="6" fill="#E0A93B"/><rect x="12" y="5" width="2" height="8" fill="#FFCB47"/><rect x="14" y="4" width="1" height="10" fill="#FFD86B"/></svg>`,
-    'quartermaster': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="1" height="2" fill="#8C6418"/><rect x="3" y="2" width="10" height="2" fill="#5A3A1F"/><rect x="13" y="2" width="1" height="2" fill="#8C6418"/><rect x="4" y="4" width="8" height="8" fill="#F7E7C2"/><rect x="5" y="6" width="6" height="1" fill="#C4A86B"/><rect x="5" y="8" width="6" height="1" fill="#C4A86B"/><rect x="5" y="10" width="4" height="1" fill="#C4A86B"/><rect x="2" y="12" width="1" height="2" fill="#8C6418"/><rect x="3" y="12" width="10" height="2" fill="#5A3A1F"/><rect x="13" y="12" width="1" height="2" fill="#8C6418"/></svg>`,
-    'first-mate': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="5" width="8" height="2" fill="#FFD86B"/><rect x="5" y="5" width="3" height="1" fill="#F7E7C2"/><rect x="4" y="7" width="8" height="1" fill="#E0A93B"/><rect x="4" y="8" width="8" height="2" fill="#FFCB47"/><rect x="4" y="10" width="8" height="1" fill="#8C6418"/><rect x="4" y="11" width="8" height="2" fill="#E0A93B"/><rect x="4" y="13" width="8" height="1" fill="#8C6418"/></svg>`,
-    'captain': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="5" width="4" height="3" fill="#1A0E08"/><rect x="2" y="6" width="2" height="2" fill="#1A0E08"/><rect x="12" y="6" width="2" height="2" fill="#1A0E08"/><rect x="2" y="8" width="12" height="2" fill="#1A0E08"/><rect x="3" y="9" width="10" height="1" fill="#E0A93B"/><rect x="7" y="6" width="2" height="1" fill="#FFCB47"/></svg>`,
-    'commodore': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="2" height="2" fill="#F7E7C2"/><rect x="4" y="4" width="2" height="2" fill="#F7E7C2"/><rect x="6" y="6" width="2" height="2" fill="#F7E7C2"/><rect x="8" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="12" y="2" width="2" height="2" fill="#F7E7C2"/><rect x="10" y="4" width="2" height="2" fill="#F7E7C2"/><rect x="8" y="6" width="2" height="2" fill="#F7E7C2"/><rect x="6" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="4" y="10" width="3" height="1" fill="#FFCB47"/><rect x="5" y="9" width="1" height="3" fill="#FFCB47"/><rect x="9" y="10" width="3" height="1" fill="#FFCB47"/><rect x="10" y="9" width="1" height="3" fill="#FFCB47"/><rect x="3" y="11" width="2" height="2" fill="#5A3A1F"/><rect x="11" y="11" width="2" height="2" fill="#5A3A1F"/></svg>`,
-    // — Coverage kinds —
-    'inbox': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4" width="12" height="8" fill="#F7E7C2"/><rect x="2" y="4" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="11" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="4" width="1" height="8" fill="#5A3A1F"/><rect x="13" y="4" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="5" width="1" height="1" fill="#8C6418"/><rect x="4" y="6" width="1" height="1" fill="#8C6418"/><rect x="5" y="7" width="1" height="1" fill="#8C6418"/><rect x="6" y="8" width="2" height="1" fill="#8C6418"/><rect x="12" y="5" width="1" height="1" fill="#8C6418"/><rect x="11" y="6" width="1" height="1" fill="#8C6418"/><rect x="10" y="7" width="1" height="1" fill="#8C6418"/><rect x="8" y="8" width="2" height="1" fill="#8C6418"/></svg>`,
-    'meetings': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="8" width="1" height="1" fill="#8C6418"/><rect x="7" y="8" width="1" height="1" fill="#8C6418"/><rect x="9" y="8" width="1" height="1" fill="#8C6418"/><rect x="5" y="10" width="1" height="1" fill="#8C6418"/><rect x="7" y="10" width="1" height="1" fill="#8C6418"/><rect x="9" y="10" width="1" height="1" fill="#8C6418"/></svg>`,
-    'escalations': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="2" width="2" height="2" fill="#C8362D"/><rect x="6" y="4" width="4" height="2" fill="#C8362D"/><rect x="5" y="6" width="6" height="3" fill="#C8362D"/><rect x="4" y="9" width="8" height="4" fill="#C8362D"/><rect x="5" y="13" width="6" height="1" fill="#E25347"/><rect x="7" y="8" width="2" height="2" fill="#FFCB47"/><rect x="6" y="10" width="4" height="3" fill="#FFCB47"/><rect x="7" y="11" width="2" height="2" fill="#F7E7C2"/></svg>`,
-    'one-on-ones': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="4" width="4" height="4" fill="#E0A93B"/><rect x="2" y="9" width="6" height="4" fill="#8C6418"/><rect x="9" y="4" width="4" height="4" fill="#5BC9D1"/><rect x="8" y="9" width="6" height="4" fill="#1E5A6B"/></svg>`,
-    'chat': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="8" fill="#F7E7C2"/><rect x="2" y="3" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="3" width="1" height="8" fill="#5A3A1F"/><rect x="13" y="3" width="1" height="8" fill="#5A3A1F"/><rect x="2" y="10" width="12" height="1" fill="#5A3A1F"/><rect x="4" y="11" width="2" height="1" fill="#5A3A1F"/><rect x="4" y="12" width="1" height="1" fill="#5A3A1F"/><rect x="5" y="6" width="1" height="2" fill="#1A0E08"/><rect x="8" y="6" width="1" height="2" fill="#1A0E08"/><rect x="11" y="6" width="1" height="2" fill="#1A0E08"/></svg>`,
-    'on-call': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="2" width="2" height="1" fill="#8C6418"/><rect x="6" y="3" width="4" height="2" fill="#FFCB47"/><rect x="5" y="5" width="6" height="3" fill="#FFCB47"/><rect x="4" y="8" width="8" height="2" fill="#FFCB47"/><rect x="10" y="5" width="1" height="5" fill="#E0A93B"/><rect x="3" y="10" width="10" height="1" fill="#8C6418"/><rect x="7" y="11" width="2" height="2" fill="#1A0E08"/></svg>`,
-    // — Reachability —
-    'unreachable': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="12" width="10" height="2" fill="#E0A93B"/><rect x="4" y="11" width="8" height="1" fill="#FFD86B"/><rect x="8" y="6" width="1" height="6" fill="#8C6418"/><rect x="9" y="5" width="1" height="2" fill="#8C6418"/><rect x="7" y="3" width="2" height="1" fill="#4A8A38"/><rect x="5" y="4" width="3" height="1" fill="#4A8A38"/><rect x="4" y="5" width="2" height="1" fill="#3A6B2C"/><rect x="9" y="3" width="3" height="1" fill="#4A8A38"/><rect x="12" y="4" width="2" height="1" fill="#3A6B2C"/><rect x="10" y="5" width="2" height="1" fill="#4A8A38"/><rect x="8" y="5" width="1" height="1" fill="#5A3A1F"/></svg>`,
-    'email-only': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="5" width="10" height="7" fill="#F7E7C2"/><rect x="2" y="5" width="10" height="1" fill="#5A3A1F"/><rect x="2" y="11" width="10" height="1" fill="#5A3A1F"/><rect x="2" y="5" width="1" height="7" fill="#5A3A1F"/><rect x="11" y="5" width="1" height="7" fill="#5A3A1F"/><rect x="3" y="6" width="1" height="1" fill="#8C6418"/><rect x="4" y="7" width="1" height="1" fill="#8C6418"/><rect x="5" y="8" width="2" height="1" fill="#8C6418"/><rect x="10" y="6" width="1" height="1" fill="#8C6418"/><rect x="9" y="7" width="1" height="1" fill="#8C6418"/><rect x="7" y="8" width="2" height="1" fill="#8C6418"/><rect x="11" y="2" width="4" height="4" fill="#C8362D"/><rect x="11" y="2" width="4" height="1" fill="#E25347"/><rect x="12" y="3" width="1" height="2" fill="#F7E7C2"/></svg>`,
-    'phone': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="4" height="3" fill="#1A0E08"/><rect x="3" y="4" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="5" width="2" height="2" fill="#1A0E08"/><rect x="6" y="7" width="2" height="2" fill="#1A0E08"/><rect x="8" y="9" width="2" height="2" fill="#1A0E08"/><rect x="10" y="10" width="4" height="3" fill="#1A0E08"/><rect x="11" y="11" width="2" height="1" fill="#5BC9D1"/></svg>`,
-    'daily-check-in': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="9" width="1" height="2" fill="#3A6B2C"/><rect x="6" y="10" width="1" height="2" fill="#3A6B2C"/><rect x="7" y="9" width="1" height="2" fill="#4A8A38"/><rect x="8" y="8" width="1" height="2" fill="#4A8A38"/><rect x="9" y="7" width="1" height="2" fill="#4A8A38"/></svg>`,
+    // Clean line icons (Unplugged). stroke = currentColor → take the chip/label
+    // colour; smooth-rendered (no .px). Ranks are star medallions.
+    'cabin-boy': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>`,
+    'deckhand': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'mate': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'bosun': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'quartermaster': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'first-mate': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'captain': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'commodore': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'inbox': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>`,
+    'meetings': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+    'escalations': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A4 4 0 0 0 12 21a4 4 0 0 0 4-4c0-3-2-5-2-8 0 0-3 1-3 4 0-2-1-3-1-3s-1.5 2-1.5 4.5z"/></svg>`,
+    'one-on-ones': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.3a4 4 0 0 1 0 7.4"/></svg>`,
+    'chat': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    'on-call': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>`,
+    'unreachable': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>`,
+    'email-only': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>`,
+    'phone': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>`,
+    'daily-check-in': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="M22 4 12 14l-3-3"/></svg>`,
   },
   // Unplugged doubloon — a clean brass coin with an engraved power glyph.
   // Var-driven so every skin (incl. pirate) colours it natively. The dashed
@@ -2838,17 +2850,30 @@ function renderUserInfo() {
   const notifs = state.user ? computeNotifications() : [];
   const unread = notifs.filter((n) => n.time.getTime() > state.notifLastSeen).length;
 
-  // Launch-gate item 11: the header carries bell + avatar only. Balance,
-  // rank, theme, sound, identity and sign-out live in the Profile sheet.
+  // Topbar: search (board entry point) + notifications + profile.
   target.innerHTML = `
+    ${state.teamId ? `
+    <button class="topbar-search" data-action="topbar-search" aria-label="${esc(t('Search the board'))}">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <span>${esc(t('Search the board'))}</span>
+      <span class="kbd" aria-hidden="true">⌘K</span>
+    </button>` : ''}
     <button class="bell" data-action="bell" title="${esc(t('Notifications'))}" aria-label="${esc(unread > 0 ? t('Notifications, {n} unread', { n: unread }) : t('Notifications'))}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
-      <span aria-hidden="true">🔔</span>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
     </button>
     <button class="avatar-slot" data-action="pick-avatar-open" title="${esc(t('Profile'))}" aria-label="${esc(t('Open profile'))}" aria-haspopup="dialog">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 32, klass: 'avatar-img' })}
     </button>
     ${state.bellOpen ? renderBellDropdown(notifs) : ''}
   `;
+}
+
+// Jump to the board and focus its search field (from the topbar search / ⌘K).
+function focusBoardSearch() {
+  if (state.view !== 'team' || state.teamTab !== 'bounties') {
+    if (state.teamId) navigate('team', state.teamId, 'bounties');
+  }
+  setTimeout(() => { document.getElementById('bounty-search')?.focus(); }, 60);
 }
 
 function renderBellDropdown(notifs) {
@@ -3335,25 +3360,25 @@ function renderHowItWorks() {
       <div class="howto-steps">
         <div class="howto-step">
           <span class="howto-num">1</span>
-          ${spriteIcon('unreachable')}
+          <span class="howto-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
           <strong>${esc(t('Post'))}</strong>
           <small>${esc(t('Going out? Post a bounty with your days, reachability, and context.'))}</small>
         </div>
         <div class="howto-step">
           <span class="howto-num">2</span>
-          ${spriteIcon('deckhand')}
+          <span class="howto-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.3a4 4 0 0 1 0 7.4"/></svg></span>
           <strong>${esc(t('Cover'))}</strong>
           <small>${esc(t('A crewmate claims it and gets your briefing — accounts, meetings, SLA.'))}</small>
         </div>
         <div class="howto-step">
           <span class="howto-num">3</span>
-          ${spriteIcon('first-mate')}
+          <span class="howto-ic howto-coin">${SVG.doubloon}</span>
           <strong>${esc(t('Earn'))}</strong>
           <small>${esc(t('They earn doubloons day by day. Spend yours on your next trip.'))}</small>
         </div>
       </div>
       <div class="howto-actions">
-        <button class="btn" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+        <button class="btn" data-action="preset-next-week">${esc(t("I'm out next week"))}</button>
         <a href="#/help" class="btn-ghost">${esc(t('Full guide'))}</a>
       </div>
     </section>
@@ -3588,7 +3613,7 @@ function renderChestTab() {
       <div class="achievements">
         ${achievements.map((a) => `
           <div class="badge ${a.unlocked ? '' : 'locked'}" title="${esc(t(a.name))}">
-            <div class="badge-icon">${a.icon}</div>
+            <div class="badge-icon">${ACH_ICON[a.id] || ''}</div>
             <div class="badge-name">${esc(t(a.name))}</div>
           </div>
         `).join('')}
@@ -4374,6 +4399,9 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     state.bountyFilter = t.dataset.filter;
     render();
+  } else if (action === 'topbar-search') {
+    e.preventDefault();
+    focusBoardSearch();
   } else if (action === 'bell') {
     e.preventDefault();
     state.bellOpen = !state.bellOpen;
@@ -4681,6 +4709,10 @@ function syncFormStateFromDom(form) {
 }
 
 document.addEventListener('keydown', (e) => {
+  // ⌘K / Ctrl-K → jump to the board search.
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    if (state.teamId) { e.preventDefault(); focusBoardSearch(); return; }
+  }
   if (e.key === 'Enter' && document.activeElement?.id === 'new-team-name') {
     e.preventDefault();
     createTeam(document.getElementById('new-team-name').value.trim());

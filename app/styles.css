@@ -4833,3 +4833,37 @@ label {
   .side-post span { display: none; }
   .side-post { width: 52px; height: 52px; padding: 0; }
 }
+
+/* ---- Unplugged line-icon polish ---- */
+[data-skin="unplugged"] .icon-16 { display: inline-flex; align-items: center; }
+[data-skin="unplugged"] .icon-16 svg { width: 16px; height: 16px; }
+[data-skin="unplugged"] .howto-num { background: #E7DECE; color: #5F6E51; border: 0; box-shadow: none; }
+[data-skin="unplugged"] .howto-ic { color: #5F6E51; display: inline-flex; align-items: center; justify-content: center; }
+[data-skin="unplugged"] .howto-coin svg { width: 22px; height: 22px; }
+[data-skin="unplugged"] .rank-emblem svg { width: 58%; height: 58%; }
+[data-skin="unplugged"] .rank-chip .icon-16 svg { width: 14px; height: 14px; }
+/* Chip icons take the chip's own colour. */
+[data-skin="unplugged"] .chip .icon-16 { color: inherit; }
+[data-skin="unplugged"] .chip-cyan { color: #5F6E51; }
+[data-skin="unplugged"] .chip-cream { color: #6b6459; }
+
+/* ---- Unplugged topbar (search · bell · avatar) ---- */
+[data-skin="unplugged"] #header { height: 56px; padding: 0 18px; gap: 14px; align-items: center; }
+[data-skin="unplugged"] #user-info { display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end; }
+[data-skin="unplugged"] .topbar-search {
+  display: inline-flex; align-items: center; gap: 8px; margin-right: auto;
+  background: #EDE4D6; color: #8a8172; border: 0; border-radius: 10px; padding: 8px 12px;
+  font-size: 13px; font-family: var(--font-body); font-weight: 500; cursor: pointer;
+  min-width: 220px; max-width: 360px; transition: background 120ms;
+}
+[data-skin="unplugged"] .topbar-search:hover { background: #e5dbc8; }
+[data-skin="unplugged"] .topbar-search > span:first-of-type { flex: 1; text-align: left; }
+[data-skin="unplugged"] .topbar-search .kbd { font-size: 11px; border: 1px solid rgba(36,32,26,.18); border-radius: 5px; padding: 1px 6px; color: #8a8172; }
+[data-skin="unplugged"] .bell { background: transparent; border: 0; color: #6b6459; position: relative; padding: 7px; border-radius: 10px; cursor: pointer; }
+[data-skin="unplugged"] .bell:hover { background: #E7DECE; }
+[data-skin="unplugged"] .bell-badge { background: #C46A43; color: #F1EADE; }
+[data-skin="unplugged"] .avatar-slot { border: 0; background: transparent; padding: 0; border-radius: 50%; cursor: pointer; }
+@media (max-width: 720px) {
+  [data-skin="unplugged"] .topbar-search { min-width: 0; }
+  [data-skin="unplugged"] .topbar-search > span:first-of-type, [data-skin="unplugged"] .topbar-search .kbd { display: none; }
+}
