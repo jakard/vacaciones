@@ -85,21 +85,12 @@ const STATUS_LABEL = {
 };
 const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 4, cancelled: 5 };
 
-const STAN_SCENES = [
-  { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand? Let me show you the ropes." },
-  { speech: "Doubloons are how we trade coverage. 5 buy you one day of shore leave. Weekend? Twice as dear — the Crown insists." },
-  { speech: "Your starter chest holds 125 doubloons — 25 business days of leave from day one. Spend wisely." },
-  { speech: "Every month the Crown drops 11 more stipend doubloons in your purse — that's the year-after-year budget. Use them or watch them vanish at month's end." },
-  { speech: "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time." },
-  { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now form a crew and post your first bounty!" },
-];
-
-const MASCOT_LINES = [
-  '"Ahoy, weary TAM!"',
-  '"Coins, or coverage?"',
-  '"Need a week ashore?"',
-  '"Even pirates take leave."',
-  '"Doubloons jingle softly."',
+// Onboarding — plain, calm, no pirate. `art` picks the visual (glyph | coin).
+const ONBOARD_SCENES = [
+  { art: 'glyph', title: 'Welcome to Time Off', body: 'The calm way for TAMs to take real time off. Post the days you need, a teammate covers your accounts, and the context travels with them.' },
+  { art: 'coin', title: '125 credits to start', body: "That's about 25 days of coverage. When you post time off, your credits are set aside; cover teammates to earn more." },
+  { art: 'coin', title: 'Paid day by day', body: 'Cover someone and their credits land in your wallet one day at a time as the days pass. Earned credits never expire — only the monthly allowance does.' },
+  { art: 'glyph', title: "You're all set", body: 'Post a request when you need cover, or browse the board to cover a teammate.' },
 ];
 
 // Voyage rank ladder, by lifetime earned doubloons
@@ -116,15 +107,28 @@ const RANKS = [
 
 // Achievement definitions (tested against derived stats)
 const ACHIEVEMENTS = [
-  { id: 'set-sail',         name: 'Set Sail',         icon: '🌅', test: (s) => s.voyages >= 1 },
-  { id: 'old-salt',         name: 'Old Salt',         icon: '⚓', test: (s) => s.voyages >= 10 },
-  { id: 'captain-hat',      name: "Captain's Hat",    icon: '🎩', test: (s) => s.lifetimeEarned >= 100 },
-  { id: 'treasure-hunter',  name: 'Treasure Hunter',  icon: '💎', test: (s) => s.lifetimeEarned >= 500 },
-  { id: 'weekend-warrior',  name: 'Weekend Warrior',  icon: '🌊', test: (s) => s.weekendCovers >= 1 },
-  { id: 'generous',         name: 'Generous Sea Dog', icon: '📜', test: (s) => s.bountiesPosted >= 5 },
-  { id: 'free-spirit',      name: 'Live Free',        icon: '🔥', test: (s) => s.stipendExpired >= 1 },
-  { id: 'loyal-crew',       name: 'Loyal Crew',       icon: '🏴', test: (s) => s.crewCount >= 2 },
+  { id: 'set-sail',         name: 'Set Sail',         test: (s) => s.voyages >= 1 },
+  { id: 'old-salt',         name: 'Old Salt',         test: (s) => s.voyages >= 10 },
+  { id: 'captain-hat',      name: "Captain's Hat",    test: (s) => s.lifetimeEarned >= 100 },
+  { id: 'treasure-hunter',  name: 'Treasure Hunter',  test: (s) => s.lifetimeEarned >= 500 },
+  { id: 'weekend-warrior',  name: 'Weekend Warrior',  test: (s) => s.weekendCovers >= 1 },
+  { id: 'generous',         name: 'Generous Sea Dog', test: (s) => s.bountiesPosted >= 5 },
+  { id: 'free-spirit',      name: 'Live Free',        test: (s) => s.stipendExpired >= 1 },
+  { id: 'loyal-crew',       name: 'Loyal Crew',       test: (s) => s.crewCount >= 2 },
 ];
+// Achievement icons — line SVGs (no emoji), kept out of the array above so the
+// i18n dict-check only scans the names. Keyed by achievement id.
+const _achSvg = (inner, fill) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="${fill || 'none'}" stroke="${fill ? 'none' : 'currentColor'}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+const ACH_ICON = {
+  'set-sail': _achSvg('<path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="M22 4 12 14l-3-3"/>'),
+  'old-salt': _achSvg('<circle cx="12" cy="8" r="6"/><path d="M8.2 13 7 22l5-3 5 3-1.2-9"/>'),
+  'captain-hat': _achSvg('<path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/>', 'currentColor'),
+  'treasure-hunter': _achSvg('<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20M12 3 8 9l4 12 4-12-4-6"/>'),
+  'weekend-warrior': _achSvg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  'generous': _achSvg('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>'),
+  'free-spirit': _achSvg('<path d="M8.5 14.5A4 4 0 0 0 12 21a4 4 0 0 0 4-4c0-3-2-5-2-8 0 0-3 1-3 4 0-2-1-3-1-3s-1.5 2-1.5 4.5z"/>'),
+  'loyal-crew': _achSvg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.3a4 4 0 0 1 0 7.4"/>'),
+};
 
 /* ============================================================
    Firebase
@@ -168,13 +172,6 @@ const callDisbandCrew = httpsCallableFromURL(functions, callableURL('disbandCrew
    Sound module (Web Audio chiptune SFX)
    ============================================================ */
 
-const SKIN_OPTIONS = [
-  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'Pixel-art parchment + Inter. Pirate vibe, regular legible font.' },
-  { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
-  { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
-  { id: 'dark-knight', label: 'Dark Knight', desc: 'Warm dark theme with amber accents and Geist + Geist Mono fonts. Ultra legible.' },
-];
-
 /* ============================================================
    i18n — gettext-style. The key IS the polished English string;
    other languages map EN → translation in TRANSLATIONS below
@@ -210,9 +207,10 @@ document.documentElement.lang = lang.current();
 // wording). Orthogonal to language: plain mode overlays the PLAIN map on
 // top of the same EN/ES lookup. Toggled in the Profile sheet.
 const voice = {
-  current() { return localStorage.getItem('vacaciones.voice') === 'plain' ? 'plain' : 'pirate'; },
-  isPirate() { return this.current() === 'pirate'; },
-  set(v) { localStorage.setItem('vacaciones.voice', v === 'plain' ? 'plain' : 'pirate'); },
+  // Unplugged is plain professional English, period. (Pirate voice retired.)
+  current() { return 'plain'; },
+  isPirate() { return false; },
+  set() { /* no-op — voice is fixed */ },
 };
 
 function t(text, params) {
@@ -237,38 +235,12 @@ const tr = t;
 // Dictionaries live in their own modules (one per language).
 const TRANSLATIONS = { es: TRANSLATIONS_ES };
 
+// Unplugged is THE design — one theme, no picker. (Skins retired.)
 const skin = {
-  current() {
-    const stored = localStorage.getItem('vacaciones.skin');
-    if (stored && SKIN_OPTIONS.some((s) => s.id === stored)) return stored;
-    // First visit (no localStorage): follow OS preference.
-    // Dark OS → Dark Knight, Light OS → Basic. Pirate is opt-in.
-    try {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark-knight';
-      }
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        return 'basic';
-      }
-    } catch (_) { /* no matchMedia */ }
-    return 'dark-knight';
-  },
-  set(id) {
-    if (!SKIN_OPTIONS.some((s) => s.id === id)) return;
-    localStorage.setItem('vacaciones.skin', id);
-    document.documentElement.dataset.skin = id;
-  },
+  current() { return 'unplugged'; },
+  set() { /* no-op — theme is fixed */ },
 };
-document.documentElement.dataset.skin = skin.current();
-// Live-update if user changes OS theme while the app is open and they haven't
-// explicitly picked a skin yet.
-try {
-  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (ev) => {
-    if (!localStorage.getItem('vacaciones.skin')) {
-      document.documentElement.dataset.skin = ev.matches ? 'dark-knight' : 'basic';
-    }
-  });
-} catch (_) { /* older browsers, ignore */ }
+document.documentElement.dataset.skin = 'unplugged';
 
 const audio = {
   ctx: null,
@@ -586,7 +558,6 @@ function initials(name) {
   if (!name) return '?';
   return name.split(' ').filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
 }
-function pickMascotLine() { return MASCOT_LINES[Math.floor(Math.random() * MASCOT_LINES.length)]; }
 function arr(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -736,16 +707,23 @@ function formatMeetingDate(startMs, endMs) {
 // avatarId (read live from /users/{uid}); for others, fall back to the
 // denormalized photoURL stored on the relevant doc; finally fall back to
 // initials in a parchment-dim tile.
+// Unplugged avatars: the user's Google photo, else a colour-coded initials
+// tile (rounded square) — sage / clay / neutral / pine, hashed from the id.
+function avatarColor(seed) {
+  const palette = ['#5F6E51', '#C46A43', '#8a8172', '#34402E'];
+  const str = String(seed || '?');
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
 function renderAvatar({ uid, photoURL, name, size = 32, klass = 'avatar-img' }) {
-  const isMe = uid && uid === state.user?.uid;
-  const myAvatar = state.userDoc?.avatarId;
-  if (isMe && myAvatar && SVG.avatars[myAvatar]) {
-    return `<span class="${klass}" style="width:${size}px;height:${size}px;display:inline-block;">${SVG.avatars[myAvatar]}</span>`;
-  }
   if (photoURL) {
     return `<img class="${klass}" src="${esc(photoURL)}" alt="${esc(name ?? '')}" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;" />`;
   }
-  return `<span class="${klass} avatar-fallback" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:10px;">${esc(initials(name))}</span>`;
+  const bg = avatarColor(uid || name);
+  const fs = Math.max(10, Math.round(size * 0.4));
+  const radius = Math.max(6, Math.round(size * 0.28));
+  return `<span class="${klass} avatar-fallback" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;background:${bg};color:#F1EADE;font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:600;font-size:${fs}px;border-radius:${radius}px;">${esc(initials(name))}</span>`;
 }
 
 /* ============================================================
@@ -853,41 +831,35 @@ const SVG = {
   // OS emoji stay only on celebratory copy, never structural UI.
   // ----------------------------------------------------------------
   icons: {
-    // — Ranks —
-    'cabin-boy': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="2" width="8" height="1" fill="#8C6418"/><rect x="3" y="3" width="1" height="2" fill="#8C6418"/><rect x="12" y="3" width="1" height="2" fill="#8C6418"/><rect x="4" y="5" width="8" height="8" fill="#5A3A1F"/><rect x="5" y="5" width="6" height="1" fill="#8C6418"/><rect x="5" y="6" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="8" width="8" height="1" fill="#8C6418"/><rect x="5" y="13" width="6" height="1" fill="#1A0E08"/></svg>`,
-    'deckhand': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="1" width="2" height="1" fill="#E0A93B"/><rect x="6" y="2" width="1" height="2" fill="#E0A93B"/><rect x="9" y="2" width="1" height="2" fill="#E0A93B"/><rect x="7" y="4" width="2" height="1" fill="#E0A93B"/><rect x="7" y="5" width="2" height="7" fill="#E0A93B"/><rect x="4" y="6" width="8" height="1" fill="#8C6418"/><rect x="3" y="10" width="1" height="2" fill="#E0A93B"/><rect x="12" y="10" width="1" height="2" fill="#E0A93B"/><rect x="4" y="12" width="3" height="1" fill="#E0A93B"/><rect x="9" y="12" width="3" height="1" fill="#E0A93B"/><rect x="6" y="13" width="4" height="1" fill="#8C6418"/></svg>`,
-    'mate': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3" width="4" height="1" fill="#E0A93B"/><rect x="3" y="4" width="1" height="4" fill="#E0A93B"/><rect x="8" y="4" width="1" height="4" fill="#E0A93B"/><rect x="4" y="8" width="4" height="1" fill="#E0A93B"/><rect x="8" y="7" width="4" height="1" fill="#FFCB47"/><rect x="7" y="8" width="1" height="4" fill="#FFCB47"/><rect x="12" y="8" width="1" height="4" fill="#FFCB47"/><rect x="8" y="12" width="4" height="1" fill="#FFCB47"/><rect x="8" y="8" width="1" height="1" fill="#E0A93B"/></svg>`,
-    'bosun': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="8" width="2" height="2" fill="#8C6418"/><rect x="4" y="7" width="6" height="1" fill="#FFD86B"/><rect x="4" y="8" width="6" height="2" fill="#E0A93B"/><rect x="10" y="6" width="2" height="6" fill="#E0A93B"/><rect x="12" y="5" width="2" height="8" fill="#FFCB47"/><rect x="14" y="4" width="1" height="10" fill="#FFD86B"/></svg>`,
-    'quartermaster': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="1" height="2" fill="#8C6418"/><rect x="3" y="2" width="10" height="2" fill="#5A3A1F"/><rect x="13" y="2" width="1" height="2" fill="#8C6418"/><rect x="4" y="4" width="8" height="8" fill="#F7E7C2"/><rect x="5" y="6" width="6" height="1" fill="#C4A86B"/><rect x="5" y="8" width="6" height="1" fill="#C4A86B"/><rect x="5" y="10" width="4" height="1" fill="#C4A86B"/><rect x="2" y="12" width="1" height="2" fill="#8C6418"/><rect x="3" y="12" width="10" height="2" fill="#5A3A1F"/><rect x="13" y="12" width="1" height="2" fill="#8C6418"/></svg>`,
-    'first-mate': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="5" width="8" height="2" fill="#FFD86B"/><rect x="5" y="5" width="3" height="1" fill="#F7E7C2"/><rect x="4" y="7" width="8" height="1" fill="#E0A93B"/><rect x="4" y="8" width="8" height="2" fill="#FFCB47"/><rect x="4" y="10" width="8" height="1" fill="#8C6418"/><rect x="4" y="11" width="8" height="2" fill="#E0A93B"/><rect x="4" y="13" width="8" height="1" fill="#8C6418"/></svg>`,
-    'captain': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="5" width="4" height="3" fill="#1A0E08"/><rect x="2" y="6" width="2" height="2" fill="#1A0E08"/><rect x="12" y="6" width="2" height="2" fill="#1A0E08"/><rect x="2" y="8" width="12" height="2" fill="#1A0E08"/><rect x="3" y="9" width="10" height="1" fill="#E0A93B"/><rect x="7" y="6" width="2" height="1" fill="#FFCB47"/></svg>`,
-    'commodore': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="2" height="2" fill="#F7E7C2"/><rect x="4" y="4" width="2" height="2" fill="#F7E7C2"/><rect x="6" y="6" width="2" height="2" fill="#F7E7C2"/><rect x="8" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="12" y="2" width="2" height="2" fill="#F7E7C2"/><rect x="10" y="4" width="2" height="2" fill="#F7E7C2"/><rect x="8" y="6" width="2" height="2" fill="#F7E7C2"/><rect x="6" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="4" y="10" width="3" height="1" fill="#FFCB47"/><rect x="5" y="9" width="1" height="3" fill="#FFCB47"/><rect x="9" y="10" width="3" height="1" fill="#FFCB47"/><rect x="10" y="9" width="1" height="3" fill="#FFCB47"/><rect x="3" y="11" width="2" height="2" fill="#5A3A1F"/><rect x="11" y="11" width="2" height="2" fill="#5A3A1F"/></svg>`,
-    // — Coverage kinds —
-    'inbox': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4" width="12" height="8" fill="#F7E7C2"/><rect x="2" y="4" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="11" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="4" width="1" height="8" fill="#5A3A1F"/><rect x="13" y="4" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="5" width="1" height="1" fill="#8C6418"/><rect x="4" y="6" width="1" height="1" fill="#8C6418"/><rect x="5" y="7" width="1" height="1" fill="#8C6418"/><rect x="6" y="8" width="2" height="1" fill="#8C6418"/><rect x="12" y="5" width="1" height="1" fill="#8C6418"/><rect x="11" y="6" width="1" height="1" fill="#8C6418"/><rect x="10" y="7" width="1" height="1" fill="#8C6418"/><rect x="8" y="8" width="2" height="1" fill="#8C6418"/></svg>`,
-    'meetings': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="8" width="1" height="1" fill="#8C6418"/><rect x="7" y="8" width="1" height="1" fill="#8C6418"/><rect x="9" y="8" width="1" height="1" fill="#8C6418"/><rect x="5" y="10" width="1" height="1" fill="#8C6418"/><rect x="7" y="10" width="1" height="1" fill="#8C6418"/><rect x="9" y="10" width="1" height="1" fill="#8C6418"/></svg>`,
-    'escalations': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="2" width="2" height="2" fill="#C8362D"/><rect x="6" y="4" width="4" height="2" fill="#C8362D"/><rect x="5" y="6" width="6" height="3" fill="#C8362D"/><rect x="4" y="9" width="8" height="4" fill="#C8362D"/><rect x="5" y="13" width="6" height="1" fill="#E25347"/><rect x="7" y="8" width="2" height="2" fill="#FFCB47"/><rect x="6" y="10" width="4" height="3" fill="#FFCB47"/><rect x="7" y="11" width="2" height="2" fill="#F7E7C2"/></svg>`,
-    'one-on-ones': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="4" width="4" height="4" fill="#E0A93B"/><rect x="2" y="9" width="6" height="4" fill="#8C6418"/><rect x="9" y="4" width="4" height="4" fill="#5BC9D1"/><rect x="8" y="9" width="6" height="4" fill="#1E5A6B"/></svg>`,
-    'chat': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="8" fill="#F7E7C2"/><rect x="2" y="3" width="12" height="1" fill="#5A3A1F"/><rect x="2" y="3" width="1" height="8" fill="#5A3A1F"/><rect x="13" y="3" width="1" height="8" fill="#5A3A1F"/><rect x="2" y="10" width="12" height="1" fill="#5A3A1F"/><rect x="4" y="11" width="2" height="1" fill="#5A3A1F"/><rect x="4" y="12" width="1" height="1" fill="#5A3A1F"/><rect x="5" y="6" width="1" height="2" fill="#1A0E08"/><rect x="8" y="6" width="1" height="2" fill="#1A0E08"/><rect x="11" y="6" width="1" height="2" fill="#1A0E08"/></svg>`,
-    'on-call': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="7" y="2" width="2" height="1" fill="#8C6418"/><rect x="6" y="3" width="4" height="2" fill="#FFCB47"/><rect x="5" y="5" width="6" height="3" fill="#FFCB47"/><rect x="4" y="8" width="8" height="2" fill="#FFCB47"/><rect x="10" y="5" width="1" height="5" fill="#E0A93B"/><rect x="3" y="10" width="10" height="1" fill="#8C6418"/><rect x="7" y="11" width="2" height="2" fill="#1A0E08"/></svg>`,
-    // — Reachability —
-    'unreachable': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="12" width="10" height="2" fill="#E0A93B"/><rect x="4" y="11" width="8" height="1" fill="#FFD86B"/><rect x="8" y="6" width="1" height="6" fill="#8C6418"/><rect x="9" y="5" width="1" height="2" fill="#8C6418"/><rect x="7" y="3" width="2" height="1" fill="#4A8A38"/><rect x="5" y="4" width="3" height="1" fill="#4A8A38"/><rect x="4" y="5" width="2" height="1" fill="#3A6B2C"/><rect x="9" y="3" width="3" height="1" fill="#4A8A38"/><rect x="12" y="4" width="2" height="1" fill="#3A6B2C"/><rect x="10" y="5" width="2" height="1" fill="#4A8A38"/><rect x="8" y="5" width="1" height="1" fill="#5A3A1F"/></svg>`,
-    'email-only': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="5" width="10" height="7" fill="#F7E7C2"/><rect x="2" y="5" width="10" height="1" fill="#5A3A1F"/><rect x="2" y="11" width="10" height="1" fill="#5A3A1F"/><rect x="2" y="5" width="1" height="7" fill="#5A3A1F"/><rect x="11" y="5" width="1" height="7" fill="#5A3A1F"/><rect x="3" y="6" width="1" height="1" fill="#8C6418"/><rect x="4" y="7" width="1" height="1" fill="#8C6418"/><rect x="5" y="8" width="2" height="1" fill="#8C6418"/><rect x="10" y="6" width="1" height="1" fill="#8C6418"/><rect x="9" y="7" width="1" height="1" fill="#8C6418"/><rect x="7" y="8" width="2" height="1" fill="#8C6418"/><rect x="11" y="2" width="4" height="4" fill="#C8362D"/><rect x="11" y="2" width="4" height="1" fill="#E25347"/><rect x="12" y="3" width="1" height="2" fill="#F7E7C2"/></svg>`,
-    'phone': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="4" height="3" fill="#1A0E08"/><rect x="3" y="4" width="2" height="1" fill="#5BC9D1"/><rect x="4" y="5" width="2" height="2" fill="#1A0E08"/><rect x="6" y="7" width="2" height="2" fill="#1A0E08"/><rect x="8" y="9" width="2" height="2" fill="#1A0E08"/><rect x="10" y="10" width="4" height="3" fill="#1A0E08"/><rect x="11" y="11" width="2" height="1" fill="#5BC9D1"/></svg>`,
-    'daily-check-in': `<svg class="px" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="10" y="2" width="1" height="2" fill="#5A3A1F"/><rect x="3" y="3" width="10" height="3" fill="#C8362D"/><rect x="3" y="3" width="10" height="1" fill="#E25347"/><rect x="3" y="6" width="10" height="8" fill="#F7E7C2"/><rect x="3" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="12" y="6" width="1" height="8" fill="#5A3A1F"/><rect x="3" y="13" width="10" height="1" fill="#5A3A1F"/><rect x="5" y="9" width="1" height="2" fill="#3A6B2C"/><rect x="6" y="10" width="1" height="2" fill="#3A6B2C"/><rect x="7" y="9" width="1" height="2" fill="#4A8A38"/><rect x="8" y="8" width="1" height="2" fill="#4A8A38"/><rect x="9" y="7" width="1" height="2" fill="#4A8A38"/></svg>`,
+    // Clean line icons (Unplugged). stroke = currentColor → take the chip/label
+    // colour; smooth-rendered (no .px). Ranks are star medallions.
+    'cabin-boy': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>`,
+    'deckhand': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'mate': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'bosun': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'quartermaster': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'first-mate': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'captain': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'commodore': `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17.1 5.9 20l1.6-6.4-5-4.3 6.5-.5z"/></svg>`,
+    'inbox': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>`,
+    'meetings': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+    'escalations': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A4 4 0 0 0 12 21a4 4 0 0 0 4-4c0-3-2-5-2-8 0 0-3 1-3 4 0-2-1-3-1-3s-1.5 2-1.5 4.5z"/></svg>`,
+    'one-on-ones': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.3a4 4 0 0 1 0 7.4"/></svg>`,
+    'chat': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    'on-call': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>`,
+    'unreachable': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>`,
+    'email-only': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>`,
+    'phone': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>`,
+    'daily-check-in': `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="M22 4 12 14l-3-3"/></svg>`,
   },
-  doubloon: `<svg viewBox="0 0 16 16" aria-hidden="true">
-    <rect x="3" y="1" width="10" height="1" fill="#5A3A1F"/>
-    <rect x="2" y="2" width="12" height="1" fill="#5A3A1F"/>
-    <rect x="1" y="3" width="14" height="10" fill="#5A3A1F"/>
-    <rect x="2" y="13" width="12" height="1" fill="#5A3A1F"/>
-    <rect x="3" y="14" width="10" height="1" fill="#5A3A1F"/>
-    <rect x="3" y="3" width="10" height="10" fill="#FFCB47"/>
-    <rect x="4" y="4" width="8" height="8" fill="#E0A93B"/>
-    <rect x="6" y="5" width="1" height="6" fill="#8C6418"/>
-    <rect x="9" y="5" width="1" height="6" fill="#8C6418"/>
-    <rect x="6" y="7" width="4" height="1" fill="#8C6418"/>
-    <rect x="6" y="9" width="4" height="1" fill="#8C6418"/>
-    <rect x="4" y="4" width="2" height="1" fill="#FFD86B"/>
+  // Unplugged doubloon — a clean brass coin with an engraved power glyph.
+  // Var-driven so every skin (incl. pirate) colours it natively. The dashed
+  // highlight ring is dropped for legibility at the small sizes used inline.
+  doubloon: `<svg class="coin-svg" viewBox="0 0 160 160" aria-hidden="true">
+    <circle cx="80" cy="80" r="72" fill="var(--brass)"/>
+    <circle cx="80" cy="80" r="58" fill="none" stroke="var(--brass-bright)" stroke-width="5" stroke-dasharray="2 9" opacity="0.65"/>
+    <circle cx="80" cy="80" r="30" fill="none" stroke="var(--brass-deep)" stroke-width="9"/>
+    <rect x="74.5" y="33" width="11" height="33" rx="5.5" fill="var(--brass-deep)"/>
   </svg>`,
   flag: `<svg viewBox="0 0 32 32" aria-hidden="true">
     <rect x="6" y="3" width="2" height="26" fill="#5A3A1F"/>
@@ -919,58 +891,8 @@ const SVG = {
     <rect x="21" y="20" width="2" height="3" fill="#2A6A1E"/>
     <rect x="24" y="14" width="2" height="2" fill="#2A6A1E"/>
   </svg>`,
-  stan: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect width="24" height="24" fill="#0F1A2E"/>
-    <rect x="4" y="3" width="16" height="2" fill="#1A0E08"/>
-    <rect x="3" y="4" width="18" height="3" fill="#1A0E08"/>
-    <rect x="9" y="2" width="6" height="1" fill="#1A0E08"/>
-    <rect x="11" y="6" width="2" height="1" fill="#FFCB47"/>
-    <rect x="6" y="7" width="12" height="9" fill="#E8C49D"/>
-    <rect x="5" y="8" width="1" height="6" fill="#D3A87B"/>
-    <rect x="18" y="8" width="1" height="6" fill="#D3A87B"/>
-    <rect x="8" y="10" width="2" height="2" fill="#1A0E08"/>
-    <rect x="14" y="10" width="2" height="2" fill="#1A0E08"/>
-    <rect x="9" y="10" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="15" y="10" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="11" y="11" width="2" height="2" fill="#D3A87B"/>
-    <rect x="10" y="13" width="4" height="1" fill="#D9D9D9"/>
-    <rect x="11" y="14" width="2" height="1" fill="#1A0E08"/>
-    <rect x="6" y="14" width="12" height="2" fill="#F7E7C2"/>
-    <rect x="7" y="16" width="10" height="2" fill="#F7E7C2"/>
-    <rect x="8" y="18" width="8" height="2" fill="#F7E7C2"/>
-    <rect x="9" y="20" width="6" height="2" fill="#F7E7C2"/>
-    <rect x="4" y="20" width="16" height="4" fill="#2A1810"/>
-    <rect x="5" y="21" width="14" height="2" fill="#3D2418"/>
-    <rect x="11" y="20" width="2" height="4" fill="#E0A93B"/>
-  </svg>`,
 };
 
-// Ten 8-bit pirate avatars (5 male, 5 female). Distinguishing features:
-// hat type, skin tone, hair, beard/no beard, eyepatch, earrings.
-SVG.avatars = {
-  // M1: Tricorne captain with full brown beard
-  m1: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#2A1810"/><rect x="12" y="26" width="8" height="6" fill="#3D2418"/><rect x="15" y="25" width="2" height="7" fill="#E0A93B"/><rect x="9" y="10" width="14" height="14" fill="#E8C49D"/><rect x="8" y="11" width="1" height="12" fill="#D3A87B"/><rect x="23" y="11" width="1" height="12" fill="#D3A87B"/><rect x="6" y="5" width="20" height="2" fill="#1A0E08"/><rect x="5" y="7" width="22" height="3" fill="#1A0E08"/><rect x="11" y="4" width="10" height="1" fill="#1A0E08"/><rect x="15" y="9" width="2" height="1" fill="#E0A93B"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="11" y="19" width="10" height="2" fill="#5A3A1F"/><rect x="12" y="21" width="8" height="2" fill="#5A3A1F"/><rect x="13" y="23" width="6" height="1" fill="#5A3A1F"/><rect x="13" y="18" width="6" height="1" fill="#5A3A1F"/></svg>`,
-  // M2: Red bandana + eyepatch + goatee
-  m2: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#3D2418"/><rect x="9" y="10" width="14" height="14" fill="#C49460"/><rect x="8" y="11" width="1" height="12" fill="#9C6E45"/><rect x="23" y="11" width="1" height="12" fill="#9C6E45"/><rect x="8" y="7" width="16" height="4" fill="#C8362D"/><rect x="8" y="7" width="16" height="1" fill="#E25347"/><rect x="20" y="11" width="3" height="3" fill="#C8362D"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="10" y="13" width="4" height="4" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="8" y="14" width="2" height="1" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#9C6E45"/><rect x="14" y="20" width="4" height="2" fill="#1A0E08"/><rect x="15" y="22" width="2" height="2" fill="#1A0E08"/><rect x="13" y="19" width="6" height="1" fill="#1A0E08"/></svg>`,
-  // M3: Captain's hat with feather, grey beard
-  m3: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#1A0E08"/><rect x="12" y="26" width="8" height="6" fill="#5A3A1F"/><rect x="15" y="25" width="2" height="7" fill="#E0A93B"/><rect x="9" y="10" width="14" height="14" fill="#8B5A2B"/><rect x="8" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="23" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="5" y="6" width="22" height="4" fill="#1A0E08"/><rect x="9" y="4" width="14" height="2" fill="#1A0E08"/><rect x="7" y="3" width="2" height="3" fill="#C8362D"/><rect x="6" y="2" width="2" height="2" fill="#C8362D"/><rect x="15" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="14" y="9" width="4" height="1" fill="#F7E7C2"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#6B3F1E"/><rect x="11" y="19" width="10" height="2" fill="#D9D9D9"/><rect x="12" y="21" width="8" height="2" fill="#D9D9D9"/><rect x="13" y="23" width="6" height="1" fill="#D9D9D9"/><rect x="13" y="18" width="6" height="1" fill="#D9D9D9"/></svg>`,
-  // M4: Bald with scar + hoop earring
-  m4: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#2A1810"/><rect x="12" y="26" width="8" height="6" fill="#3D2418"/><rect x="9" y="8" width="14" height="16" fill="#E8C49D"/><rect x="8" y="9" width="1" height="14" fill="#D3A87B"/><rect x="23" y="9" width="1" height="14" fill="#D3A87B"/><rect x="10" y="7" width="12" height="1" fill="#D3A87B"/><rect x="11" y="6" width="10" height="1" fill="#D3A87B"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="14" y="10" width="4" height="1" fill="#9C5A45"/><rect x="13" y="11" width="1" height="1" fill="#9C5A45"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="13" y="21" width="6" height="1" fill="#5A3A1F"/><rect x="11" y="22" width="10" height="2" fill="#5A3A1F"/><rect x="22" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="17" width="1" height="2" fill="#1A0E08"/></svg>`,
-  // M5: Skull tricorne, blond mustache (no beard)
-  m5: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#3D2418"/><rect x="12" y="26" width="8" height="6" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#E8C49D"/><rect x="8" y="11" width="1" height="12" fill="#D3A87B"/><rect x="23" y="11" width="1" height="12" fill="#D3A87B"/><rect x="6" y="5" width="20" height="2" fill="#1A0E08"/><rect x="5" y="7" width="22" height="3" fill="#1A0E08"/><rect x="11" y="4" width="10" height="1" fill="#1A0E08"/><rect x="14" y="7" width="4" height="3" fill="#F7E7C2"/><rect x="15" y="8" width="1" height="1" fill="#1A0E08"/><rect x="16" y="8" width="1" height="1" fill="#1A0E08"/><rect x="15" y="10" width="2" height="1" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="11" y="13" width="2" height="1" fill="#FFD86B"/><rect x="19" y="13" width="2" height="1" fill="#FFD86B"/><rect x="12" y="14" width="1" height="1" fill="#5BC9D1"/><rect x="20" y="14" width="1" height="1" fill="#5BC9D1"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="13" y="19" width="6" height="1" fill="#FFD86B"/><rect x="14" y="20" width="4" height="1" fill="#FFD86B"/><rect x="14" y="22" width="4" height="1" fill="#1A0E08"/></svg>`,
-  // F1: Red bandana with long black braid + hoop earrings
-  f1: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#E8C49D"/><rect x="8" y="11" width="1" height="12" fill="#D3A87B"/><rect x="23" y="11" width="1" height="12" fill="#D3A87B"/><rect x="8" y="9" width="16" height="2" fill="#1A0E08"/><rect x="8" y="7" width="16" height="3" fill="#C8362D"/><rect x="8" y="7" width="16" height="1" fill="#E25347"/><rect x="20" y="10" width="3" height="3" fill="#C8362D"/><rect x="14" y="22" width="4" height="8" fill="#1A0E08"/><rect x="15" y="22" width="2" height="10" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="11" y="13" width="2" height="1" fill="#1A0E08"/><rect x="19" y="13" width="2" height="1" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/><rect x="7" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="16" width="2" height="2" fill="#E0A93B"/></svg>`,
-  // F2: Black tricorne + brown braid behind shoulder
-  f2: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#3D2418"/><rect x="12" y="26" width="8" height="6" fill="#8B5A2B"/><rect x="9" y="10" width="14" height="14" fill="#C49460"/><rect x="8" y="11" width="1" height="12" fill="#9C6E45"/><rect x="23" y="11" width="1" height="12" fill="#9C6E45"/><rect x="6" y="5" width="20" height="2" fill="#1A0E08"/><rect x="5" y="7" width="22" height="3" fill="#1A0E08"/><rect x="11" y="4" width="10" height="1" fill="#1A0E08"/><rect x="15" y="9" width="2" height="1" fill="#E0A93B"/><rect x="22" y="12" width="3" height="6" fill="#8C6418"/><rect x="22" y="18" width="2" height="4" fill="#8C6418"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="14" y="13" width="3" height="1" fill="#1A0E08"/><rect x="19" y="13" width="2" height="1" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#9C6E45"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/></svg>`,
-  // F3: Captain's hat with red feather, red curly hair, hoops
-  f3: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#1A0E08"/><rect x="12" y="26" width="8" height="6" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#8B5A2B"/><rect x="8" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="23" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="5" y="6" width="22" height="4" fill="#1A0E08"/><rect x="9" y="4" width="14" height="2" fill="#1A0E08"/><rect x="7" y="3" width="2" height="3" fill="#C8362D"/><rect x="6" y="2" width="2" height="2" fill="#C8362D"/><rect x="15" y="8" width="2" height="2" fill="#FFD86B"/><rect x="14" y="9" width="4" height="1" fill="#FFD86B"/><rect x="8" y="10" width="2" height="6" fill="#C8362D"/><rect x="22" y="10" width="2" height="6" fill="#C8362D"/><rect x="7" y="11" width="1" height="4" fill="#C8362D"/><rect x="24" y="11" width="1" height="4" fill="#C8362D"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#6B3F1E"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/><rect x="7" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="16" width="2" height="2" fill="#E0A93B"/></svg>`,
-  // F4: Eyepatch + long blonde wavy hair + neck scarf
-  f4: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#2A1810"/><rect x="10" y="23" width="12" height="3" fill="#5BC9D1"/><rect x="9" y="10" width="14" height="14" fill="#F2D2A8"/><rect x="8" y="11" width="1" height="12" fill="#D9B585"/><rect x="23" y="11" width="1" height="12" fill="#D9B585"/><rect x="8" y="6" width="16" height="6" fill="#FFD86B"/><rect x="7" y="9" width="2" height="10" fill="#FFD86B"/><rect x="23" y="9" width="2" height="10" fill="#FFD86B"/><rect x="6" y="12" width="2" height="6" fill="#FFD86B"/><rect x="24" y="12" width="2" height="6" fill="#FFD86B"/><rect x="9" y="5" width="14" height="2" fill="#FFD86B"/><rect x="8" y="8" width="2" height="2" fill="#E0A93B"/><rect x="22" y="8" width="2" height="2" fill="#E0A93B"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="10" y="13" width="4" height="4" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="9" y="14" width="1" height="2" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#D9B585"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/></svg>`,
-  // F5: Bandana with bow, dark skin, big smile, hoop earrings
-  f5: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#6B3F1E"/><rect x="8" y="11" width="1" height="12" fill="#4D2A14"/><rect x="23" y="11" width="1" height="12" fill="#4D2A14"/><rect x="8" y="7" width="16" height="3" fill="#5BC9D1"/><rect x="8" y="7" width="16" height="1" fill="#8FE0E5"/><rect x="20" y="10" width="3" height="3" fill="#5BC9D1"/><rect x="22" y="6" width="3" height="2" fill="#5BC9D1"/><rect x="24" y="5" width="2" height="3" fill="#5BC9D1"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#4D2A14"/><rect x="13" y="20" width="6" height="2" fill="#F7E7C2"/><rect x="13" y="21" width="6" height="1" fill="#C8362D"/><rect x="7" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="16" width="2" height="2" fill="#E0A93B"/></svg>`,
-};
-
-const AVATAR_LIST = ['m1', 'm2', 'm3', 'm4', 'm5', 'f1', 'f2', 'f3', 'f4', 'f5'];
 
 /* ============================================================
    Routing
@@ -1511,16 +1433,6 @@ function showCrewClaimModal() {
   root.appendChild(wrap);
 }
 
-async function setAvatar(avatarId) {
-  try {
-    await callSetProfile({ avatarId });
-    showToast(t('Avatar updated.'), 'success');
-    audio.coin();
-  } catch (err) {
-    showToast(t('Could not set avatar: {msg}', { msg: err.message }), 'error', 5000);
-  }
-}
-
 async function setDigestEnabled(enabled) {
   try {
     await callSetProfile({ digestEnabled: !!enabled });
@@ -1707,47 +1619,14 @@ async function sendScrollAction(teamId, toUid, message, bountyId) {
   }
 }
 
-function showSkinPicker() {
-  const current = skin.current();
-  const body = `
-    <p style="margin: 0 0 12px;">${esc(t('Pick a look. Persists across visits on this browser.'))}</p>
-    <div class="skin-picker-grid">
-      ${SKIN_OPTIONS.map((s) => `
-        <button class="skin-card ${s.id === current ? 'selected' : ''}" data-action="pick-skin" data-id="${esc(s.id)}">
-          <div class="skin-preview skin-preview-${s.id}">${s.id === 'basic' ? 'Time Off' : (s.id === 'dark-knight' ? '> Time Off_' : 'TIME OFF')}</div>
-          <div class="skin-card-meta">
-            <strong>${esc(t(s.label))}</strong>
-            <small>${esc(t(s.desc))}</small>
-          </div>
-        </button>
-      `).join('')}
-    </div>
-  `;
-  showModal({
-    title: t('Choose a skin'),
-    body,
-    wide: true,
-    primaryLabel: t('Close'),
-  });
-}
-
 function showAvatarPicker() {
   const u = state.user || {};
-  const current = state.userDoc?.avatarId ?? null;
   const digestEnabled = state.userDoc?.digestEnabled !== false; // default true
   const team = state.teamId ? state.myTeams.find((t) => t.id === state.teamId) : null;
   const wallet = state.walletDoc;
   const totalBalance = wallet ? (wallet.earnedBalance ?? 0) + (wallet.stipendBalance ?? 0) : null;
   const stats = state.teamId ? computeStats() : null;
   const rank = stats ? computeRank(stats) : null;
-  const grid = AVATAR_LIST.map((id) => {
-    const isMale = id.startsWith('m');
-    const isSelected = id === current;
-    return `<button class="avatar-tile ${isSelected ? 'selected' : ''}" data-action="pick-avatar" data-id="${id}" title="${esc(isMale ? t('Male pirate') : t('Female pirate'))}">
-      <span class="avatar-tile-art">${SVG.avatars[id]}</span>
-      <span class="avatar-tile-label">${isMale ? 'M' : 'F'}${id.slice(1)}</span>
-    </button>`;
-  }).join('');
   const body = `
     <div class="profile-head">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 48, klass: 'avatar-img' })}
@@ -1762,11 +1641,6 @@ function showAvatarPicker() {
         </span>` : ''}
     </div>
 
-    <div class="profile-section">
-      <p style="margin: 0 0 12px;">${esc(t('Pick a pirate to wear as your face. You can change it any time.'))}</p>
-      <div class="avatar-grid">${grid}</div>
-      ${current ? `<p style="margin: 12px 0 0; text-align: right;"><button class="btn-ghost" data-action="clear-avatar">${esc(t('Use Google photo'))}</button></p>` : ''}
-    </div>
 
     <div class="profile-section">
       <div class="profile-row">
@@ -1777,20 +1651,6 @@ function showAvatarPicker() {
         <select data-action="set-lang" aria-label="${esc(t('Language'))}" style="width: auto; min-width: 160px;">
           ${LANG_OPTIONS.map((o) => `<option value="${o.id}" ${lang.stored() === o.id ? 'selected' : ''}>${esc(o.id === 'auto' ? t('Auto (browser)') : o.label)}</option>`).join('')}
         </select>
-      </div>
-      <label class="profile-row" style="cursor: pointer;">
-        <span>
-          <strong style="display: block;">${esc(t('Pirate mode'))}</strong>
-          <small class="muted">${esc(t('Playful wording (doubloons, crew, bounties). Off = plain corporate wording (credits, team, requests).'))}</small>
-        </span>
-        <input type="checkbox" data-action="toggle-voice" ${voice.isPirate() ? 'checked' : ''} style="width: 18px; height: 18px; margin: 0;" />
-      </label>
-      <div class="profile-row">
-        <span>
-          <strong style="display: block;">${esc(t('Theme'))}</strong>
-          <small class="muted">${esc(t('Pirate, Basic, High Contrast, or Dark Knight.'))}</small>
-        </span>
-        <button class="btn btn-secondary" data-action="open-skin-picker" type="button">🎨 ${esc(t('Choose a skin'))}</button>
       </div>
       <label class="profile-row" style="cursor: pointer;">
         <span>
@@ -2598,39 +2458,44 @@ function closeAllModals() {
 
 function showWelcomeModal() {
   state.onboardingScene = 0;
-  renderStanScene();
+  renderOnboardScene();
 }
 
-function renderStanScene() {
+const ONBOARD_GLYPH = `<svg viewBox="0 0 40 40" width="60" height="60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="20" cy="22" r="12.5"/><path d="M20 5.5v12"/></svg>`;
+
+function renderOnboardScene() {
   const idx = state.onboardingScene;
-  const scene = STAN_SCENES[idx];
-  const isLast = idx === STAN_SCENES.length - 1;
+  const scene = ONBOARD_SCENES[idx];
+  const isLast = idx === ONBOARD_SCENES.length - 1;
+  const art = scene.art === 'coin'
+    ? `<div class="onb-art onb-coin">${SVG.doubloon}</div>`
+    : `<div class="onb-art onb-glyph">${ONBOARD_GLYPH}</div>`;
   const body = `
-    <div class="stan-scene">
-      <div class="stan-portrait">${SVG.stan}</div>
-      <div class="stan-speech"><p>${esc(t(scene.speech))}</p></div>
-    </div>
-    <div class="stan-progress">
-      ${STAN_SCENES.map((_, i) => `<span class="stan-dot ${i === idx ? 'active' : ''}"></span>`).join('')}
-    </div>
-  `;
+    <div class="onb-scene">
+      ${art}
+      <h3 class="onb-title">${esc(t(scene.title))}</h3>
+      <p class="onb-body">${esc(t(scene.body))}</p>
+      <div class="onb-progress">
+        ${ONBOARD_SCENES.map((_, i) => `<span class="onb-dot ${i === idx ? 'active' : ''}"></span>`).join('')}
+      </div>
+    </div>`;
   showModal({
-    title: t('Stan, Harbormaster'),
+    title: t('Getting started'),
     body,
-    primaryLabel: isLast ? t('Set sail') : t('Next'),
+    primaryLabel: isLast ? t('Get started') : t('Next'),
     secondaryLabel: idx === 0 ? t('Skip') : t('Back'),
     onPrimary: () => {
       audio.click();
       if (!isLast) {
         state.onboardingScene = idx + 1;
-        setTimeout(renderStanScene, 0);
+        setTimeout(renderOnboardScene, 0);
       }
     },
     onSecondary: () => {
       audio.click();
       if (idx > 0) {
         state.onboardingScene = idx - 1;
-        setTimeout(renderStanScene, 0);
+        setTimeout(renderOnboardScene, 0);
       }
     },
   });
@@ -2881,17 +2746,30 @@ function renderUserInfo() {
   const notifs = state.user ? computeNotifications() : [];
   const unread = notifs.filter((n) => n.time.getTime() > state.notifLastSeen).length;
 
-  // Launch-gate item 11: the header carries bell + avatar only. Balance,
-  // rank, theme, sound, identity and sign-out live in the Profile sheet.
+  // Topbar: search (board entry point) + notifications + profile.
   target.innerHTML = `
+    ${state.teamId ? `
+    <button class="topbar-search" data-action="topbar-search" aria-label="${esc(t('Search the board'))}">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <span>${esc(t('Search the board'))}</span>
+      <span class="kbd" aria-hidden="true">⌘K</span>
+    </button>` : ''}
     <button class="bell" data-action="bell" title="${esc(t('Notifications'))}" aria-label="${esc(unread > 0 ? t('Notifications, {n} unread', { n: unread }) : t('Notifications'))}" aria-haspopup="true" aria-expanded="${state.bellOpen ? 'true' : 'false'}">
-      <span aria-hidden="true">🔔</span>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>${unread > 0 ? `<span class="bell-badge" aria-hidden="true">${unread}</span>` : ''}
     </button>
     <button class="avatar-slot" data-action="pick-avatar-open" title="${esc(t('Profile'))}" aria-label="${esc(t('Open profile'))}" aria-haspopup="dialog">
       ${renderAvatar({ uid: u.uid, photoURL: u.photoURL, name: u.displayName, size: 32, klass: 'avatar-img' })}
     </button>
     ${state.bellOpen ? renderBellDropdown(notifs) : ''}
   `;
+}
+
+// Jump to the board and focus its search field (from the topbar search / ⌘K).
+function focusBoardSearch() {
+  if (state.view !== 'team' || state.teamTab !== 'bounties') {
+    if (state.teamId) navigate('team', state.teamId, 'bounties');
+  }
+  setTimeout(() => { document.getElementById('bounty-search')?.focus(); }, 60);
 }
 
 function renderBellDropdown(notifs) {
@@ -2975,8 +2853,8 @@ function renderLogin() {
     <div class="login-screen">
       ${renderHarborBg()}
       <div class="login-content">
-        <h1 class="login-title">TIME OFF</h1>
-        <p class="login-tagline">${esc(t('Tales of Monkey Coverage'))}</p>
+        <h1 class="login-title">Time Off</h1>
+        <p class="login-tagline">${esc(t("When you're off, you're fully off."))}</p>
         <p class="login-pitch">${esc(t('Going on vacation? Post a bounty. A crewmate covers your accounts — with your briefing in hand — and earns doubloons for it.'))}</p>
         <div class="login-card">
           <button class="btn btn-google" data-action="sign-in" ${busy ? 'disabled' : ''}>
@@ -2989,10 +2867,6 @@ function renderLogin() {
               </svg>${esc(t('Sign in with Google'))}`}
           </button>
         </div>
-      </div>
-      <div class="mascot-floater">
-        <div class="mascot-bubble">${esc(t(pickMascotLine()))}</div>
-        <div class="mascot-sprite">${SVG.turtle}</div>
       </div>
     </div>
   `;
@@ -3288,6 +3162,17 @@ function renderHome() {
    Team page (tabs)
    ============================================================ */
 
+// Line icons for the left sidebar (stroke = currentColor, recolours by state).
+const NAV_ICONS = {
+  board: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg>',
+  fame: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM8 21h8M12 15v6"/></svg>',
+  crew: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.18V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .38-1.9V15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.9.38H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.38 1.9V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+};
+
 function renderTeam() {
   const team = state.myTeams.find((t) => t.id === state.teamId);
   if (!team) {
@@ -3310,34 +3195,49 @@ function renderTeam() {
   else if (tab === 'members') body = renderMembersTab();
   else body = renderBountyBoardTab();
 
+  const ic = NAV_ICONS;
+  const balance = state.walletDoc ? (state.walletDoc.earnedBalance ?? 0) + (state.walletDoc.stipendBalance ?? 0) : null;
+  const base = `#/team/${esc(team.id)}`;
+  const link = (id, href, label, icon, count) => `
+    <a href="${href}" class="side-link ${tab === id ? 'active' : ''}" ${tab === id ? 'aria-current="page"' : ''}>
+      <span class="side-ic" aria-hidden="true">${icon}</span>
+      <span class="side-label">${esc(label)}</span>
+      ${count ? `<span class="side-count">${count}</span>` : ''}
+    </a>`;
   return `
-    <nav class="breadcrumb">
-      <a href="#/">${esc(t('Crews'))}</a><span class="sep">/</span><span class="current">${esc(team.name)}</span>
-    </nav>
-    <header class="team-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        ${team.photoURL
-          ? `<img src="${esc(team.photoURL)}" alt="" referrerpolicy="no-referrer" style="width: 48px; height: 48px; box-shadow: 0 0 0 2px var(--wood-dark); image-rendering: pixelated;" />`
-          : `<span style="width: 48px; height: 48px; display: inline-block;">${SVG.flag}</span>`}
-        <div>
-          <h1>${esc(team.name)}</h1>
-          <small>${esc(t('{n} crewmates', { n: team.memberUids?.length || 0 }))} · ID: <code>${esc(team.id)}</code></small>
+    <div class="shell">
+      <aside class="side" aria-label="${esc(t('Primary'))}">
+        <a class="side-back" href="#/">${ic.back}<span>${esc(t('All teams'))}</span></a>
+        <nav class="side-nav">
+          ${link('bounties', base, t('Board'), ic.board, openCount || '')}
+          ${link('chest', `${base}/chest`, t('Wallet'), ic.wallet)}
+          ${link('wof', `${base}/wof`, t('Wall of Fame'), ic.fame)}
+          ${link('members', `${base}/members`, t('Crew'), ic.crew)}
+          ${state.myRole === 'manager' ? link('settings', `${base}/settings`, t('Settings'), ic.settings) : ''}
+        </nav>
+        <div class="side-foot">
+          <a class="btn side-post ${tab === 'post' ? 'active' : ''}" href="${base}/post">${ic.plus}<span>${esc(t('Post a request'))}</span></a>
+          ${balance !== null ? `
+          <div class="side-coin">
+            <div class="side-coin-lbl">${esc(t('Your doubloons'))}</div>
+            <div class="side-coin-val"><span class="coin-16">${SVG.doubloon}</span><strong>${balance}</strong></div>
+          </div>` : ''}
         </div>
+      </aside>
+      <div class="main">
+        <div class="main-head">
+          <div>
+            <h1 class="main-title">${esc(team.name)}</h1>
+            <div class="main-sub">${esc(t('{n} crewmates', { n: team.memberUids?.length || 0 }))}</div>
+          </div>
+          <div class="main-actions">
+            ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">${esc(t('Manage'))}</button>` : ''}
+            ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">${esc(t('Share invite'))}</button>` : ''}
+          </div>
+        </div>
+        ${body}
       </div>
-      <div class="invite-actions">
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="manage-crew">✏ ${esc(t('Manage'))}</button>` : ''}
-        ${state.myRole === 'manager' ? `<button class="btn-ghost" data-action="copy-invite" data-id="${esc(team.id)}">🔗 ${esc(t('Share invite'))}</button>` : ''}
-      </div>
-    </header>
-    <nav class="tabs" aria-label="${esc(t('Crew navigation'))}">
-      <a href="#/team/${esc(team.id)}" class="tab ${tab === 'bounties' ? 'active' : ''}" ${tab === 'bounties' ? 'aria-current="page"' : ''}>${esc(t('Bounty Board'))} ${openCount > 0 ? `<span class="tab-count" aria-label="${esc(t('{n} open', { n: openCount }))}">${openCount}</span>` : ''}</a>
-      <a href="#/team/${esc(team.id)}/chest" class="tab ${tab === 'chest' ? 'active' : ''}" ${tab === 'chest' ? 'aria-current="page"' : ''}>${esc(t('Treasure Chest'))}</a>
-      <a href="#/team/${esc(team.id)}/wof" class="tab ${tab === 'wof' ? 'active' : ''}" ${tab === 'wof' ? 'aria-current="page"' : ''}>${esc(t('Wall of Fame'))}</a>
-      <a href="#/team/${esc(team.id)}/members" class="tab ${tab === 'members' ? 'active' : ''}" ${tab === 'members' ? 'aria-current="page"' : ''}>${esc(t('Crew'))}</a>
-      <a href="#/team/${esc(team.id)}/post" class="tab ${tab === 'post' ? 'active' : ''}" ${tab === 'post' ? 'aria-current="page"' : ''}>${esc(t('Post Bounty'))}</a>
-      ${state.myRole === 'manager' ? `<a href="#/team/${esc(team.id)}/settings" class="tab ${tab === 'settings' ? 'active' : ''}" ${tab === 'settings' ? 'aria-current="page"' : ''}><span aria-hidden="true">⚙ </span>${esc(t('Settings'))}</a>` : ''}
-    </nav>
-    ${body}
+    </div>
   `;
 }
 
@@ -3352,25 +3252,25 @@ function renderHowItWorks() {
       <div class="howto-steps">
         <div class="howto-step">
           <span class="howto-num">1</span>
-          ${spriteIcon('unreachable')}
+          <span class="howto-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
           <strong>${esc(t('Post'))}</strong>
           <small>${esc(t('Going out? Post a bounty with your days, reachability, and context.'))}</small>
         </div>
         <div class="howto-step">
           <span class="howto-num">2</span>
-          ${spriteIcon('deckhand')}
+          <span class="howto-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3.2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.3a4 4 0 0 1 0 7.4"/></svg></span>
           <strong>${esc(t('Cover'))}</strong>
           <small>${esc(t('A crewmate claims it and gets your briefing — accounts, meetings, SLA.'))}</small>
         </div>
         <div class="howto-step">
           <span class="howto-num">3</span>
-          ${spriteIcon('first-mate')}
+          <span class="howto-ic howto-coin">${SVG.doubloon}</span>
           <strong>${esc(t('Earn'))}</strong>
           <small>${esc(t('They earn doubloons day by day. Spend yours on your next trip.'))}</small>
         </div>
       </div>
       <div class="howto-actions">
-        <button class="btn" data-action="preset-next-week">🏝 ${esc(t("I'm out next week"))}</button>
+        <button class="btn" data-action="preset-next-week">${esc(t("I'm out next week"))}</button>
         <a href="#/help" class="btn-ghost">${esc(t('Full guide'))}</a>
       </div>
     </section>
@@ -3605,7 +3505,7 @@ function renderChestTab() {
       <div class="achievements">
         ${achievements.map((a) => `
           <div class="badge ${a.unlocked ? '' : 'locked'}" title="${esc(t(a.name))}">
-            <div class="badge-icon">${a.icon}</div>
+            <div class="badge-icon">${ACH_ICON[a.id] || ''}</div>
             <div class="badge-name">${esc(t(a.name))}</div>
           </div>
         `).join('')}
@@ -4137,11 +4037,7 @@ function renderMembersTab() {
         ${members.map((m) => {
           const isMe = m.uid === state.user?.uid;
           const rank = computeRank({ lifetimeEarned: m.lifetimeEarned, voyages: m.voyages, weekendCovers: 0, bountiesPosted: 0, stipendExpired: 0, crewCount: 1 });
-          const avatarHtml = m.avatarId && SVG.avatars[m.avatarId]
-            ? `<span class="avatar-img" style="width:48px;height:48px;display:inline-block;">${SVG.avatars[m.avatarId]}</span>`
-            : m.photoURL
-              ? `<img class="avatar-img" src="${esc(m.photoURL)}" alt="" referrerpolicy="no-referrer" style="width:48px;height:48px;" />`
-              : `<span class="avatar-img avatar-fallback" style="width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:14px;">${esc(initials(m.displayName))}</span>`;
+          const avatarHtml = renderAvatar({ uid: m.uid, photoURL: m.photoURL, name: m.displayName, size: 48, klass: 'avatar-img' });
           return `
             <li class="member-card ${isMe ? 'me' : ''}">
               ${avatarHtml}
@@ -4391,6 +4287,9 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     state.bountyFilter = t.dataset.filter;
     render();
+  } else if (action === 'topbar-search') {
+    e.preventDefault();
+    focusBoardSearch();
   } else if (action === 'bell') {
     e.preventDefault();
     state.bellOpen = !state.bellOpen;
@@ -4410,26 +4309,9 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     showSendScrollModal(t.dataset.toUid, t.dataset.toName, null);
-  } else if (action === 'open-skin-picker') {
-    e.preventDefault();
-    showSkinPicker();
-  } else if (action === 'pick-skin') {
-    e.preventDefault();
-    skin.set(t.dataset.id);
-    document.querySelectorAll('.skin-card').forEach((el) => el.classList.toggle('selected', el === t));
-    showToast(tr('Skin applied.'), 'success', 2500);
-    render();
   } else if (action === 'pick-avatar-open') {
     e.preventDefault();
     showAvatarPicker();
-  } else if (action === 'pick-avatar') {
-    e.preventDefault();
-    setAvatar(t.dataset.id);
-    document.querySelectorAll('.avatar-tile').forEach((el) => el.classList.toggle('selected', el === t));
-  } else if (action === 'clear-avatar') {
-    e.preventDefault();
-    setAvatar(null);
-    document.querySelectorAll('.avatar-tile').forEach((el) => el.classList.remove('selected'));
   } else if (action === 'toggle-digest') {
     // Don't preventDefault — the checkbox should toggle visually.
     setDigestEnabled(t.checked);
@@ -4636,13 +4518,6 @@ document.addEventListener('change', (e) => {
     closeAllModals();
     showAvatarPicker();
   }
-  if (e.target.matches?.('[data-action="toggle-voice"]')) {
-    voice.set(e.target.checked ? 'pirate' : 'plain');
-    render();
-    renderUserInfo();
-    closeAllModals();
-    showAvatarPicker();
-  }
 });
 
 function syncFormStateFromDom(form) {
@@ -4698,6 +4573,10 @@ function syncFormStateFromDom(form) {
 }
 
 document.addEventListener('keydown', (e) => {
+  // ⌘K / Ctrl-K → jump to the board search.
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    if (state.teamId) { e.preventDefault(); focusBoardSearch(); return; }
+  }
   if (e.key === 'Enter' && document.activeElement?.id === 'new-team-name') {
     e.preventDefault();
     createTeam(document.getElementById('new-team-name').value.trim());

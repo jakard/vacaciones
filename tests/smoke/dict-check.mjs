@@ -36,7 +36,7 @@ while ((c = callRe.exec(appSrc))) {
 // Dynamic keys translated via t(x) on constant arrays/objects.
 const dynamicBlocks = [
   /const RANKS = \[([\s\S]*?)\];/, /const ACHIEVEMENTS = \[([\s\S]*?)\];/,
-  /const STAN_SCENES = \[([\s\S]*?)\];/, /const MASCOT_LINES = \[([\s\S]*?)\];/,
+  /const ONBOARD_SCENES = \[([\s\S]*?)\];/,
   /const REACHABILITY_OPTIONS = \[([\s\S]*?)\];/, /const COVERAGE_KIND_OPTIONS = \[([\s\S]*?)\];/,
   /const STATUS_LABEL = \{([\s\S]*?)\};/, /const LEDGER_TYPE_LABELS = \{([\s\S]*?)\};/,
   /const WEEKDAY_NAMES = \[([\s\S]*?)\];/, /const MONTH_NAMES = \[([\s\S]*?)\];/,
