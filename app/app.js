@@ -85,21 +85,12 @@ const STATUS_LABEL = {
 };
 const STATUS_PRIORITY = { open: 0, accepted: 1, active: 2, completed: 3, draft: 4, cancelled: 5 };
 
-const STAN_SCENES = [
-  { speech: "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand? Let me show you the ropes." },
-  { speech: "Doubloons are how we trade coverage. 5 buy you one day of shore leave. Weekend? Twice as dear — the Crown insists." },
-  { speech: "Your starter chest holds 125 doubloons — 25 business days of leave from day one. Spend wisely." },
-  { speech: "Every month the Crown drops 11 more stipend doubloons in your purse — that's the year-after-year budget. Use them or watch them vanish at month's end." },
-  { speech: "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time." },
-  { speech: "Top earners over 90 days get the captain's hat on the Wall of Fame. Now form a crew and post your first bounty!" },
-];
-
-const MASCOT_LINES = [
-  '"Ahoy, weary TAM!"',
-  '"Coins, or coverage?"',
-  '"Need a week ashore?"',
-  '"Even pirates take leave."',
-  '"Doubloons jingle softly."',
+// Onboarding — plain, calm, no pirate. `art` picks the visual (glyph | coin).
+const ONBOARD_SCENES = [
+  { art: 'glyph', title: 'Welcome to Time Off', body: 'The calm way for TAMs to take real time off. Post the days you need, a teammate covers your accounts, and the context travels with them.' },
+  { art: 'coin', title: '125 credits to start', body: "That's about 25 days of coverage. When you post time off, your credits are set aside; cover teammates to earn more." },
+  { art: 'coin', title: 'Paid day by day', body: 'Cover someone and their credits land in your wallet one day at a time as the days pass. Earned credits never expire — only the monthly allowance does.' },
+  { art: 'glyph', title: "You're all set", body: 'Post a request when you need cover, or browse the board to cover a teammate.' },
 ];
 
 // Voyage rank ladder, by lifetime earned doubloons
@@ -180,14 +171,6 @@ const callDisbandCrew = httpsCallableFromURL(functions, callableURL('disbandCrew
 /* ============================================================
    Sound module (Web Audio chiptune SFX)
    ============================================================ */
-
-const SKIN_OPTIONS = [
-  { id: 'unplugged', label: 'Unplugged (Light)', desc: 'The calm default — sage & paper, Bricolage + Hanken type, soft cards, pill buttons.' },
-  { id: 'pirate', label: 'Pirate (Monkey Island)', desc: 'The original pixel-art parchment personality theme. Opt-in.' },
-  { id: 'basic', label: 'Basic', desc: 'Clean modern. Inter font, soft shadows, rounded corners.' },
-  { id: 'hc', label: 'High Contrast', desc: 'Atkinson Hyperlegible, black/white/yellow. Maximum legibility.' },
-  { id: 'dark-knight', label: 'Dark Knight', desc: 'Warm dark theme with amber accents and Geist + Geist Mono fonts. Ultra legible.' },
-];
 
 /* ============================================================
    i18n — gettext-style. The key IS the polished English string;
@@ -575,7 +558,6 @@ function initials(name) {
   if (!name) return '?';
   return name.split(' ').filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('');
 }
-function pickMascotLine() { return MASCOT_LINES[Math.floor(Math.random() * MASCOT_LINES.length)]; }
 function arr(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -909,58 +891,8 @@ const SVG = {
     <rect x="21" y="20" width="2" height="3" fill="#2A6A1E"/>
     <rect x="24" y="14" width="2" height="2" fill="#2A6A1E"/>
   </svg>`,
-  stan: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect width="24" height="24" fill="#0F1A2E"/>
-    <rect x="4" y="3" width="16" height="2" fill="#1A0E08"/>
-    <rect x="3" y="4" width="18" height="3" fill="#1A0E08"/>
-    <rect x="9" y="2" width="6" height="1" fill="#1A0E08"/>
-    <rect x="11" y="6" width="2" height="1" fill="#FFCB47"/>
-    <rect x="6" y="7" width="12" height="9" fill="#E8C49D"/>
-    <rect x="5" y="8" width="1" height="6" fill="#D3A87B"/>
-    <rect x="18" y="8" width="1" height="6" fill="#D3A87B"/>
-    <rect x="8" y="10" width="2" height="2" fill="#1A0E08"/>
-    <rect x="14" y="10" width="2" height="2" fill="#1A0E08"/>
-    <rect x="9" y="10" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="15" y="10" width="1" height="1" fill="#F7E7C2"/>
-    <rect x="11" y="11" width="2" height="2" fill="#D3A87B"/>
-    <rect x="10" y="13" width="4" height="1" fill="#D9D9D9"/>
-    <rect x="11" y="14" width="2" height="1" fill="#1A0E08"/>
-    <rect x="6" y="14" width="12" height="2" fill="#F7E7C2"/>
-    <rect x="7" y="16" width="10" height="2" fill="#F7E7C2"/>
-    <rect x="8" y="18" width="8" height="2" fill="#F7E7C2"/>
-    <rect x="9" y="20" width="6" height="2" fill="#F7E7C2"/>
-    <rect x="4" y="20" width="16" height="4" fill="#2A1810"/>
-    <rect x="5" y="21" width="14" height="2" fill="#3D2418"/>
-    <rect x="11" y="20" width="2" height="4" fill="#E0A93B"/>
-  </svg>`,
 };
 
-// Ten 8-bit pirate avatars (5 male, 5 female). Distinguishing features:
-// hat type, skin tone, hair, beard/no beard, eyepatch, earrings.
-SVG.avatars = {
-  // M1: Tricorne captain with full brown beard
-  m1: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#2A1810"/><rect x="12" y="26" width="8" height="6" fill="#3D2418"/><rect x="15" y="25" width="2" height="7" fill="#E0A93B"/><rect x="9" y="10" width="14" height="14" fill="#E8C49D"/><rect x="8" y="11" width="1" height="12" fill="#D3A87B"/><rect x="23" y="11" width="1" height="12" fill="#D3A87B"/><rect x="6" y="5" width="20" height="2" fill="#1A0E08"/><rect x="5" y="7" width="22" height="3" fill="#1A0E08"/><rect x="11" y="4" width="10" height="1" fill="#1A0E08"/><rect x="15" y="9" width="2" height="1" fill="#E0A93B"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="11" y="19" width="10" height="2" fill="#5A3A1F"/><rect x="12" y="21" width="8" height="2" fill="#5A3A1F"/><rect x="13" y="23" width="6" height="1" fill="#5A3A1F"/><rect x="13" y="18" width="6" height="1" fill="#5A3A1F"/></svg>`,
-  // M2: Red bandana + eyepatch + goatee
-  m2: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#3D2418"/><rect x="9" y="10" width="14" height="14" fill="#C49460"/><rect x="8" y="11" width="1" height="12" fill="#9C6E45"/><rect x="23" y="11" width="1" height="12" fill="#9C6E45"/><rect x="8" y="7" width="16" height="4" fill="#C8362D"/><rect x="8" y="7" width="16" height="1" fill="#E25347"/><rect x="20" y="11" width="3" height="3" fill="#C8362D"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="10" y="13" width="4" height="4" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="8" y="14" width="2" height="1" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#9C6E45"/><rect x="14" y="20" width="4" height="2" fill="#1A0E08"/><rect x="15" y="22" width="2" height="2" fill="#1A0E08"/><rect x="13" y="19" width="6" height="1" fill="#1A0E08"/></svg>`,
-  // M3: Captain's hat with feather, grey beard
-  m3: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#1A0E08"/><rect x="12" y="26" width="8" height="6" fill="#5A3A1F"/><rect x="15" y="25" width="2" height="7" fill="#E0A93B"/><rect x="9" y="10" width="14" height="14" fill="#8B5A2B"/><rect x="8" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="23" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="5" y="6" width="22" height="4" fill="#1A0E08"/><rect x="9" y="4" width="14" height="2" fill="#1A0E08"/><rect x="7" y="3" width="2" height="3" fill="#C8362D"/><rect x="6" y="2" width="2" height="2" fill="#C8362D"/><rect x="15" y="8" width="2" height="2" fill="#F7E7C2"/><rect x="14" y="9" width="4" height="1" fill="#F7E7C2"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#6B3F1E"/><rect x="11" y="19" width="10" height="2" fill="#D9D9D9"/><rect x="12" y="21" width="8" height="2" fill="#D9D9D9"/><rect x="13" y="23" width="6" height="1" fill="#D9D9D9"/><rect x="13" y="18" width="6" height="1" fill="#D9D9D9"/></svg>`,
-  // M4: Bald with scar + hoop earring
-  m4: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#2A1810"/><rect x="12" y="26" width="8" height="6" fill="#3D2418"/><rect x="9" y="8" width="14" height="16" fill="#E8C49D"/><rect x="8" y="9" width="1" height="14" fill="#D3A87B"/><rect x="23" y="9" width="1" height="14" fill="#D3A87B"/><rect x="10" y="7" width="12" height="1" fill="#D3A87B"/><rect x="11" y="6" width="10" height="1" fill="#D3A87B"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="14" y="10" width="4" height="1" fill="#9C5A45"/><rect x="13" y="11" width="1" height="1" fill="#9C5A45"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="13" y="21" width="6" height="1" fill="#5A3A1F"/><rect x="11" y="22" width="10" height="2" fill="#5A3A1F"/><rect x="22" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="17" width="1" height="2" fill="#1A0E08"/></svg>`,
-  // M5: Skull tricorne, blond mustache (no beard)
-  m5: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#3D2418"/><rect x="12" y="26" width="8" height="6" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#E8C49D"/><rect x="8" y="11" width="1" height="12" fill="#D3A87B"/><rect x="23" y="11" width="1" height="12" fill="#D3A87B"/><rect x="6" y="5" width="20" height="2" fill="#1A0E08"/><rect x="5" y="7" width="22" height="3" fill="#1A0E08"/><rect x="11" y="4" width="10" height="1" fill="#1A0E08"/><rect x="14" y="7" width="4" height="3" fill="#F7E7C2"/><rect x="15" y="8" width="1" height="1" fill="#1A0E08"/><rect x="16" y="8" width="1" height="1" fill="#1A0E08"/><rect x="15" y="10" width="2" height="1" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="11" y="13" width="2" height="1" fill="#FFD86B"/><rect x="19" y="13" width="2" height="1" fill="#FFD86B"/><rect x="12" y="14" width="1" height="1" fill="#5BC9D1"/><rect x="20" y="14" width="1" height="1" fill="#5BC9D1"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="13" y="19" width="6" height="1" fill="#FFD86B"/><rect x="14" y="20" width="4" height="1" fill="#FFD86B"/><rect x="14" y="22" width="4" height="1" fill="#1A0E08"/></svg>`,
-  // F1: Red bandana with long black braid + hoop earrings
-  f1: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#E8C49D"/><rect x="8" y="11" width="1" height="12" fill="#D3A87B"/><rect x="23" y="11" width="1" height="12" fill="#D3A87B"/><rect x="8" y="9" width="16" height="2" fill="#1A0E08"/><rect x="8" y="7" width="16" height="3" fill="#C8362D"/><rect x="8" y="7" width="16" height="1" fill="#E25347"/><rect x="20" y="10" width="3" height="3" fill="#C8362D"/><rect x="14" y="22" width="4" height="8" fill="#1A0E08"/><rect x="15" y="22" width="2" height="10" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="11" y="13" width="2" height="1" fill="#1A0E08"/><rect x="19" y="13" width="2" height="1" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#D3A87B"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/><rect x="7" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="16" width="2" height="2" fill="#E0A93B"/></svg>`,
-  // F2: Black tricorne + brown braid behind shoulder
-  f2: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#3D2418"/><rect x="12" y="26" width="8" height="6" fill="#8B5A2B"/><rect x="9" y="10" width="14" height="14" fill="#C49460"/><rect x="8" y="11" width="1" height="12" fill="#9C6E45"/><rect x="23" y="11" width="1" height="12" fill="#9C6E45"/><rect x="6" y="5" width="20" height="2" fill="#1A0E08"/><rect x="5" y="7" width="22" height="3" fill="#1A0E08"/><rect x="11" y="4" width="10" height="1" fill="#1A0E08"/><rect x="15" y="9" width="2" height="1" fill="#E0A93B"/><rect x="22" y="12" width="3" height="6" fill="#8C6418"/><rect x="22" y="18" width="2" height="4" fill="#8C6418"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="14" y="13" width="3" height="1" fill="#1A0E08"/><rect x="19" y="13" width="2" height="1" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#9C6E45"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/></svg>`,
-  // F3: Captain's hat with red feather, red curly hair, hoops
-  f3: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#1A0E08"/><rect x="12" y="26" width="8" height="6" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#8B5A2B"/><rect x="8" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="23" y="11" width="1" height="12" fill="#6B3F1E"/><rect x="5" y="6" width="22" height="4" fill="#1A0E08"/><rect x="9" y="4" width="14" height="2" fill="#1A0E08"/><rect x="7" y="3" width="2" height="3" fill="#C8362D"/><rect x="6" y="2" width="2" height="2" fill="#C8362D"/><rect x="15" y="8" width="2" height="2" fill="#FFD86B"/><rect x="14" y="9" width="4" height="1" fill="#FFD86B"/><rect x="8" y="10" width="2" height="6" fill="#C8362D"/><rect x="22" y="10" width="2" height="6" fill="#C8362D"/><rect x="7" y="11" width="1" height="4" fill="#C8362D"/><rect x="24" y="11" width="1" height="4" fill="#C8362D"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#6B3F1E"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/><rect x="7" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="16" width="2" height="2" fill="#E0A93B"/></svg>`,
-  // F4: Eyepatch + long blonde wavy hair + neck scarf
-  f4: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#2A1810"/><rect x="10" y="23" width="12" height="3" fill="#5BC9D1"/><rect x="9" y="10" width="14" height="14" fill="#F2D2A8"/><rect x="8" y="11" width="1" height="12" fill="#D9B585"/><rect x="23" y="11" width="1" height="12" fill="#D9B585"/><rect x="8" y="6" width="16" height="6" fill="#FFD86B"/><rect x="7" y="9" width="2" height="10" fill="#FFD86B"/><rect x="23" y="9" width="2" height="10" fill="#FFD86B"/><rect x="6" y="12" width="2" height="6" fill="#FFD86B"/><rect x="24" y="12" width="2" height="6" fill="#FFD86B"/><rect x="9" y="5" width="14" height="2" fill="#FFD86B"/><rect x="8" y="8" width="2" height="2" fill="#E0A93B"/><rect x="22" y="8" width="2" height="2" fill="#E0A93B"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="10" y="13" width="4" height="4" fill="#1A0E08"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="9" y="14" width="1" height="2" fill="#1A0E08"/><rect x="15" y="17" width="2" height="2" fill="#D9B585"/><rect x="13" y="20" width="6" height="2" fill="#C8362D"/><rect x="14" y="21" width="4" height="1" fill="#FFD86B"/></svg>`,
-  // F5: Bandana with bow, dark skin, big smile, hoop earrings
-  f5: `<svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#1E2D4A"/><rect x="11" y="25" width="10" height="7" fill="#5A3A1F"/><rect x="9" y="10" width="14" height="14" fill="#6B3F1E"/><rect x="8" y="11" width="1" height="12" fill="#4D2A14"/><rect x="23" y="11" width="1" height="12" fill="#4D2A14"/><rect x="8" y="7" width="16" height="3" fill="#5BC9D1"/><rect x="8" y="7" width="16" height="1" fill="#8FE0E5"/><rect x="20" y="10" width="3" height="3" fill="#5BC9D1"/><rect x="22" y="6" width="3" height="2" fill="#5BC9D1"/><rect x="24" y="5" width="2" height="3" fill="#5BC9D1"/><rect x="11" y="14" width="2" height="2" fill="#1A0E08"/><rect x="19" y="14" width="2" height="2" fill="#1A0E08"/><rect x="12" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="20" y="14" width="1" height="1" fill="#F7E7C2"/><rect x="15" y="17" width="2" height="2" fill="#4D2A14"/><rect x="13" y="20" width="6" height="2" fill="#F7E7C2"/><rect x="13" y="21" width="6" height="1" fill="#C8362D"/><rect x="7" y="16" width="2" height="2" fill="#E0A93B"/><rect x="23" y="16" width="2" height="2" fill="#E0A93B"/></svg>`,
-};
-
-const AVATAR_LIST = ['m1', 'm2', 'm3', 'm4', 'm5', 'f1', 'f2', 'f3', 'f4', 'f5'];
 
 /* ============================================================
    Routing
@@ -1501,16 +1433,6 @@ function showCrewClaimModal() {
   root.appendChild(wrap);
 }
 
-async function setAvatar(avatarId) {
-  try {
-    await callSetProfile({ avatarId });
-    showToast(t('Avatar updated.'), 'success');
-    audio.coin();
-  } catch (err) {
-    showToast(t('Could not set avatar: {msg}', { msg: err.message }), 'error', 5000);
-  }
-}
-
 async function setDigestEnabled(enabled) {
   try {
     await callSetProfile({ digestEnabled: !!enabled });
@@ -1697,33 +1619,8 @@ async function sendScrollAction(teamId, toUid, message, bountyId) {
   }
 }
 
-function showSkinPicker() {
-  const current = skin.current();
-  const body = `
-    <p style="margin: 0 0 12px;">${esc(t('Pick a look. Persists across visits on this browser.'))}</p>
-    <div class="skin-picker-grid">
-      ${SKIN_OPTIONS.map((s) => `
-        <button class="skin-card ${s.id === current ? 'selected' : ''}" data-action="pick-skin" data-id="${esc(s.id)}">
-          <div class="skin-preview skin-preview-${s.id}">${s.id === 'basic' ? 'Time Off' : (s.id === 'dark-knight' ? '> Time Off_' : 'TIME OFF')}</div>
-          <div class="skin-card-meta">
-            <strong>${esc(t(s.label))}</strong>
-            <small>${esc(t(s.desc))}</small>
-          </div>
-        </button>
-      `).join('')}
-    </div>
-  `;
-  showModal({
-    title: t('Choose a skin'),
-    body,
-    wide: true,
-    primaryLabel: t('Close'),
-  });
-}
-
 function showAvatarPicker() {
   const u = state.user || {};
-  const current = state.userDoc?.avatarId ?? null;
   const digestEnabled = state.userDoc?.digestEnabled !== false; // default true
   const team = state.teamId ? state.myTeams.find((t) => t.id === state.teamId) : null;
   const wallet = state.walletDoc;
@@ -2561,39 +2458,44 @@ function closeAllModals() {
 
 function showWelcomeModal() {
   state.onboardingScene = 0;
-  renderStanScene();
+  renderOnboardScene();
 }
 
-function renderStanScene() {
+const ONBOARD_GLYPH = `<svg viewBox="0 0 40 40" width="60" height="60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="20" cy="22" r="12.5"/><path d="M20 5.5v12"/></svg>`;
+
+function renderOnboardScene() {
   const idx = state.onboardingScene;
-  const scene = STAN_SCENES[idx];
-  const isLast = idx === STAN_SCENES.length - 1;
+  const scene = ONBOARD_SCENES[idx];
+  const isLast = idx === ONBOARD_SCENES.length - 1;
+  const art = scene.art === 'coin'
+    ? `<div class="onb-art onb-coin">${SVG.doubloon}</div>`
+    : `<div class="onb-art onb-glyph">${ONBOARD_GLYPH}</div>`;
   const body = `
-    <div class="stan-scene">
-      <div class="stan-portrait">${SVG.stan}</div>
-      <div class="stan-speech"><p>${esc(t(scene.speech))}</p></div>
-    </div>
-    <div class="stan-progress">
-      ${STAN_SCENES.map((_, i) => `<span class="stan-dot ${i === idx ? 'active' : ''}"></span>`).join('')}
-    </div>
-  `;
+    <div class="onb-scene">
+      ${art}
+      <h3 class="onb-title">${esc(t(scene.title))}</h3>
+      <p class="onb-body">${esc(t(scene.body))}</p>
+      <div class="onb-progress">
+        ${ONBOARD_SCENES.map((_, i) => `<span class="onb-dot ${i === idx ? 'active' : ''}"></span>`).join('')}
+      </div>
+    </div>`;
   showModal({
-    title: t('Stan, Harbormaster'),
+    title: t('Getting started'),
     body,
-    primaryLabel: isLast ? t('Set sail') : t('Next'),
+    primaryLabel: isLast ? t('Get started') : t('Next'),
     secondaryLabel: idx === 0 ? t('Skip') : t('Back'),
     onPrimary: () => {
       audio.click();
       if (!isLast) {
         state.onboardingScene = idx + 1;
-        setTimeout(renderStanScene, 0);
+        setTimeout(renderOnboardScene, 0);
       }
     },
     onSecondary: () => {
       audio.click();
       if (idx > 0) {
         state.onboardingScene = idx - 1;
-        setTimeout(renderStanScene, 0);
+        setTimeout(renderOnboardScene, 0);
       }
     },
   });
@@ -2965,10 +2867,6 @@ function renderLogin() {
               </svg>${esc(t('Sign in with Google'))}`}
           </button>
         </div>
-      </div>
-      <div class="mascot-floater">
-        <div class="mascot-bubble">${esc(t(pickMascotLine()))}</div>
-        <div class="mascot-sprite">${SVG.turtle}</div>
       </div>
     </div>
   `;
@@ -4139,11 +4037,7 @@ function renderMembersTab() {
         ${members.map((m) => {
           const isMe = m.uid === state.user?.uid;
           const rank = computeRank({ lifetimeEarned: m.lifetimeEarned, voyages: m.voyages, weekendCovers: 0, bountiesPosted: 0, stipendExpired: 0, crewCount: 1 });
-          const avatarHtml = m.avatarId && SVG.avatars[m.avatarId]
-            ? `<span class="avatar-img" style="width:48px;height:48px;display:inline-block;">${SVG.avatars[m.avatarId]}</span>`
-            : m.photoURL
-              ? `<img class="avatar-img" src="${esc(m.photoURL)}" alt="" referrerpolicy="no-referrer" style="width:48px;height:48px;" />`
-              : `<span class="avatar-img avatar-fallback" style="width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;background:var(--parchment-dim);color:var(--ink-pure);font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:14px;">${esc(initials(m.displayName))}</span>`;
+          const avatarHtml = renderAvatar({ uid: m.uid, photoURL: m.photoURL, name: m.displayName, size: 48, klass: 'avatar-img' });
           return `
             <li class="member-card ${isMe ? 'me' : ''}">
               ${avatarHtml}
@@ -4415,26 +4309,9 @@ document.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     showSendScrollModal(t.dataset.toUid, t.dataset.toName, null);
-  } else if (action === 'open-skin-picker') {
-    e.preventDefault();
-    showSkinPicker();
-  } else if (action === 'pick-skin') {
-    e.preventDefault();
-    skin.set(t.dataset.id);
-    document.querySelectorAll('.skin-card').forEach((el) => el.classList.toggle('selected', el === t));
-    showToast(tr('Skin applied.'), 'success', 2500);
-    render();
   } else if (action === 'pick-avatar-open') {
     e.preventDefault();
     showAvatarPicker();
-  } else if (action === 'pick-avatar') {
-    e.preventDefault();
-    setAvatar(t.dataset.id);
-    document.querySelectorAll('.avatar-tile').forEach((el) => el.classList.toggle('selected', el === t));
-  } else if (action === 'clear-avatar') {
-    e.preventDefault();
-    setAvatar(null);
-    document.querySelectorAll('.avatar-tile').forEach((el) => el.classList.remove('selected'));
   } else if (action === 'toggle-digest') {
     // Don't preventDefault — the checkbox should toggle visually.
     setDigestEnabled(t.checked);
@@ -4638,13 +4515,6 @@ document.addEventListener('change', (e) => {
     renderUserInfo();
     // Re-open the profile sheet in the new language so the change is
     // visible where it was made.
-    closeAllModals();
-    showAvatarPicker();
-  }
-  if (e.target.matches?.('[data-action="toggle-voice"]')) {
-    voice.set(e.target.checked ? 'pirate' : 'plain');
-    render();
-    renderUserInfo();
     closeAllModals();
     showAvatarPicker();
   }

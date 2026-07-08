@@ -4875,3 +4875,14 @@ label {
 [data-skin="unplugged"] .avatar-img, [data-skin="unplugged"] .avatar-slot img { border-radius: 50%; }
 [data-skin="unplugged"] .avatar-mini { border-radius: 8px; }
 [data-skin="unplugged"] .avatar-mini-blank { background: #E7DECE; border-radius: 8px; box-shadow: none; }
+
+/* ---- Unplugged onboarding ---- */
+[data-skin="unplugged"] .onb-scene { text-align: center; padding: 10px 6px 4px; }
+[data-skin="unplugged"] .onb-art { display: flex; justify-content: center; margin-bottom: 16px; }
+[data-skin="unplugged"] .onb-glyph { color: #5F6E51; }
+[data-skin="unplugged"] .onb-coin svg { width: 60px; height: 60px; }
+[data-skin="unplugged"] .onb-title { font-size: 24px; margin: 0 0 8px; }
+[data-skin="unplugged"] .onb-body { color: #6b6459; font-size: 15px; max-width: 380px; margin: 0 auto; line-height: 1.55; }
+[data-skin="unplugged"] .onb-progress { display: flex; justify-content: center; gap: 6px; margin-top: 22px; }
+[data-skin="unplugged"] .onb-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(36,32,26,.18); transition: width 200ms var(--u-ease, ease), background 200ms; }
+[data-skin="unplugged"] .onb-dot.active { background: #5F6E51; width: 20px; border-radius: 100px; }

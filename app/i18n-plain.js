@@ -192,24 +192,10 @@ export const PLAIN = {
   'A crewmate claims it and gets your briefing — accounts, meetings, SLA.': { en: 'A teammate claims it and gets your briefing — accounts, meetings, SLA.', es: 'Un compañero la reclama y recibe tu briefing — cuentas, reuniones, SLA.' },
   'They earn doubloons day by day. Spend yours on your next trip.': { en: 'They earn credits day by day. Spend yours on your next trip.', es: 'Ganan créditos día a día. Gasta los tuyos en tu próximo viaje.' },
   'Pick a crew to manage bounties, or raise your own colours.': { en: 'Pick a team to manage requests, or create your own.', es: 'Elige un equipo para gestionar solicitudes, o crea el tuyo.' },
-  'Stan, Harbormaster': { en: 'Getting started', es: 'Primeros pasos' },
-  'Set sail': { en: 'Get started', es: 'Empezar' },
-  "Ahoy! I'm Stan, harbormaster of Mêlée Bay. New deckhand? Let me show you the ropes.": { en: "Welcome to Time Off. New here? Let me show you how it works.", es: 'Bienvenido a Time Off. ¿Nuevo por aquí? Te muestro cómo funciona.' },
-  'Doubloons are how we trade coverage. 5 buy you one day of shore leave. Weekend? Twice as dear — the Crown insists.': { en: 'Credits are how we trade coverage. 5 buy you one day of time off. Weekends cost double.', es: 'Los créditos son la moneda de la cobertura. Con 5 compras un día libre. El fin de semana cuesta el doble.' },
-  'Your starter chest holds 125 doubloons — 25 business days of leave from day one. Spend wisely.': { en: 'Your starting balance is 125 credits — 25 business days of leave from day one. Spend wisely.', es: 'Tu saldo inicial es de 125 créditos — 25 días laborables de permiso desde el primer día. Gástalos con cabeza.' },
-  "Every month the Crown drops 11 more stipend doubloons in your purse — that's the year-after-year budget. Use them or watch them vanish at month's end.": { en: "Every month the company adds 11 allowance credits to your balance — that's the year-after-year budget. Use them or lose them at month's end.", es: 'Cada mes la empresa añade 11 créditos de asignación a tu saldo — ese es el presupuesto año tras año. Úsalos o los pierdes a fin de mes.' },
-  "Cover a crewmate's bounty and earn their doubloons as the days pass. Patience, sailor — payouts release one day at a time.": { en: "Cover a teammate's request and earn their credits as the days pass. Payouts release one day at a time.", es: 'Cubre la solicitud de un compañero y gana sus créditos con el paso de los días. Los pagos se liberan día a día.' },
-  "Top earners over 90 days get the captain's hat on the Wall of Fame. Now form a crew and post your first bounty!": { en: 'Top earners over 90 days lead the Leaderboard. Now create a team and post your first request!', es: 'Quien más gana en 90 días encabeza la Clasificación. ¡Crea un equipo y publica tu primera solicitud!' },
 
   // ---- Mascot lines ----
-  '"Ahoy, weary TAM!"': { en: '"Welcome back."', es: '"Bienvenido de nuevo."' },
-  '"Coins, or coverage?"': { en: '"Plan your time off."', es: '"Planifica tu tiempo libre."' },
-  '"Need a week ashore?"': { en: '"Need a week off?"', es: '"¿Necesitas una semana libre?"' },
-  '"Even pirates take leave."': { en: '"Everyone needs a break."', es: '"Todos necesitamos un descanso."' },
-  '"Doubloons jingle softly."': { en: '"Your balance is ready."', es: '"Tu saldo está listo."' },
 
   // ---- Avatar / skins ----
-  'Pirate (Monkey Island)': { en: 'Pirate (Monkey Island)', es: 'Pirata (Monkey Island)' },
 
   // ---- Misc leftovers ----
   'Unreachable — true shore leave': { en: 'Unreachable — fully off', es: 'Ilocalizable — desconexión total' },

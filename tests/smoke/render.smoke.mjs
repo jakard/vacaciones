@@ -66,12 +66,12 @@ const firebaseConfig = { projectId: 'demo', appId: '1:0:web:0', apiKey: 'demo', 
 const bridge = `
 ;globalThis.__TO = {
   state, render, renderUserInfo, t, tr, lang, voice, skin, audio, esc,
-  computeStats, computeRank, RANKS, STAN_SCENES, SVG,
+  computeStats, computeRank, RANKS, ONBOARD_SCENES, SVG,
   showRankCinematic, maybeShowRankCinematic,
-  showAvatarPicker, showSkinPicker, showBountyDetail,
+  showAvatarPicker, showBountyDetail,
   showSendScrollModal, showGrantBonusModal, showMemberAdminModal,
   showEditBountyModal, showDeleteAccountModal, showDisbandCrewModal,
-  showManageCrewModal, showWelcomeModal, renderStanScene,
+  showManageCrewModal, showWelcomeModal, renderOnboardScene,
   startCrewClaim, confirmCancelBounty, closeAllModals, topUpGrantAction,
   launchCoinShower, showToast, showAccountsEditor,
 };
@@ -404,7 +404,6 @@ for (const vlang of ['pirate:en', 'pirate:es', 'plain:en', 'plain:es']) {
 
   // Modals
   openModalAndScan(`${L} profile sheet`, () => T.showAvatarPicker());
-  openModalAndScan(`${L} skin picker`, () => T.showSkinPicker());
   openModalAndScan(`${L} bounty detail open(single)`, () => T.showBountyDetail('b1'));
   openModalAndScan(`${L} bounty detail crew`, () => T.showBountyDetail('b2'));
   openModalAndScan(`${L} bounty detail mine-accepted`, () => T.showBountyDetail('b3'));
