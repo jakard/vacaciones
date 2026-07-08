@@ -54,7 +54,7 @@ const U = { uid: 'me', displayName: 'Raul Sosa', email: 'raul@example.com', phot
 
 function base() {
   s.authReady = true; s.user = { ...U }; s.userDoc = { digestEnabled: true };
-  s.lang = 'en'; s.bellOpen = false; s.ledger = []; s.bounties = []; s.scrolls = [];
+  s.lang = 'en'; s.bellOpen = false; s.ledger = []; s.bounties = []; s.bountiesLoaded = true; s.scrolls = [];
   s.crewMembers = []; s.leaderboard = null; s.myAccounts = [];
 }
 function seedHome({ empty = false } = {}) {
@@ -102,5 +102,11 @@ const OUT = new URL('../../app/', import.meta.url);
 seedHome(); T.render(); writeFileSync(new URL('_prev-home.html', OUT), page('Home — teams'));
 seedHome({ empty: true }); T.render(); writeFileSync(new URL('_prev-empty.html', OUT), page('Home — empty'));
 seedBoard(); T.render(); writeFileSync(new URL('_prev-board.html', OUT), page('Team board'));
+// Error state (false-empty fix): board failed to load.
+seedBoard(); s.bounties = []; s.bountiesLoaded = false; s.bountiesError = 'You appear to be offline. Trying to reconnect…';
+T.render(); writeFileSync(new URL('_prev-board-error.html', OUT), page('Team board — error'));
+// Loading state: subscription not yet resolved.
+seedBoard(); s.bounties = []; s.bountiesLoaded = false; s.bountiesError = null;
+T.render(); writeFileSync(new URL('_prev-board-loading.html', OUT), page('Team board — loading'));
 base(); s.view = 'login'; T.render(); writeFileSync(new URL('_prev-login.html', OUT), page('Login'));
-console.log('wrote _prev-home.html, _prev-empty.html, _prev-board.html, _prev-login.html');
+console.log('wrote _prev-home/empty/board/board-error/board-loading/login.html');

@@ -159,6 +159,7 @@ function seedState({ empty = false } = {}) {
     hangoutLink: 'https://meet.google.com/x', htmlLink: 'https://calendar.google.com/x',
     conferenceLinks: ['https://zoom.us/j/1'], attendees: [{ email: 'a@x.com' }], location: 'Sala 4',
   });
+  s.bountiesLoaded = true; // load resolved — empty means "no bounties", not "loading"
   s.bounties = empty ? [] : [
     { id: 'b1', status: 'open', requesterUid: 'ana', requesterDisplayName: OTHER.displayName, requesterPhotoURL: null,
       windowStart: ts(86400e3), windowEnd: ts(5 * 86400e3), timezone: 'Europe/Madrid',
