@@ -87,6 +87,16 @@ function seedBoard() {
   ];
   s.prevLedgerIds = new Set();
 }
+function seedPost(step) {
+  seedBoard(); s.teamTab = 'post'; s.postStep = step;
+  s.myAccounts = [{ id: 'acme', name: 'Acme Corp' }, { id: 'globex', name: 'Globex' }];
+  s.formState = {
+    startDate: '2026-07-13', endDate: '2026-07-17', timezone: 'Europe/Madrid',
+    reachability: ['email-only-emergencies'], coverageKinds: ['inbox', 'meetings'], coverageScope: 'Acme + 2 SMBs',
+    sla: 'Reply to P1s within 4h', emergencyDef: '', meetings: [], selectedDayKeys: [],
+    coverageMode: 'crew', accountIds: ['acme', 'globex'], selectedCells: [], cellsTouched: false,
+  };
+}
 
 function page(title) {
   const body = document.body.innerHTML.replace(/<header([^>]*)\shidden/, '<header$1');
@@ -108,5 +118,7 @@ T.render(); writeFileSync(new URL('_prev-board-error.html', OUT), page('Team boa
 // Loading state: subscription not yet resolved.
 seedBoard(); s.bounties = []; s.bountiesLoaded = false; s.bountiesError = null;
 T.render(); writeFileSync(new URL('_prev-board-loading.html', OUT), page('Team board — loading'));
+// Post-bounty wizard — one preview per step.
+for (const st of [1, 2, 3]) { seedPost(st); T.render(); writeFileSync(new URL(`_prev-post-${st}.html`, OUT), page(`Post — step ${st}`)); }
 base(); s.view = 'login'; T.render(); writeFileSync(new URL('_prev-login.html', OUT), page('Login'));
-console.log('wrote _prev-home/empty/board/board-error/board-loading/login.html');
+console.log('wrote _prev-home/empty/board/board-error/board-loading/post-1..3/login.html');
