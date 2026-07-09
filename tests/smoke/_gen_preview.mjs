@@ -89,12 +89,13 @@ function seedBoard() {
 }
 function seedPost(step) {
   seedBoard(); s.teamTab = 'post'; s.postStep = step;
-  s.myAccounts = [{ id: 'acme', name: 'Acme Corp' }, { id: 'globex', name: 'Globex' }];
+  // Reproduce the wide-matrix case: 3 accounts × a 4-week window.
+  s.myAccounts = [{ id: 'merca', name: 'Mercadona' }, { id: 'sant', name: 'Santander' }, { id: 'chk', name: 'Checkout.com' }];
   s.formState = {
-    startDate: '2026-07-13', endDate: '2026-07-17', timezone: 'Europe/Madrid',
-    reachability: ['email-only-emergencies'], coverageKinds: ['inbox', 'meetings'], coverageScope: 'Acme + 2 SMBs',
+    startDate: '2026-07-13', endDate: '2026-08-07', timezone: 'Europe/Madrid',
+    reachability: ['email-only-emergencies'], coverageKinds: ['inbox', 'meetings'], coverageScope: '',
     sla: 'Reply to P1s within 4h', emergencyDef: '', meetings: [], selectedDayKeys: [],
-    coverageMode: 'crew', accountIds: ['acme', 'globex'], selectedCells: [], cellsTouched: false,
+    coverageMode: 'single', accountIds: ['merca', 'sant', 'chk'], selectedCells: [], cellsTouched: false,
   };
 }
 

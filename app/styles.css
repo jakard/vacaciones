@@ -1193,7 +1193,11 @@ label {
   gap: var(--sp-3) var(--sp-4);
   margin-bottom: var(--sp-3);
 }
-.form-grid label.wide { grid-column: 1 / -1; }
+/* Any full-width field group (label OR div: the day/matrix picker, coverage
+   mode, meetings) spans both columns. min-width:0 lets a wide child (the
+   account×day matrix) scroll inside .matrix-wrap instead of growing the grid
+   track and squishing the neighbouring cell. */
+.form-grid > .wide { grid-column: 1 / -1; min-width: 0; }
 .form-grid label > span {
   font-family: var(--font-display);
   font-size: 11px;
