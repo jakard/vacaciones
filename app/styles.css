@@ -3749,23 +3749,15 @@ label {
 [data-skin="unplugged"] .wizard-nav .btn { margin-left: auto; }
 
 /* ============================================================
-   Large-screen adaptation. The base layout capped content at a
-   lonely 1200px column centred on wide monitors (~half the screen
-   empty on 1440p+). Widen the shell and flow card lists into
-   columns so the width is actually used. Team screens live in
-   .shell; home uses .team-list directly.
+   Large-screen adaptation. A calm coverage feed is usually sparse
+   (a handful of bounties), so a multi-column grid left lonely
+   half-width cards. Keep ONE centred column; feed rows fill the
+   main area (like a normal issue list), forms/explainer stay at a
+   human reading width. Balanced side margins read as intentional.
    ============================================================ */
 @media (min-width: 1500px) {
-  main { max-width: 1560px; }
-  .shell { max-width: 1440px; }
-  .bounties, .team-list { grid-template-columns: 1fr 1fr; }
+  main { max-width: 1400px; }
+  .shell { max-width: 1280px; }
 }
-@media (min-width: 2100px) {
-  main { max-width: 1960px; }
-  .shell { max-width: 1820px; }
-  .bounties, .team-list { grid-template-columns: 1fr 1fr 1fr; }
-}
-/* Forms and long-form reading stay at a human width rather than
-   stretching across the whole widened column. */
 [data-skin="unplugged"] .create-card { max-width: 980px; }
-[data-skin="unplugged"] .howto { max-width: 1100px; }
+[data-skin="unplugged"] .howto { max-width: 1120px; }
