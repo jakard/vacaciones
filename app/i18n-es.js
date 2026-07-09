@@ -214,7 +214,6 @@ export const ES = {
   'Who covers what': 'Quién cubre qué',
   'Terms & review': 'Términos y revisión',
   'Step {n} of {total}': 'Paso {n} de {total}',
-  'Pick your dates to continue': 'Elige tus fechas para continuar',
   'The bounty board is empty.': 'El tablón está vacío.',
   'Nothing matches this filter.': 'Nada coincide con este filtro.',
   'Loading the board…': 'Cargando el tablón…',

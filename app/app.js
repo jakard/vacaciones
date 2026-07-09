@@ -947,6 +947,9 @@ function applyRoute() {
   state.view = r.view;
   state.teamTab = r.tab ?? 'bounties';
   state.bellOpen = false;
+  // Re-entering the Post tab always restarts the wizard at step 1 (post-next /
+  // post-back drive postStep via render(), not navigation, so they're unaffected).
+  if (state.teamTab === 'post') state.postStep = 1;
 
   // Lazy load leaderboard when wof tab opens
   if (state.view === 'team' && state.teamTab === 'wof') refreshLeaderboard();
@@ -1254,6 +1257,36 @@ async function postBounty() {
     navigate('team', state.teamId, 'bounties');
   } catch (err) { showToast(err.message, 'error', 6000); }
   finally { state.busy.postRequest = false; render(); }
+}
+
+// What each wizard step requires before you can leave it. Mirrors postBounty()'s
+// backstop checks so the user never reaches a later step — or posts via Enter —
+// with an unfilled earlier step and a dead-end error toast pointing at a hidden
+// field. Returns an error message, or null when the step is complete.
+function validatePostStep(step) {
+  const f = state.formState;
+  if (step === 1) {
+    if (!(f.startDate && f.endDate && f.endDate >= f.startDate)) return t('Pick a valid date window.');
+    if (arr(f.reachability).length === 0) return t('Pick at least one reachability option.');
+  } else if (step === 2) {
+    if (postUsesMatrix()) {
+      if (arr(f.selectedCells).length === 0) return t('Pick at least one account-day to be covered.');
+    } else if (arr(f.selectedDayKeys).length === 0) {
+      return t('Pick at least one day to be covered.');
+    }
+  }
+  return null;
+}
+
+// Advance the post wizard (Next button, or Enter on a non-final step). Syncs the
+// visible step into formState, gates on that step's requirements, then advances.
+function advancePostStep() {
+  const form = document.getElementById('create-form');
+  if (form) syncFormStateFromDom(form);
+  const err = validatePostStep(state.postStep || 1);
+  if (err) { showToast(err, 'error'); return; }
+  state.postStep = Math.min(3, (state.postStep || 1) + 1);
+  render();
 }
 
 // opts: { cells: [{accountId,dayKey}] } (account-split bounties) or
@@ -3089,6 +3122,10 @@ function applyNextWeekPreset() {
   f.startDate = iso(monday);
   f.endDate = iso(friday);
   f.selectedDayKeys = allDayKeysInRange(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+  // Mirror the date-change reset so a previously-cleared matrix doesn't survive
+  // the preset and leave the prefilled window with zero coverage selected.
+  f.selectedCells = [];
+  f.cellsTouched = false;
   if (f.reachability.length === 0) f.reachability = ['email-only-emergencies'];
   if (!f.sla) f.sla = t('Reply to P1s within 4h');
   f.coverageMode = f.coverageMode || 'single';
@@ -3673,8 +3710,6 @@ function renderPostTab() {
   const cost = computeCurrentPostCost();
   const step = state.postStep || 1;
   const STEP_TITLES = [t('When you’re out'), t('Who covers what'), t('Terms & review')];
-  // The only hard gate: a valid date window before leaving step 1.
-  const datesValid = !!(f.startDate && f.endDate && f.endDate >= f.startDate);
   const active = (n) => (step === n ? ' is-active' : '');
   return `
     <div class="create-card" data-active-step="${step}">
@@ -3770,12 +3805,7 @@ function renderPostTab() {
 
         <div class="wizard-nav">
           <button type="button" class="btn-secondary" data-action="post-back" ${step === 1 ? 'style="visibility:hidden"' : ''}>${esc(t('Back'))}</button>
-          ${step < 3 ? `
-            <div class="wizard-nav-end">
-              ${step === 1 && !datesValid ? `<span class="wizard-hint">${esc(t('Pick your dates to continue'))}</span>` : ''}
-              <button type="button" class="btn" data-action="post-next" ${step === 1 && !datesValid ? 'disabled' : ''}>${esc(t('Next'))}</button>
-            </div>
-          ` : ''}
+          ${step < 3 ? `<button type="button" class="btn" data-action="post-next">${esc(t('Next'))}</button>` : ''}
         </div>
       </form>
     </div>
@@ -4224,7 +4254,9 @@ document.addEventListener('click', async (e) => {
     addAllBountyMeetings(t.dataset.bountyId);
   } else if (action === 'retry-bounties') {
     e.preventDefault();
-    if (state.teamId) subscribeTeam(state.teamId);
+    // Tear down first (like the router does) so we don't orphan the still-live
+    // wallet/ledger/scrolls/member listeners; render() to paint the loading state.
+    if (state.teamId) { teardownTeamSubs(); subscribeTeam(state.teamId); render(); }
   } else if (action === 'clear-search') {
     e.preventDefault();
     state.bountyFilterText = '';
@@ -4243,15 +4275,7 @@ document.addEventListener('click', async (e) => {
     render();
   } else if (action === 'post-next') {
     e.preventDefault();
-    const form = document.getElementById('create-form');
-    if (form) syncFormStateFromDom(form); // persist current step before advancing
-    const f = state.formState;
-    if (state.postStep === 1 && !(f.startDate && f.endDate && f.endDate >= f.startDate)) {
-      showToast(t('Pick a valid date window.'), 'error');
-      return;
-    }
-    state.postStep = Math.min(3, (state.postStep || 1) + 1);
-    render();
+    advancePostStep();
   } else if (action === 'post-back') {
     e.preventDefault();
     const form = document.getElementById('create-form');
@@ -4352,6 +4376,11 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('submit', async (e) => {
   if (e.target.id === 'create-form') {
     e.preventDefault();
+    // The submit button lives in step 3 but stays mounted (display:none) on
+    // earlier steps, so pressing Enter in a step-1/2 field would otherwise post
+    // the bounty and skip the wizard. Only step 3 actually posts; on earlier
+    // steps, Enter advances the wizard (with that step's validation).
+    if ((state.postStep || 1) < 3) { advancePostStep(); return; }
     syncFormStateFromDom(e.target);
     await postBounty();
   }

@@ -3746,5 +3746,4 @@ label {
 [data-skin="unplugged"] .wizard-dot.done { background: #9db08c; }
 [data-skin="unplugged"] .wizard-step-name { margin-top: 9px; font-size: 12px; font-weight: 600; color: #6b6459; }
 [data-skin="unplugged"] .wizard-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(36,32,26,.10); }
-[data-skin="unplugged"] .wizard-nav-end { display: flex; align-items: center; gap: 12px; margin-left: auto; }
-[data-skin="unplugged"] .wizard-hint { font-size: 13px; color: #6b6459; }
+[data-skin="unplugged"] .wizard-nav .btn { margin-left: auto; }
