@@ -316,6 +316,7 @@ const state = {
   leaderboard: null,
   leaderboardLoading: false,
   onboardingScene: 0,
+  postStep: 1, // post-bounty wizard: 1 dates/kinds · 2 who-covers · 3 terms/review
   bellOpen: false,
   notifLastSeen: Number(localStorage.getItem('vacaciones.notifLastSeen') || '0'),
   achievedIds: new Set(JSON.parse(localStorage.getItem('vacaciones.achievedIds') || '[]')),
@@ -946,6 +947,9 @@ function applyRoute() {
   state.view = r.view;
   state.teamTab = r.tab ?? 'bounties';
   state.bellOpen = false;
+  // Re-entering the Post tab always restarts the wizard at step 1 (post-next /
+  // post-back drive postStep via render(), not navigation, so they're unaffected).
+  if (state.teamTab === 'post') state.postStep = 1;
 
   // Lazy load leaderboard when wof tab opens
   if (state.view === 'team' && state.teamTab === 'wof') refreshLeaderboard();
@@ -1249,9 +1253,40 @@ async function postBounty() {
     };
     state.calendarEvents = [];
     state.calendarLastWindow = null;
+    state.postStep = 1; // reset the wizard for the next post
     navigate('team', state.teamId, 'bounties');
   } catch (err) { showToast(err.message, 'error', 6000); }
   finally { state.busy.postRequest = false; render(); }
+}
+
+// What each wizard step requires before you can leave it. Mirrors postBounty()'s
+// backstop checks so the user never reaches a later step — or posts via Enter —
+// with an unfilled earlier step and a dead-end error toast pointing at a hidden
+// field. Returns an error message, or null when the step is complete.
+function validatePostStep(step) {
+  const f = state.formState;
+  if (step === 1) {
+    if (!(f.startDate && f.endDate && f.endDate >= f.startDate)) return t('Pick a valid date window.');
+    if (arr(f.reachability).length === 0) return t('Pick at least one reachability option.');
+  } else if (step === 2) {
+    if (postUsesMatrix()) {
+      if (arr(f.selectedCells).length === 0) return t('Pick at least one account-day to be covered.');
+    } else if (arr(f.selectedDayKeys).length === 0) {
+      return t('Pick at least one day to be covered.');
+    }
+  }
+  return null;
+}
+
+// Advance the post wizard (Next button, or Enter on a non-final step). Syncs the
+// visible step into formState, gates on that step's requirements, then advances.
+function advancePostStep() {
+  const form = document.getElementById('create-form');
+  if (form) syncFormStateFromDom(form);
+  const err = validatePostStep(state.postStep || 1);
+  if (err) { showToast(err, 'error'); return; }
+  state.postStep = Math.min(3, (state.postStep || 1) + 1);
+  render();
 }
 
 // opts: { cells: [{accountId,dayKey}] } (account-split bounties) or
@@ -3087,9 +3122,14 @@ function applyNextWeekPreset() {
   f.startDate = iso(monday);
   f.endDate = iso(friday);
   f.selectedDayKeys = allDayKeysInRange(parseLocalDate(f.startDate), parseLocalDate(f.endDate));
+  // Mirror the date-change reset so a previously-cleared matrix doesn't survive
+  // the preset and leave the prefilled window with zero coverage selected.
+  f.selectedCells = [];
+  f.cellsTouched = false;
   if (f.reachability.length === 0) f.reachability = ['email-only-emergencies'];
   if (!f.sla) f.sla = t('Reply to P1s within 4h');
   f.coverageMode = f.coverageMode || 'single';
+  state.postStep = 1; // land on step 1 so the prefilled dates are reviewed first
   navigate('team', state.teamId, 'post');
   render();
   showToast(t('Prefilled next week (Mon–Fri). Adjust and post.'), 'success', 4000);
@@ -3668,80 +3708,104 @@ function renderPostTab() {
   state.formState.timezone = tz;
   const f = state.formState;
   const cost = computeCurrentPostCost();
+  const step = state.postStep || 1;
+  const STEP_TITLES = [t('When you’re out'), t('Who covers what'), t('Terms & review')];
+  const active = (n) => (step === n ? ' is-active' : '');
   return `
-    <div class="create-card">
+    <div class="create-card" data-active-step="${step}">
       <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
         <span>${esc(t('Post a bounty'))}</span>
         <button type="button" class="btn-ghost" data-action="preset-next-week">${esc(t("I'm out next week"))}</button>
       </div>
-      <p class="muted" style="font-family: var(--font-body); font-size: 18px; margin: 0 0 14px;">
-        ${esc(t('{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.', { x: ECONOMY.WEEKEND_MULTIPLIER }))}
-      </p>
+      <div class="wizard-progress" role="group" aria-label="${esc(t('Step {n} of {total}', { n: step, total: 3 }))}">
+        <div class="wizard-dots">${[1, 2, 3].map((n) => `<span class="wizard-dot ${n === step ? 'active' : ''} ${n < step ? 'done' : ''}"></span>`).join('')}</div>
+        <div class="wizard-step-name">${esc(t('Step {n} of {total}', { n: step, total: 3 }))} · ${esc(STEP_TITLES[step - 1])}</div>
+      </div>
       <form id="create-form" autocomplete="off">
-        <div class="form-grid">
-          <label><span>${esc(t('Shore leave from'))}</span><input type="date" name="startDate" value="${esc(f.startDate)}" /></label>
-          <label><span>${esc(t('Returning by'))}</span><input type="date" name="endDate" value="${esc(f.endDate)}" /></label>
-          <label class="wide"><span>${esc(t('Timezone'))}</span><input type="text" name="timezone" value="${esc(tz)}" /></label>
-          <label class="wide">
-            <span>${esc(t('What you’re covered for · pick any'))}</span>
-            <div class="check-group">
-              ${COVERAGE_KIND_OPTIONS.map((k) => `
-                <label class="check-pixel">
-                  <input type="checkbox" name="coverageKinds" value="${esc(k.value)}" ${f.coverageKinds.includes(k.value) ? 'checked' : ''}/>
-                  <span class="check-box"></span>
-                  <span class="check-label">${spriteIcon(k.sprite)} ${esc(t(k.label))}</span>
+        <!-- All three steps stay mounted; only visibility toggles, so FormData
+             stays whole and syncFormStateFromDom() never loses off-screen fields.
+             Never switch this to DOM removal / [hidden]. -->
+        <section class="wizard-step${active(1)}" data-step="1">
+          <p class="muted" style="font-family: var(--font-body); font-size: 15px; margin: 0 0 14px;">
+            ${esc(t('{x}× multiplier on Saturdays and Sundays. Doubloons leave your chest and sit in escrow until a crewmate covers.', { x: ECONOMY.WEEKEND_MULTIPLIER }))}
+          </p>
+          <div class="form-grid">
+            <label><span>${esc(t('Shore leave from'))}</span><input type="date" name="startDate" value="${esc(f.startDate)}" /></label>
+            <label><span>${esc(t('Returning by'))}</span><input type="date" name="endDate" value="${esc(f.endDate)}" /></label>
+            <label class="wide"><span>${esc(t('Timezone'))}</span><input type="text" name="timezone" value="${esc(tz)}" /></label>
+            <label class="wide">
+              <span>${esc(t('What you’re covered for · pick any'))}</span>
+              <div class="check-group">
+                ${COVERAGE_KIND_OPTIONS.map((k) => `
+                  <label class="check-pixel">
+                    <input type="checkbox" name="coverageKinds" value="${esc(k.value)}" ${f.coverageKinds.includes(k.value) ? 'checked' : ''}/>
+                    <span class="check-box"></span>
+                    <span class="check-label">${spriteIcon(k.sprite)} ${esc(t(k.label))}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </label>
+            <label class="wide">
+              <span>${esc(t('How reachable while away · pick any'))}</span>
+              <div class="check-group">
+                ${REACHABILITY_OPTIONS.map((r) => `
+                  <label class="check-pixel">
+                    <input type="checkbox" name="reachability" value="${esc(r.value)}" ${f.reachability.includes(r.value) ? 'checked' : ''}/>
+                    <span class="check-box"></span>
+                    <span class="check-label">${spriteIcon(r.sprite)} ${esc(t(r.label))}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </label>
+            <label class="wide"><span>${esc(t('Coverage scope · which accounts / responsibilities'))}</span><input type="text" name="coverageScope" placeholder="${esc(t('e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp'))}" value="${esc(f.coverageScope)}" /></label>
+          </div>
+        </section>
+
+        <section class="wizard-step${active(2)}" data-step="2">
+          <div class="form-grid">
+            <div class="wide" id="day-picker-host">
+              ${renderPickerHostInner()}
+            </div>
+            <div class="wide">
+              <span class="field-eyebrow">${esc(t('Coverage mode'))}</span>
+              <div class="mode-toggle">
+                <label class="mode-option">
+                  <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
+                  <div>
+                    <strong>${esc(t('Single coverer'))}</strong>
+                    <small>${esc(t('One crewmate takes the whole window. Some clients want only one person on the rotation.'))}</small>
+                  </div>
                 </label>
-              `).join('')}
-            </div>
-          </label>
-          <label class="wide">
-            <span>${esc(t('How reachable while away · pick any'))}</span>
-            <div class="check-group">
-              ${REACHABILITY_OPTIONS.map((r) => `
-                <label class="check-pixel">
-                  <input type="checkbox" name="reachability" value="${esc(r.value)}" ${f.reachability.includes(r.value) ? 'checked' : ''}/>
-                  <span class="check-box"></span>
-                  <span class="check-label">${spriteIcon(r.sprite)} ${esc(t(r.label))}</span>
+                <label class="mode-option">
+                  <input type="radio" name="coverageMode" value="crew" ${f.coverageMode === 'crew' ? 'checked' : ''} />
+                  <div>
+                    <strong>${esc(t('Crew coverage'))}</strong>
+                    <small>${esc(t('Several crewmates can split the days. Long vacations get covered faster.'))}</small>
+                  </div>
                 </label>
-              `).join('')}
+              </div>
             </div>
-          </label>
-          <div class="wide" id="day-picker-host">
-            ${renderPickerHostInner()}
-          </div>
-
-          <div class="wide">
-            <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Coverage mode'))}</span>
-            <div class="mode-toggle">
-              <label class="mode-option">
-                <input type="radio" name="coverageMode" value="single" ${(f.coverageMode || 'single') === 'single' ? 'checked' : ''} />
-                <div>
-                  <strong>${esc(t('Single coverer'))}</strong>
-                  <small>${esc(t('One crewmate takes the whole window. Some clients want only one person on the rotation.'))}</small>
-                </div>
-              </label>
-              <label class="mode-option">
-                <input type="radio" name="coverageMode" value="crew" ${f.coverageMode === 'crew' ? 'checked' : ''} />
-                <div>
-                  <strong>${esc(t('Crew coverage'))}</strong>
-                  <small>${esc(t('Several crewmates can split the days. Long vacations get covered faster.'))}</small>
-                </div>
-              </label>
+            <div class="wide" id="meetings-picker-host">
+              <span class="field-eyebrow">${esc(t('Meetings to be covered'))}</span>
+              ${renderMeetingsPicker()}
             </div>
           </div>
+        </section>
 
-          <label class="wide"><span>${esc(t('Coverage scope · which accounts / responsibilities'))}</span><input type="text" name="coverageScope" placeholder="${esc(t('e.g. Acme + 2 SMBs · my weekly 1:1s with BigCorp'))}" value="${esc(f.coverageScope)}" /></label>
-
-          <div class="wide" id="meetings-picker-host">
-            <span style="font-family: var(--font-body); font-weight: 700; font-size: 11px; color: var(--ink-pure); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block;">${esc(t('Meetings to be covered'))}</span>
-            ${renderMeetingsPicker()}
+        <section class="wizard-step${active(3)}" data-step="3">
+          <div class="form-grid">
+            <label class="wide"><span>${esc(t('SLA the coverer should hold'))}</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
+            <label class="wide"><span>${esc(t('What counts as a real emergency? (optional)'))}</span><textarea name="emergencyDef" rows="2" placeholder="${esc(t('“Wake me only if Acme’s production is down.”'))}">${esc(f.emergencyDef)}</textarea></label>
           </div>
-          <label class="wide"><span>${esc(t('SLA the coverer should hold'))}</span><input type="text" name="sla" value="${esc(f.sla)}" /></label>
-          <label class="wide"><span>${esc(t('What counts as a real emergency? (optional)'))}</span><textarea name="emergencyDef" rows="2" placeholder="${esc(t('“Wake me only if Acme’s production is down.”'))}">${esc(f.emergencyDef)}</textarea></label>
-        </div>
-        <div class="preview-row">
-          <div class="preview">${renderCostPreviewInner(cost, postUsesMatrix())}</div>
-          <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${esc(state.busy.postRequest ? t('Posting…') : t('Post bounty'))}</button>
+          <div class="preview-row">
+            <div class="preview">${renderCostPreviewInner(cost, postUsesMatrix())}</div>
+            <button type="submit" class="btn btn-large" ${state.busy.postRequest ? 'disabled' : ''}>${esc(state.busy.postRequest ? t('Posting…') : t('Post bounty'))}</button>
+          </div>
+        </section>
+
+        <div class="wizard-nav">
+          <button type="button" class="btn-secondary" data-action="post-back" ${step === 1 ? 'style="visibility:hidden"' : ''}>${esc(t('Back'))}</button>
+          ${step < 3 ? `<button type="button" class="btn" data-action="post-next">${esc(t('Next'))}</button>` : ''}
         </div>
       </form>
     </div>
@@ -4190,7 +4254,9 @@ document.addEventListener('click', async (e) => {
     addAllBountyMeetings(t.dataset.bountyId);
   } else if (action === 'retry-bounties') {
     e.preventDefault();
-    if (state.teamId) subscribeTeam(state.teamId);
+    // Tear down first (like the router does) so we don't orphan the still-live
+    // wallet/ledger/scrolls/member listeners; render() to paint the loading state.
+    if (state.teamId) { teardownTeamSubs(); subscribeTeam(state.teamId); render(); }
   } else if (action === 'clear-search') {
     e.preventDefault();
     state.bountyFilterText = '';
@@ -4206,6 +4272,15 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'dismiss-how') {
     e.preventDefault();
     localStorage.setItem('vacaciones.howDismissed', '1');
+    render();
+  } else if (action === 'post-next') {
+    e.preventDefault();
+    advancePostStep();
+  } else if (action === 'post-back') {
+    e.preventDefault();
+    const form = document.getElementById('create-form');
+    if (form) syncFormStateFromDom(form);
+    state.postStep = Math.max(1, (state.postStep || 1) - 1);
     render();
   } else if (action === 'preset-next-week') {
     e.preventDefault();
@@ -4301,6 +4376,11 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('submit', async (e) => {
   if (e.target.id === 'create-form') {
     e.preventDefault();
+    // The submit button lives in step 3 but stays mounted (display:none) on
+    // earlier steps, so pressing Enter in a step-1/2 field would otherwise post
+    // the bounty and skip the wizard. Only step 3 actually posts; on earlier
+    // steps, Enter advances the wizard (with that step's validation).
+    if ((state.postStep || 1) < 3) { advancePostStep(); return; }
     syncFormStateFromDom(e.target);
     await postBounty();
   }
