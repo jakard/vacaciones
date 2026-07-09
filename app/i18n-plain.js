@@ -208,7 +208,7 @@ export const PLAIN = {
   'Pick dates above to see your meetings in that window.': { en: 'Pick dates above to see your meetings in that window.', es: 'Elige fechas arriba para ver tus reuniones en esa ventana.' },
 
   // ---- Help page ----
-  'How Time Off works': { en: 'How Time Off works', es: 'Cómo funciona Time Off' },
+  'How Unplugged works': { en: 'How Unplugged works', es: 'Cómo funciona Unplugged' },
   "Your purse, your starter chest, the Crown's stipend": { en: 'Your balance, your starting grant, the monthly allowance', es: 'Tu saldo, tu bono inicial, la asignación mensual' },
   'Every crewmate starts with <strong>125 doubloons</strong> the first time they join a crew — enough to cover ~25 business days of leave right away. On top of that, the Crown drops <strong>11 doubloons</strong> every month into your stipend purse. Stipend doubloons expire at the end of each month, so spend them or lose them. Earned doubloons (the ones you got by covering crewmates) never expire.': {
     en: 'Every teammate starts with <strong>125 credits</strong> the first time they join a team — enough to cover ~25 business days of leave right away. On top of that, the company adds <strong>11 credits</strong> every month to your allowance balance. Allowance credits expire at the end of each month, so spend them or lose them. Earned credits (the ones you got by covering teammates) never expire.',

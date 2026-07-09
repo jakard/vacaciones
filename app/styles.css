@@ -1193,7 +1193,11 @@ label {
   gap: var(--sp-3) var(--sp-4);
   margin-bottom: var(--sp-3);
 }
-.form-grid label.wide { grid-column: 1 / -1; }
+/* Any full-width field group (label OR div: the day/matrix picker, coverage
+   mode, meetings) spans both columns. min-width:0 lets a wide child (the
+   account×day matrix) scroll inside .matrix-wrap instead of growing the grid
+   track and squishing the neighbouring cell. */
+.form-grid > .wide { grid-column: 1 / -1; min-width: 0; }
 .form-grid label > span {
   font-family: var(--font-display);
   font-size: 11px;
@@ -3747,3 +3751,52 @@ label {
 [data-skin="unplugged"] .wizard-step-name { margin-top: 9px; font-size: 12px; font-weight: 600; color: #6b6459; }
 [data-skin="unplugged"] .wizard-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(36,32,26,.10); }
 [data-skin="unplugged"] .wizard-nav .btn { margin-left: auto; }
+
+/* ============================================================
+   Large-screen adaptation. A calm coverage feed is usually sparse,
+   so instead of stretching it, a right info rail (credits · rank ·
+   activity) fills the width with something useful. The rail is
+   hidden below 1300px; the shell widens to make room for it.
+   ============================================================ */
+.rail { display: none; }
+@media (min-width: 1300px) {
+  main { max-width: 1560px; }
+  .shell { max-width: 1440px; }
+  .rail {
+    display: flex; flex-direction: column; gap: 14px;
+    flex: 0 0 300px; align-self: flex-start;
+    position: sticky; top: 16px; margin-left: 28px;
+  }
+}
+@media (min-width: 1760px) {
+  .shell { max-width: 1560px; }
+  .rail { flex-basis: 340px; }
+}
+[data-skin="unplugged"] .create-card { max-width: 980px; }
+[data-skin="unplugged"] .howto { max-width: 1120px; }
+
+/* Rail cards */
+[data-skin="unplugged"] .rail-card {
+  background: #FBF8F1; border: 1px solid rgba(36,32,26,.10); border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(36,32,26,.06); padding: 16px 18px;
+}
+[data-skin="unplugged"] .rail-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: #6b6459; margin-bottom: 10px;
+}
+[data-skin="unplugged"] .rail-balance { display: flex; align-items: center; gap: 8px; }
+[data-skin="unplugged"] .rail-balance .coin-16, [data-skin="unplugged"] .rail-balance .coin-16 svg { width: 26px; height: 26px; }
+[data-skin="unplugged"] .rail-balance strong { font-family: var(--font-display); font-size: 30px; font-weight: 700; color: #24201A; letter-spacing: -.02em; }
+[data-skin="unplugged"] .rail-split { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: 12px; color: #6b6459; }
+[data-skin="unplugged"] .rail-link { display: inline-block; margin-top: 12px; padding: 0; font-size: 13px; }
+[data-skin="unplugged"] .rail-rank { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: #24201A; }
+[data-skin="unplugged"] .rail-bar { height: 6px; border-radius: 100px; background: rgba(36,32,26,.10); margin: 10px 0 8px; overflow: hidden; }
+[data-skin="unplugged"] .rail-bar > span { display: block; height: 100%; background: #5F6E51; border-radius: 100px; }
+[data-skin="unplugged"] .rail-hint { font-size: 12px; color: #6b6459; }
+[data-skin="unplugged"] .rail-activity { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+[data-skin="unplugged"] .rail-activity li { display: flex; gap: 10px; align-items: flex-start; }
+[data-skin="unplugged"] .rail-ic { color: #5F6E51; display: inline-flex; margin-top: 1px; flex-shrink: 0; }
+[data-skin="unplugged"] .rail-ic svg { width: 16px; height: 16px; }
+[data-skin="unplugged"] .rail-atext { font-size: 13px; color: #4a4438; line-height: 1.35; }
+[data-skin="unplugged"] .rail-atext small { display: block; color: #6b6459; font-size: 11px; margin-top: 2px; }
+[data-skin="unplugged"] .rail-empty { font-size: 13px; color: #6b6459; margin: 0; }

@@ -114,7 +114,7 @@ const BRAND_ORIGIN = 'https://vacaciones-dev-b3158.web.app';
 export function wrapTemplate(args: TemplateArgs): string {
   const { preheader = '', title, bodyHtml, ctaLabel, ctaUrl } = args;
   const footer = args.footer ??
-    `You're receiving this because you're a member of a Time Off crew. ` +
+    `You're receiving this because you're a member of an Unplugged crew. ` +
     `<a href="${BRAND_ORIGIN}" style="color:#D97757">Manage notifications</a>.`;
   const cta = ctaLabel && ctaUrl
     ? `<table cellpadding="0" cellspacing="0" style="margin:24px 0;">
