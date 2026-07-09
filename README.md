@@ -1,4 +1,4 @@
-# Time Off
+# Unplugged
 
 A vacation-coverage **marketplace** for Google TAMs with a virtual
 doubloon economy. When you go OOO you post a *bounty*; crewmates claim
@@ -9,7 +9,7 @@ Earned doubloons never expire; the monthly stipend does. Top coverers
 over a rolling 90 days get the Wall of Fame.
 
 **Live:** https://vacaciones-dev-b3158.web.app
-*(internally codenamed "Vacaciones"; user-facing name is Time Off)*
+*(internally codenamed "Vacaciones"; user-facing name is Unplugged)*
 
 ## Architecture (actual)
 
@@ -66,7 +66,7 @@ own auth) and deploy to it in one command:
 
 ```bash
 scripts/bootstrap-gcp.sh --project-id timeoff-acme-prod \
-  --project-name "Time Off (Acme)" --billing-account <ID> --alias prod-acme
+  --project-name "Unplugged (Acme)" --billing-account <ID> --alias prod-acme
 ```
 
 It creates the project, links billing, enables APIs, creates Firestore,

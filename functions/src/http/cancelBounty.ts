@@ -130,7 +130,7 @@ export const cancelBounty = onCall<unknown, Promise<CancelResult>>(
               <p style="margin:0 0 12px;"><strong>${esc(cancellerName)}</strong> cancelled a bounty you had claimed.</p>
               <p style="margin:0 0 12px;">Any unreleased doubloons have been refunded to the requester. The days you already covered remain in your earned balance.</p>
               <p style="margin:0;color:#7E7B73;font-size:13px;">Open the app to see what else is available in the crew.</p>`,
-            ctaLabel: 'Open Time Off',
+            ctaLabel: 'Open Unplugged',
             ctaUrl: `${BRAND_URL}/#/team/${encodeURIComponent(teamId)}`,
           });
           await queueMail(db, {

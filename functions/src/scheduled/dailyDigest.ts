@@ -189,7 +189,7 @@ async function buildAndQueue(
     bodyHtml: `<p style="margin:0 0 8px;">Good morning, ${esc((user.displayName ?? '').split(' ')[0] || 'crewmate')}.</p>
       <p style="margin:0;color:#7E7B73;font-size:14px;">Here's what's happening in <strong>${esc(teamName)}</strong> since your last digest.</p>
       ${sections.join('')}`,
-    ctaLabel: 'Open Time Off',
+    ctaLabel: 'Open Unplugged',
     ctaUrl: `${BRAND_URL}/#/team/${encodeURIComponent(teamId)}`,
   });
 
