@@ -3005,6 +3005,45 @@ const NAV_ICONS = {
   back: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
 };
 
+// Right-hand info rail for the board — shown only on wide screens (CSS gates
+// visibility) so a sparse feed still fills the width with something useful:
+// your credits, rank progress, and recent activity.
+function renderBoardRail() {
+  const w = state.walletDoc;
+  const earned = w?.earnedBalance ?? 0;
+  const stipend = w?.stipendBalance ?? 0;
+  const stats = computeStats();
+  const rank = computeRank(stats);
+  const notifs = computeNotifications().slice(0, 5);
+  const base = `#/team/${esc(state.teamId)}`;
+  return `
+    <aside class="rail" aria-label="${esc(t('Your summary'))}">
+      <div class="rail-card">
+        <div class="rail-eyebrow">${esc(t('Your credits'))}</div>
+        <div class="rail-balance"><span class="coin-16">${SVG.doubloon}</span><strong>${earned + stipend}</strong></div>
+        <div class="rail-split">
+          <span>${esc(t('{n} earned', { n: earned }))}</span>
+          <span>${esc(t('{n} stipend', { n: stipend }))}</span>
+        </div>
+        <a class="btn-ghost rail-link" href="${base}/chest">${esc(t('Open wallet'))} →</a>
+      </div>
+      <div class="rail-card">
+        <div class="rail-eyebrow">${esc(t('Your rank'))}</div>
+        <div class="rail-rank">${esc(t(rank.name))}</div>
+        ${rank.nextName ? `
+          <div class="rail-bar"><span style="width: ${Math.round(rank.progress * 100)}%"></span></div>
+          <div class="rail-hint">${esc(t('{n} to {rank}', { n: rank.toNext, rank: t(rank.nextName) }))}</div>
+        ` : `<div class="rail-hint">${esc(t('Top rank reached'))}</div>`}
+      </div>
+      <div class="rail-card">
+        <div class="rail-eyebrow">${esc(t('Recent activity'))}</div>
+        ${notifs.length ? `<ul class="rail-activity">${notifs.map((n) => `
+          <li><span class="rail-ic" aria-hidden="true">${n.icon}</span><span class="rail-atext">${esc(n.text)}<small>${esc(timeAgo(n.time))}</small></span></li>
+        `).join('')}</ul>` : `<p class="rail-empty">${esc(t('Nothing yet.'))}</p>`}
+      </div>
+    </aside>`;
+}
+
 function renderTeam() {
   const team = state.myTeams.find((t) => t.id === state.teamId);
   if (!team) {
@@ -3069,6 +3108,7 @@ function renderTeam() {
         </div>
         ${body}
       </div>
+      ${tab === 'bounties' ? renderBoardRail() : ''}
     </div>
   `;
 }
