@@ -3747,3 +3747,25 @@ label {
 [data-skin="unplugged"] .wizard-step-name { margin-top: 9px; font-size: 12px; font-weight: 600; color: #6b6459; }
 [data-skin="unplugged"] .wizard-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(36,32,26,.10); }
 [data-skin="unplugged"] .wizard-nav .btn { margin-left: auto; }
+
+/* ============================================================
+   Large-screen adaptation. The base layout capped content at a
+   lonely 1200px column centred on wide monitors (~half the screen
+   empty on 1440p+). Widen the shell and flow card lists into
+   columns so the width is actually used. Team screens live in
+   .shell; home uses .team-list directly.
+   ============================================================ */
+@media (min-width: 1500px) {
+  main { max-width: 1560px; }
+  .shell { max-width: 1440px; }
+  .bounties, .team-list { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 2100px) {
+  main { max-width: 1960px; }
+  .shell { max-width: 1820px; }
+  .bounties, .team-list { grid-template-columns: 1fr 1fr 1fr; }
+}
+/* Forms and long-form reading stay at a human width rather than
+   stretching across the whole widened column. */
+[data-skin="unplugged"] .create-card { max-width: 980px; }
+[data-skin="unplugged"] .howto { max-width: 1100px; }
